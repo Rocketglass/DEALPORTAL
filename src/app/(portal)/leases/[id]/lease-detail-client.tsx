@@ -195,6 +195,9 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
+  // PDF generation state
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -278,6 +281,30 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
 
   function handleDownloadPdf() {
     window.open(`/api/leases/${lease.id}/pdf`, '_blank');
+  }
+
+  async function handleGeneratePdf() {
+    setGeneratingPdf(true);
+    try {
+      const res = await fetch(`/api/leases/${lease.id}/generate-pdf`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast({ title: 'PDF generation failed', description: json.error ?? 'Please try again', variant: 'error' });
+        return;
+      }
+      // Open the PDF blob in a new tab
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      toast({ title: 'Lease PDF generated', variant: 'success' });
+      router.refresh();
+    } catch {
+      toast({ title: 'Network error', description: 'Could not generate PDF', variant: 'error' });
+    } finally {
+      setGeneratingPdf(false);
+    }
   }
 
   // DocuSign signer list derived from lease status
@@ -369,6 +396,17 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
                 <Button variant="secondary" icon={Pencil} onClick={() => setIsEditing(true)}>
                   Edit Lease
                 </Button>
+                {['draft', 'review'].includes(lease.status) && (
+                  <Button
+                    variant="secondary"
+                    icon={FileText}
+                    onClick={handleGeneratePdf}
+                    loading={generatingPdf}
+                    disabled={generatingPdf}
+                  >
+                    {generatingPdf ? 'Generating…' : 'Generate PDF'}
+                  </Button>
+                )}
                 {['draft', 'review'].includes(lease.status) && (
                   <Button
                     variant="primary"

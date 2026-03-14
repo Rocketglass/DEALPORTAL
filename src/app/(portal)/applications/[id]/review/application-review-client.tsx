@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Building2,
@@ -17,6 +17,9 @@ import {
   Download,
   Eye,
   X,
+  Upload,
+  PenLine,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDate, formatSqft } from '@/lib/utils';
@@ -25,6 +28,8 @@ import { Badge } from '@/components/ui/badge';
 import { BackButton } from '@/components/ui/back-button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { PdfViewer } from '@/components/ui/pdf-viewer';
 import type {
   ApplicationDocument,
   CreditCheckStatus,
@@ -118,6 +123,261 @@ function SectionCard({
 }
 
 // ============================================================
+// Credit Check Dropdown
+// ============================================================
+
+function CreditCheckDropdown({
+  applicationId,
+  onComplete,
+  disabled,
+}: {
+  applicationId: string;
+  onComplete: (score: number, date: string) => void;
+  disabled: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [mode, setMode] = useState<'menu' | 'upload' | 'manual' | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [manualScore, setManualScore] = useState('');
+  const [manualDate, setManualDate] = useState(
+    new Date().toISOString().split('T')[0]
+  );
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+        setMode(null);
+        setError(null);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  async function handleFileUpload(file: File) {
+    setUploading(true);
+    setError(null);
+    try {
+      // Upload the credit report document
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('documentType', 'credit_report');
+
+      const uploadRes = await fetch(
+        `/api/applications/${applicationId}/documents`,
+        { method: 'POST', body: formData }
+      );
+
+      if (!uploadRes.ok) {
+        const json = await uploadRes.json().catch(() => ({}));
+        throw new Error(json.error ?? 'Failed to upload credit report');
+      }
+
+      const uploadData = await uploadRes.json();
+
+      // Now prompt for the score — switch to manual mode with the report URL
+      setMode('manual');
+      setError(null);
+
+      // Store the report URL for when the user submits the score
+      (dropdownRef.current as HTMLDivElement & { _reportUrl?: string })._reportUrl =
+        uploadData.fileUrl;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleManualSubmit() {
+    const score = parseInt(manualScore, 10);
+    if (isNaN(score) || score < 300 || score > 850) {
+      setError('Score must be between 300 and 850');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const creditReportUrl =
+        (dropdownRef.current as HTMLDivElement & { _reportUrl?: string })?._reportUrl;
+
+      const res = await fetch(`/api/applications/${applicationId}/credit-check`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credit_score: score,
+          credit_check_date: manualDate,
+          ...(creditReportUrl ? { credit_report_url: creditReportUrl } : {}),
+        }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? 'Failed to save credit check');
+      }
+
+      onComplete(score, manualDate);
+      setIsOpen(false);
+      setMode(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <Button
+        variant="secondary"
+        size="md"
+        icon={CreditCard}
+        iconPosition="left"
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setMode(null);
+          setError(null);
+        }}
+        disabled={disabled}
+        className="w-full"
+      >
+        Run Credit Check
+        <ChevronDown className="h-3.5 w-3.5 ml-auto" />
+      </Button>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 mt-2 rounded-xl border border-[#e2e8f0] bg-white shadow-lg z-20">
+          {/* Error display */}
+          {error && (
+            <div className="mx-3 mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+              {error}
+            </div>
+          )}
+
+          {/* Menu mode — choose upload or manual */}
+          {(!mode || mode === 'menu') && (
+            <div className="p-2">
+              <button
+                onClick={() => {
+                  setMode('upload');
+                  setTimeout(() => fileInputRef.current?.click(), 100);
+                }}
+                disabled={uploading}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-left hover:bg-[#f1f5f9] transition-colors"
+              >
+                <Upload className="h-4 w-4 text-[#64748b]" />
+                <div>
+                  <p className="font-medium text-[#0f172a]">Upload Credit Report</p>
+                  <p className="text-xs text-[#64748b]">Upload a PDF credit report</p>
+                </div>
+              </button>
+              <button
+                onClick={() => setMode('manual')}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-left hover:bg-[#f1f5f9] transition-colors"
+              >
+                <PenLine className="h-4 w-4 text-[#64748b]" />
+                <div>
+                  <p className="font-medium text-[#0f172a]">Enter Score Manually</p>
+                  <p className="text-xs text-[#64748b]">Type in the credit score and date</p>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Upload mode — hidden file input */}
+          {mode === 'upload' && (
+            <div className="p-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileUpload(file);
+                }}
+              />
+              {uploading ? (
+                <div className="flex items-center justify-center gap-2 py-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#1e40af] border-t-transparent" />
+                  <span className="text-sm text-[#64748b]">Uploading...</span>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-sm text-[#64748b]">Select a PDF file to upload</p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Choose File
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Manual mode — score + date form */}
+          {mode === 'manual' && (
+            <div className="p-4 space-y-3">
+              <Input
+                label="Credit Score"
+                type="number"
+                min={300}
+                max={850}
+                placeholder="e.g. 720"
+                value={manualScore}
+                onChange={(e) => setManualScore(e.target.value)}
+                hint="Score between 300 and 850"
+              />
+              <Input
+                label="Check Date"
+                type="date"
+                value={manualDate}
+                onChange={(e) => setManualDate(e.target.value)}
+              />
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => {
+                    setMode(null);
+                    setError(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleManualSubmit}
+                  loading={saving}
+                  disabled={saving || !manualScore}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // Main Client Component
 // ============================================================
 
@@ -136,11 +396,15 @@ export function ApplicationReviewClient({ application }: Props) {
 
   const [creditStatus, setCreditStatus] = useState<CreditCheckStatus>(app.credit_check_status);
   const [creditScore, setCreditScore] = useState<number | null>(app.credit_score);
+  const [creditCheckDate, setCreditCheckDate] = useState<string | null>(app.credit_check_date);
   const [reviewNotes, setReviewNotes] = useState(app.review_notes || '');
   const [docReviewState, setDocReviewState] = useState<Record<string, boolean>>(
     Object.fromEntries(documents.map((d) => [d.id, d.reviewed]))
   );
   const [viewingDoc, setViewingDoc] = useState<ApplicationDocument | null>(null);
+  const [viewingDocUrl, setViewingDocUrl] = useState<string | null>(null);
+  const [docUrlLoading, setDocUrlLoading] = useState(false);
+  const [expandedDocGroups, setExpandedDocGroups] = useState<Record<string, boolean>>({});
   const [appStatus, setAppStatus] = useState<ApplicationStatus>(app.status);
   const [statusLoading, setStatusLoading] = useState(false);
   const [notesLoading, setNotesLoading] = useState(false);
@@ -195,16 +459,38 @@ export function ApplicationReviewClient({ application }: Props) {
     }
   }
 
-  function handleRunCreditCheck() {
-    setCreditStatus('pending');
-    setTimeout(() => {
-      setCreditStatus('completed');
-      setCreditScore(782);
-    }, 2000);
+  function handleCreditCheckComplete(score: number, date: string) {
+    setCreditStatus('completed');
+    setCreditScore(score);
+    setCreditCheckDate(date);
+    router.refresh();
   }
 
   function toggleDocReview(docId: string) {
     setDocReviewState((prev) => ({ ...prev, [docId]: !prev[docId] }));
+  }
+
+  async function handleViewDocument(doc: ApplicationDocument) {
+    setViewingDoc(doc);
+    setViewingDocUrl(null);
+    setDocUrlLoading(true);
+    try {
+      const res = await fetch(
+        `/api/applications/${app.id}/documents/${doc.id}/view`
+      );
+      if (res.ok) {
+        const json = await res.json();
+        setViewingDocUrl(json.url);
+      } else {
+        // Fallback: use the public file_url directly
+        setViewingDocUrl(doc.file_url);
+      }
+    } catch {
+      // Fallback to public URL on network error
+      setViewingDocUrl(doc.file_url);
+    } finally {
+      setDocUrlLoading(false);
+    }
   }
 
   return (
@@ -418,21 +704,34 @@ export function ApplicationReviewClient({ application }: Props) {
                   </span>
                 </button>
                 <div className="border-t border-border/50 pt-3">
-                  <Button
-                    variant="secondary"
-                    size="md"
-                    icon={CreditCard}
-                    onClick={handleRunCreditCheck}
-                    disabled={creditStatus === 'pending' || creditStatus === 'completed'}
-                    loading={creditStatus === 'pending'}
-                    className="w-full"
-                  >
-                    {creditStatus === 'pending'
-                      ? 'Running Credit Check...'
-                      : creditStatus === 'completed'
-                        ? 'Credit Check Complete'
-                        : 'Run Credit Check'}
-                  </Button>
+                  {creditStatus === 'completed' ? (
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      icon={CreditCard}
+                      disabled
+                      className="w-full"
+                    >
+                      Credit Check Complete
+                    </Button>
+                  ) : creditStatus === 'pending' ? (
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      icon={CreditCard}
+                      loading
+                      disabled
+                      className="w-full"
+                    >
+                      Running Credit Check...
+                    </Button>
+                  ) : (
+                    <CreditCheckDropdown
+                      applicationId={app.id}
+                      onComplete={handleCreditCheckComplete}
+                      disabled={false}
+                    />
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -470,6 +769,11 @@ export function ApplicationReviewClient({ application }: Props) {
                         ? 'Good'
                         : 'Below Average'}
                   </p>
+                  {creditCheckDate && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Checked {formatDate(creditCheckDate)}
+                    </p>
+                  )}
                 </div>
               )}
               {creditStatus === 'pending' && (
@@ -515,7 +819,7 @@ export function ApplicationReviewClient({ application }: Props) {
         </div>
       </div>
 
-      {/* Documents Section — full width */}
+      {/* Documents Section — full width, grouped by type with version control */}
       <div className="mt-8">
         <Card>
           <CardHeader icon={FileText}>
@@ -532,78 +836,225 @@ export function ApplicationReviewClient({ application }: Props) {
                 No documents uploaded yet.
               </p>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {documents.map((doc) => {
-                  const DocIcon = docTypeIcons[doc.document_type];
-                  const isReviewed = docReviewState[doc.id];
+              <div className="space-y-6">
+                {(() => {
+                  // Group documents by type, sorted by uploaded_at desc within each group
+                  const grouped: Record<string, ApplicationDocument[]> = {};
+                  for (const doc of documents) {
+                    const key = doc.document_type;
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(doc);
+                  }
+                  // Sort each group by uploaded_at descending (latest first)
+                  for (const key of Object.keys(grouped)) {
+                    grouped[key].sort(
+                      (a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
+                    );
+                  }
 
-                  return (
-                    <div
-                      key={doc.id}
-                      className={cn(
-                        'rounded-lg border p-4 transition-colors',
-                        isReviewed ? 'border-green-200 bg-green-50/50' : 'border-border'
-                      )}
-                    >
-                      <div className="flex items-start gap-3">
+                  return Object.entries(grouped).map(([docType, docs]) => {
+                    const latestDoc = docs[0];
+                    const olderDocs = docs.slice(1);
+                    const DocIcon = docTypeIcons[docType as DocumentType];
+                    const isLatestReviewed = docReviewState[latestDoc.id];
+                    const hasOlderVersions = olderDocs.length > 0;
+                    const showOlder = expandedDocGroups[docType] ?? false;
+
+                    return (
+                      <div key={docType}>
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                          {docTypeLabels[docType as DocumentType]}
+                          {docs.length > 1 && (
+                            <span className="ml-2 text-[10px] font-normal normal-case">
+                              ({docs.length} version{docs.length > 1 ? 's' : ''})
+                            </span>
+                          )}
+                        </h4>
+
+                        {/* Latest version (prominent) */}
                         <div
                           className={cn(
-                            'rounded-lg p-2',
-                            isReviewed ? 'bg-green-100' : 'bg-muted'
+                            'rounded-lg border p-4 transition-colors',
+                            isLatestReviewed ? 'border-green-200 bg-green-50/50' : 'border-border'
                           )}
                         >
-                          <DocIcon
-                            className={cn(
-                              'h-5 w-5',
-                              isReviewed ? 'text-green-600' : 'text-muted-foreground'
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={cn(
+                                'rounded-lg p-2',
+                                isLatestReviewed ? 'bg-green-100' : 'bg-muted'
+                              )}
+                            >
+                              <DocIcon
+                                className={cn(
+                                  'h-5 w-5',
+                                  isLatestReviewed ? 'text-green-600' : 'text-muted-foreground'
+                                )}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium truncate">{latestDoc.file_name}</p>
+                                {docs.length > 1 && (
+                                  <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                                    Latest
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {docTypeLabels[latestDoc.document_type]}
+                                {latestDoc.tax_year && ` · ${latestDoc.tax_year}`}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatFileSize(latestDoc.file_size_bytes)} · {formatDate(latestDoc.uploaded_at)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 mt-3">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              icon={Eye}
+                              onClick={() => handleViewDocument(latestDoc)}
+                              className="flex-1"
+                            >
+                              View
+                            </Button>
+                            <button
+                              onClick={() => toggleDocReview(latestDoc.id)}
+                              className={cn(
+                                'flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                                isLatestReviewed
+                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                  : 'border border-border text-muted-foreground hover:bg-muted'
+                              )}
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              {isLatestReviewed ? 'Reviewed' : 'Mark Reviewed'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Older versions (collapsible) */}
+                        {hasOlderVersions && (
+                          <div className="mt-2">
+                            <button
+                              onClick={() =>
+                                setExpandedDocGroups((prev) => ({
+                                  ...prev,
+                                  [docType]: !prev[docType],
+                                }))
+                              }
+                              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <ChevronDown
+                                className={cn(
+                                  'h-3.5 w-3.5 transition-transform',
+                                  showOlder && 'rotate-180'
+                                )}
+                              />
+                              {showOlder ? 'Hide' : 'Show'} {olderDocs.length} previous version{olderDocs.length > 1 ? 's' : ''}
+                            </button>
+
+                            {showOlder && (
+                              <div className="mt-2 space-y-2">
+                                {olderDocs.map((doc, versionIdx) => {
+                                  const OlderDocIcon = docTypeIcons[doc.document_type];
+                                  const isOlderReviewed = docReviewState[doc.id];
+                                  const versionNumber = docs.length - 1 - versionIdx;
+
+                                  return (
+                                    <div
+                                      key={doc.id}
+                                      className={cn(
+                                        'rounded-lg border p-3 transition-colors opacity-75',
+                                        isOlderReviewed ? 'border-green-200 bg-green-50/30' : 'border-border/60'
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <OlderDocIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <p className="text-xs font-medium truncate">{doc.file_name}</p>
+                                            <span className="text-[10px] text-muted-foreground">
+                                              v{versionNumber}
+                                            </span>
+                                          </div>
+                                          <p className="text-[11px] text-muted-foreground">
+                                            {formatFileSize(doc.file_size_bytes)} · {formatDate(doc.uploaded_at)}
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                          <button
+                                            onClick={() => handleViewDocument(doc)}
+                                            className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+                                          >
+                                            <Eye className="h-3 w-3" /> View
+                                          </button>
+                                          <button
+                                            onClick={() => toggleDocReview(doc.id)}
+                                            className={cn(
+                                              'inline-flex items-center rounded-lg px-2 py-1 text-[11px] font-medium transition-colors',
+                                              isOlderReviewed
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'border border-border text-muted-foreground hover:bg-muted'
+                                            )}
+                                          >
+                                            <CheckCircle2 className="h-3 w-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             )}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{doc.file_name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {docTypeLabels[doc.document_type]}
-                            {doc.tax_year && ` · ${doc.tax_year}`}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatFileSize(doc.file_size_bytes)} · {formatDate(doc.uploaded_at)}
-                          </p>
-                        </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 mt-3">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          icon={Eye}
-                          onClick={() => setViewingDoc(doc)}
-                          className="flex-1"
-                        >
-                          View
-                        </Button>
-                        <button
-                          onClick={() => toggleDocReview(doc.id)}
-                          className={cn(
-                            'flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                            isReviewed
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                              : 'border border-border text-muted-foreground hover:bg-muted'
-                          )}
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          {isReviewed ? 'Reviewed' : 'Mark Reviewed'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Document Viewer Modal */}
-      {viewingDoc && (
+      {/* PDF Viewer Modal */}
+      {viewingDoc && viewingDocUrl && !docUrlLoading && (
+        <PdfViewer
+          url={viewingDocUrl}
+          fileName={viewingDoc.file_name}
+          onClose={() => {
+            setViewingDoc(null);
+            setViewingDocUrl(null);
+          }}
+        />
+      )}
+
+      {/* Loading state for document URL fetch */}
+      {viewingDoc && docUrlLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-label="Loading document" aria-modal="true">
+          <div
+            className="absolute inset-0 bg-black/60"
+            aria-hidden="true"
+            onClick={() => {
+              setViewingDoc(null);
+              setDocUrlLoading(false);
+            }}
+          />
+          <div className="relative rounded-xl bg-white p-8 shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#1e40af] border-t-transparent" />
+              <span className="text-sm text-[#64748b]">Loading document...</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fallback: doc URL failed but viewingDoc is set */}
+      {viewingDoc && !viewingDocUrl && !docUrlLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-label={`Document viewer: ${viewingDoc.file_name}`} aria-modal="true">
           <div
             className="absolute inset-0 bg-black/40"

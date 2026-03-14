@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { Building2, MapPin, Maximize2, ArrowLeft, DoorOpen, Car, Zap } from 'lucide-react';
 import { formatSqft, formatCurrency } from '@/lib/utils';
 import { getProperty, getUnits } from '@/lib/queries/properties';
+import ScheduleTour from './schedule-tour';
+import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +29,17 @@ export default async function PropertyDetailPage({
 
   // Only show active properties on the public browse page
   if (!property || property.is_active === false) notFound();
+
+  // Track the view (fire-and-forget — don't block page render)
+  try {
+    const supabase = await createClient();
+    supabase
+      .from('property_views')
+      .insert({ property_id: id, source: 'browse' })
+      .then(() => {});
+  } catch {
+    // Non-fatal — view tracking should never break the page
+  }
 
   const allUnits = units ?? [];
   const vacantUnits = allUnits.filter((u) => u.status === 'vacant');
@@ -135,6 +148,22 @@ export default async function PropertyDetailPage({
           </div>
         </div>
 
+        {/* Location Map */}
+        <div className="mt-8 overflow-hidden rounded-xl bg-white shadow-sm">
+          <div className="p-6">
+            <h2 className="text-lg font-semibold">Location</h2>
+          </div>
+          <iframe
+            title={`Map of ${property.name}`}
+            src={`https://maps.google.com/maps?q=${encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip}`)}&output=embed`}
+            className="h-[300px] w-full md:h-[400px]"
+            style={{ border: 0 }}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            allowFullScreen
+          />
+        </div>
+
         <div className="mt-8">
           <h2 className="text-lg font-semibold">
             Available Spaces ({vacantUnits.length})
@@ -175,6 +204,9 @@ export default async function PropertyDetailPage({
             </div>
           )}
         </div>
+
+        {/* Schedule a Tour */}
+        <ScheduleTour propertyId={id} />
       </main>
     </div>
   );

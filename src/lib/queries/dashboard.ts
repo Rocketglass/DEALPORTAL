@@ -1,5 +1,154 @@
 import { createClient } from '@/lib/supabase/server';
 
+// ---------------------------------------------------------------------------
+// Pipeline Stats
+// ---------------------------------------------------------------------------
+
+export interface PipelineStage {
+  label: string;
+  statuses: { key: string; label: string; count: number; color: string }[];
+  total: number;
+}
+
+export interface PipelineStats {
+  applications: PipelineStage;
+  lois: PipelineStage;
+  leases: PipelineStage;
+}
+
+/**
+ * Fetch deal pipeline counts broken down by status for applications, LOIs,
+ * and leases. Used by the pipeline visualization on the dashboard.
+ */
+export async function getPipelineStats(): Promise<{
+  data: PipelineStats | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+
+    const [appsRes, loisRes, leasesRes] = await Promise.all([
+      supabase.from('applications').select('status'),
+      supabase.from('lois').select('status'),
+      supabase.from('leases').select('status'),
+    ]);
+
+    if (appsRes.error) throw appsRes.error;
+    if (loisRes.error) throw loisRes.error;
+    if (leasesRes.error) throw leasesRes.error;
+
+    const apps = appsRes.data || [];
+    const lois = loisRes.data || [];
+    const leases = leasesRes.data || [];
+
+    const countBy = (arr: { status: string }[], status: string) =>
+      arr.filter((r) => r.status === status).length;
+
+    const data: PipelineStats = {
+      applications: {
+        label: 'Applications',
+        total: apps.length,
+        statuses: [
+          { key: 'submitted', label: 'Submitted', count: countBy(apps, 'submitted'), color: '#3b82f6' },
+          { key: 'under_review', label: 'Under Review', count: countBy(apps, 'under_review'), color: '#f59e0b' },
+          { key: 'approved', label: 'Approved', count: countBy(apps, 'approved'), color: '#22c55e' },
+        ],
+      },
+      lois: {
+        label: 'LOIs',
+        total: lois.length,
+        statuses: [
+          { key: 'draft', label: 'Draft', count: countBy(lois, 'draft'), color: '#94a3b8' },
+          { key: 'sent', label: 'Sent', count: countBy(lois, 'sent'), color: '#3b82f6' },
+          { key: 'in_negotiation', label: 'In Negotiation', count: countBy(lois, 'in_negotiation'), color: '#f59e0b' },
+          { key: 'agreed', label: 'Agreed', count: countBy(lois, 'agreed'), color: '#22c55e' },
+        ],
+      },
+      leases: {
+        label: 'Leases',
+        total: leases.length,
+        statuses: [
+          { key: 'draft', label: 'Draft', count: countBy(leases, 'draft'), color: '#94a3b8' },
+          { key: 'sent_for_signature', label: 'Pending Signature', count: countBy(leases, 'sent_for_signature'), color: '#3b82f6' },
+          { key: 'partially_signed', label: 'Partially Signed', count: countBy(leases, 'partially_signed'), color: '#f59e0b' },
+          { key: 'executed', label: 'Executed', count: countBy(leases, 'executed'), color: '#22c55e' },
+        ],
+      },
+    };
+
+    return { data, error: null };
+  } catch (err) {
+    console.error('getPipelineStats error:', err);
+    return { data: null, error: (err as Error).message };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Commission Summary
+// ---------------------------------------------------------------------------
+
+export interface CommissionSummary {
+  earned: number;
+  outstanding: number;
+  pending: number;
+  ytd: number;
+}
+
+/**
+ * Aggregate commission amounts grouped by invoice status.
+ * - earned:      sum of commission_amount where status = 'paid'
+ * - outstanding: sum where status = 'sent' or 'overdue'
+ * - pending:     sum where status = 'draft'
+ * - ytd:         sum of all paid invoices created in the current calendar year
+ */
+export async function getCommissionSummary(): Promise<{
+  data: CommissionSummary | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+
+    const { data: invoices, error } = await supabase
+      .from('commission_invoices')
+      .select('status, commission_amount, paid_date, created_at');
+
+    if (error) throw error;
+
+    const rows = invoices || [];
+    const currentYear = new Date().getFullYear();
+
+    let earned = 0;
+    let outstanding = 0;
+    let pending = 0;
+    let ytd = 0;
+
+    for (const inv of rows) {
+      const amt = inv.commission_amount ?? 0;
+      if (inv.status === 'paid') {
+        earned += amt;
+        // YTD: check paid_date or fall back to created_at
+        const refDate = inv.paid_date ?? inv.created_at;
+        if (refDate && new Date(refDate).getFullYear() === currentYear) {
+          ytd += amt;
+        }
+      } else if (inv.status === 'sent' || inv.status === 'overdue') {
+        outstanding += amt;
+      } else if (inv.status === 'draft') {
+        pending += amt;
+      }
+    }
+
+    return { data: { earned, outstanding, pending, ytd }, error: null };
+  } catch (err) {
+    console.error('getCommissionSummary error:', err);
+    return { data: null, error: (err as Error).message };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Original Dashboard Stats
+// ---------------------------------------------------------------------------
+
 interface DashboardStats {
   applications: {
     total: number;

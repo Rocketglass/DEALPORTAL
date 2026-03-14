@@ -1,13 +1,14 @@
 import { notFound } from 'next/navigation';
-import { Send, Copy } from 'lucide-react';
+import { Send, Copy, BarChart3 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { getLoi } from '@/lib/queries/lois';
+import { createClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BackButton } from '@/components/ui/back-button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LoiSectionsPanel } from './loi-sections-panel';
-import type { Contact, LoiSectionStatus } from '@/types/database';
+import type { Contact, LoiSectionStatus, ComparableTransaction } from '@/types/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,24 @@ export default async function LoiDetailPage({ params }: Props) {
 
   if (error || !loi) {
     return notFound();
+  }
+
+  // Fetch comparable transactions in the same city
+  let marketComps: ComparableTransaction[] = [];
+  try {
+    const supabase = await createClient();
+    const city = loi.property?.city;
+    if (city) {
+      const { data: compsData } = await supabase
+        .from('comparable_transactions')
+        .select('*')
+        .ilike('city', city)
+        .order('transaction_date', { ascending: false })
+        .limit(5);
+      marketComps = (compsData as ComparableTransaction[]) ?? [];
+    }
+  } catch {
+    // Non-fatal — comps section will just be empty
   }
 
   // Resolve display names
@@ -180,6 +199,64 @@ export default async function LoiDetailPage({ params }: Props) {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Market Comps Section */}
+      <div className="mt-8">
+        <Card>
+          <CardContent>
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">
+                Market Comps — {loi.property?.city ?? 'Local Area'}
+              </h3>
+            </div>
+
+            {marketComps.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">
+                No comparable transactions found in {loi.property?.city ?? 'this area'}.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <th className="px-3 py-2 font-medium text-muted-foreground">Address</th>
+                      <th className="px-3 py-2 font-medium text-muted-foreground">Type</th>
+                      <th className="px-3 py-2 font-medium text-muted-foreground">Date</th>
+                      <th className="px-3 py-2 font-medium text-muted-foreground">Tenant</th>
+                      <th className="px-3 py-2 font-medium text-muted-foreground">SF</th>
+                      <th className="px-3 py-2 font-medium text-muted-foreground">Rent/SF</th>
+                      <th className="px-3 py-2 font-medium text-muted-foreground">Term</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {marketComps.map((comp) => (
+                      <tr
+                        key={comp.id}
+                        className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors"
+                      >
+                        <td className="px-3 py-2 font-medium">{comp.address}</td>
+                        <td className="px-3 py-2 capitalize text-muted-foreground">{comp.transaction_type}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{formatDate(comp.transaction_date)}</td>
+                        <td className="px-3 py-2">{comp.tenant_name || '—'}</td>
+                        <td className="px-3 py-2">
+                          {comp.sf ? new Intl.NumberFormat('en-US').format(comp.sf) : '—'}
+                        </td>
+                        <td className="px-3 py-2">
+                          {comp.rent_per_sqft ? `$${Number(comp.rent_per_sqft).toFixed(2)}` : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {comp.lease_term_months ? `${comp.lease_term_months} mo` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

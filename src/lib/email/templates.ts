@@ -386,3 +386,46 @@ export function invoiceSent(data: InvoiceSentData): {
     `),
   };
 }
+
+// ---------------------------------------------------------------------------
+// 9. Inspection booked — sent to broker
+// ---------------------------------------------------------------------------
+
+interface InspectionBookedData {
+  brokerName: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  companyName?: string;
+  message?: string;
+  propertyAddress: string;
+  slotDate: string;
+  slotTime: string;
+  propertyId: string;
+}
+
+export function inspectionBooked(data: InspectionBookedData): {
+  subject: string;
+  html: string;
+} {
+  return {
+    subject: `Tour Booked: ${data.contactName} — ${data.propertyAddress}`,
+    html: layout(`
+      ${heading('New Property Tour Booked')}
+      ${paragraph(`Hi ${data.brokerName},`)}
+      ${paragraph(`<strong>${data.contactName}</strong> has booked a property tour.`)}
+      ${detailsTable(`
+        ${detailRow('Contact', data.contactName)}
+        ${detailRow('Email', data.contactEmail)}
+        ${data.contactPhone ? detailRow('Phone', data.contactPhone) : ''}
+        ${data.companyName ? detailRow('Company', data.companyName) : ''}
+        ${detailRow('Property', data.propertyAddress)}
+        ${detailRow('Date', data.slotDate)}
+        ${detailRow('Time', data.slotTime)}
+      `)}
+      ${data.message ? paragraph(`<strong>Message:</strong> ${data.message}`) : ''}
+      ${paragraph('View all upcoming inspections in the portal.')}
+      ${ctaButton('View Property', `${PORTAL_URL}/properties/${data.propertyId}`)}
+    `),
+  };
+}

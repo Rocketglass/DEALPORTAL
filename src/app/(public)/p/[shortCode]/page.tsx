@@ -26,5 +26,11 @@ export default async function QrRedirectPage({
     })
     .eq('id', qrCode.id);
 
+  // Track the QR scan as a property view (fire-and-forget)
+  supabase
+    .from('property_views')
+    .insert({ property_id: qrCode.property_id, source: 'qr_scan' })
+    .then(() => {});
+
   redirect(qrCode.portal_url);
 }

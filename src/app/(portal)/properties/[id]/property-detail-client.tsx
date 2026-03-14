@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Save,
@@ -12,6 +12,14 @@ import {
   ChevronUp,
   ImagePlus,
   Check,
+  Printer,
+  CalendarDays,
+  Clock,
+  X,
+  User,
+  Mail,
+  Eye,
+  BarChart3,
 } from 'lucide-react';
 import type { Property, Unit, QrCode as QrCodeType } from '@/types/database';
 import { formatCurrency, formatSqft, cn } from '@/lib/utils';
@@ -49,6 +57,26 @@ export default function PropertyDetailClient({
   initialQrCodes,
 }: PropertyDetailClientProps) {
   const router = useRouter();
+  // Track recently viewed in localStorage
+  React.useEffect(() => {
+    try {
+      const key = 'rr_recently_viewed';
+      const stored = localStorage.getItem(key);
+      const list: { id: string; name: string; address: string }[] = stored
+        ? JSON.parse(stored)
+        : [];
+      const filtered = list.filter((item) => item.id !== initialProperty.id);
+      filtered.unshift({
+        id: initialProperty.id,
+        name: initialProperty.name,
+        address: `${initialProperty.address}, ${initialProperty.city}, ${initialProperty.state}`,
+      });
+      localStorage.setItem(key, JSON.stringify(filtered.slice(0, 10)));
+    } catch {
+      // localStorage unavailable — silently ignore
+    }
+  }, [initialProperty.id, initialProperty.name, initialProperty.address, initialProperty.city, initialProperty.state]);
+
   const [property, setProperty] = useState(initialProperty);
   const [units, setUnits] = useState(initialUnits);
   const [expandedUnit, setExpandedUnit] = useState<string | null>(null);
@@ -62,6 +90,114 @@ export default function PropertyDetailClient({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [propertyErrors, setPropertyErrors] = useState<Record<string, string>>({});
   const [shakeKey, setShakeKey] = useState(0);
+
+  // Inspection scheduling state
+  interface InspectionBooking {
+    id: string;
+    contact_name: string;
+    contact_email: string;
+    contact_phone: string | null;
+    company_name: string | null;
+    message: string | null;
+    status: string;
+    created_at: string;
+    inspection_slots: { id: string; start_time: string; end_time: string } | null;
+  }
+  const [inspectionBookings, setInspectionBookings] = useState<InspectionBooking[]>([]);
+  const [inspectionLoading, setInspectionLoading] = useState(true);
+  const [slotDate, setSlotDate] = useState('');
+  const [slotStartTime, setSlotStartTime] = useState('');
+  const [slotEndTime, setSlotEndTime] = useState('');
+  const [addingSlots, setAddingSlots] = useState(false);
+  const [slotError, setSlotError] = useState<string | null>(null);
+  const [slotSuccess, setSlotSuccess] = useState(false);
+  const [cancellingBooking, setCancellingBooking] = useState<string | null>(null);
+
+  const fetchInspections = useCallback(async () => {
+    try {
+      const res = await fetch('/api/inspections');
+      if (res.ok) {
+        const data = await res.json();
+        // Filter to this property's bookings only
+        const propertyBookings = (data.bookings ?? []).filter(
+          (b: { property_id: string }) => b.property_id === property.id
+        );
+        setInspectionBookings(propertyBookings);
+      }
+    } catch {
+      // Non-fatal
+    } finally {
+      setInspectionLoading(false);
+    }
+  }, [property.id]);
+
+  useEffect(() => {
+    fetchInspections();
+  }, [fetchInspections]);
+
+  async function handleAddSlot() {
+    if (!slotDate || !slotStartTime || !slotEndTime) {
+      setSlotError('Please fill in date, start time, and end time');
+      return;
+    }
+
+    const startIso = new Date(`${slotDate}T${slotStartTime}`).toISOString();
+    const endIso = new Date(`${slotDate}T${slotEndTime}`).toISOString();
+
+    if (new Date(endIso) <= new Date(startIso)) {
+      setSlotError('End time must be after start time');
+      return;
+    }
+
+    setAddingSlots(true);
+    setSlotError(null);
+
+    try {
+      const res = await fetch(`/api/properties/${property.id}/inspection-slots`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slots: [{ start_time: startIso, end_time: endIso }],
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Failed (${res.status})`);
+      }
+
+      setSlotSuccess(true);
+      setSlotDate('');
+      setSlotStartTime('');
+      setSlotEndTime('');
+      setTimeout(() => setSlotSuccess(false), 2000);
+    } catch (err) {
+      setSlotError(err instanceof Error ? err.message : 'Failed to add slot');
+    } finally {
+      setAddingSlots(false);
+    }
+  }
+
+  async function handleCancelBooking(bookingId: string) {
+    setCancellingBooking(bookingId);
+    try {
+      const res = await fetch(`/api/inspections/${bookingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+
+      if (res.ok) {
+        setInspectionBookings((prev) =>
+          prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))
+        );
+      }
+    } catch {
+      // Non-fatal
+    } finally {
+      setCancellingBooking(null);
+    }
+  }
 
   function handlePropertyChange(field: string, value: string | number | null) {
     setProperty((prev) => ({ ...prev, [field]: value }));
@@ -212,15 +348,54 @@ export default function PropertyDetailClient({
 
   const vacantUnits = units.filter((u) => u.status === 'vacant');
 
+  // Analytics state
+  const [analytics, setAnalytics] = useState<{
+    totalViews: number;
+    viewsLast30: number;
+    qrScans: number;
+    browseViews: number;
+    otherViews: number;
+    dailyBreakdown: { date: string; count: number }[];
+  } | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAnalytics() {
+      try {
+        const res = await fetch(`/api/properties/${property.id}/analytics`);
+        if (res.ok) {
+          const data = await res.json();
+          setAnalytics(data);
+        }
+      } catch {
+        // Non-fatal
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    }
+    fetchAnalytics();
+  }, [property.id]);
+
   return (
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="mb-6">
         <BackButton href="/properties" label="Back to Properties" />
-        <h1 className="mt-2 text-2xl font-bold">{property.name}</h1>
-        <p className="mt-0.5 text-muted-foreground">
-          {property.address}, {property.city}, {property.state} {property.zip}
-        </p>
+        <div className="mt-2 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">{property.name}</h1>
+            <p className="mt-0.5 text-muted-foreground">
+              {property.address}, {property.city}, {property.state} {property.zip}
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            icon={Printer}
+            onClick={() => window.open(`/properties/${property.id}/print`, '_blank')}
+          >
+            Print Flyer
+          </Button>
+        </div>
       </div>
 
       {/* ================================================================= */}
@@ -669,6 +844,280 @@ export default function PropertyDetailClient({
             })}
           </div>
         )}
+        </CardContent>
+      </Card>
+
+      {/* ================================================================= */}
+      {/* Inspections / Tours Section                                        */}
+      {/* ================================================================= */}
+      <Card className="mt-8">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-muted-foreground" />
+              Inspections & Tours
+            </h2>
+          </div>
+
+          {/* Add Time Slot Form */}
+          <div className="rounded-lg border border-border p-4 mb-6">
+            <h3 className="text-sm font-medium mb-3">Add Available Time Slot</h3>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Date</label>
+                <input
+                  type="date"
+                  value={slotDate}
+                  onChange={(e) => { setSlotDate(e.target.value); setSlotError(null); }}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Start Time</label>
+                <input
+                  type="time"
+                  value={slotStartTime}
+                  onChange={(e) => { setSlotStartTime(e.target.value); setSlotError(null); }}
+                  className="h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">End Time</label>
+                <input
+                  type="time"
+                  value={slotEndTime}
+                  onChange={(e) => { setSlotEndTime(e.target.value); setSlotError(null); }}
+                  className="h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  variant="primary"
+                  icon={slotSuccess ? Check : Plus}
+                  onClick={handleAddSlot}
+                  loading={addingSlots}
+                  className="w-full"
+                >
+                  {slotSuccess ? 'Added' : 'Add Slot'}
+                </Button>
+              </div>
+            </div>
+            {slotError && (
+              <p className="mt-2 text-xs text-red-600">{slotError}</p>
+            )}
+          </div>
+
+          {/* Upcoming Bookings */}
+          <h3 className="text-sm font-medium mb-3">Upcoming Bookings</h3>
+          {inspectionLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              Loading bookings...
+            </div>
+          ) : inspectionBookings.filter((b) => b.status !== 'cancelled').length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CalendarDays className="mx-auto h-10 w-10 opacity-30" />
+              <p className="mt-3 text-sm">No upcoming tour bookings.</p>
+              <p className="mt-1 text-xs">Add available time slots above and share the public property page to receive bookings.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {inspectionBookings
+                .filter((b) => b.status !== 'cancelled')
+                .map((booking) => {
+                  const slot = booking.inspection_slots;
+                  const startDate = slot ? new Date(slot.start_time) : null;
+                  const endDate = slot ? new Date(slot.end_time) : null;
+
+                  return (
+                    <div
+                      key={booking.id}
+                      className="flex items-start gap-4 rounded-lg border border-border p-4"
+                    >
+                      {/* Date badge */}
+                      {startDate && (
+                        <div className="flex h-14 w-14 flex-shrink-0 flex-col items-center justify-center rounded-lg bg-primary/5 text-primary">
+                          <span className="text-[10px] font-medium uppercase leading-none">
+                            {startDate.toLocaleDateString('en-US', { month: 'short' })}
+                          </span>
+                          <span className="text-lg font-bold leading-tight">
+                            {startDate.getDate()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{booking.contact_name}</p>
+                          <Badge status={booking.status} size="sm" />
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          {startDate && endDate && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                              {' – '}
+                              {endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            {booking.contact_email}
+                          </span>
+                          {booking.contact_phone && (
+                            <span>{booking.contact_phone}</span>
+                          )}
+                          {booking.company_name && (
+                            <span className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {booking.company_name}
+                            </span>
+                          )}
+                        </div>
+                        {booking.message && (
+                          <p className="mt-1.5 text-xs text-muted-foreground italic">
+                            &ldquo;{booking.message}&rdquo;
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Cancel action */}
+                      {booking.status === 'confirmed' && (
+                        <button
+                          onClick={() => handleCancelBooking(booking.id)}
+                          disabled={cancellingBooking === booking.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 hover:border-red-200 disabled:opacity-50"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          {cancellingBooking === booking.id ? 'Cancelling...' : 'Cancel'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ================================================================= */}
+      {/* Property Analytics                                                 */}
+      {/* ================================================================= */}
+      <Card className="mt-8">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <BarChart3 className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-lg font-semibold">Analytics</h2>
+          </div>
+
+          {analyticsLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              Loading analytics...
+            </div>
+          ) : analytics ? (
+            <>
+              {/* Summary stats */}
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="rounded-lg bg-muted p-4">
+                  <p className="text-xs text-muted-foreground">Total Views</p>
+                  <p className="mt-1 text-2xl font-bold">{analytics.totalViews}</p>
+                </div>
+                <div className="rounded-lg bg-muted p-4">
+                  <p className="text-xs text-muted-foreground">Last 30 Days</p>
+                  <p className="mt-1 text-2xl font-bold">{analytics.viewsLast30}</p>
+                </div>
+                <div className="rounded-lg bg-muted p-4">
+                  <div className="flex items-center gap-1.5">
+                    <Eye className="h-3 w-3 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">Browse Views</p>
+                  </div>
+                  <p className="mt-1 text-2xl font-bold">{analytics.browseViews}</p>
+                </div>
+                <div className="rounded-lg bg-muted p-4">
+                  <div className="flex items-center gap-1.5">
+                    <QrCode className="h-3 w-3 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">QR Scans</p>
+                  </div>
+                  <p className="mt-1 text-2xl font-bold">{analytics.qrScans}</p>
+                </div>
+              </div>
+
+              {/* Daily views bar chart (CSS-only) */}
+              {analytics.dailyBreakdown.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                    Views — Last 30 Days
+                  </h3>
+                  <div className="flex items-end gap-[2px]" style={{ height: 120 }}>
+                    {(() => {
+                      const maxCount = Math.max(...analytics.dailyBreakdown.map((d) => d.count), 1);
+                      return analytics.dailyBreakdown.map((day) => {
+                        const heightPct = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
+                        const dateObj = new Date(day.date + 'T12:00:00');
+                        const label = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        return (
+                          <div
+                            key={day.date}
+                            className="group relative flex-1"
+                            style={{ height: '100%' }}
+                          >
+                            <div
+                              className="absolute bottom-0 left-0 right-0 rounded-t bg-primary/70 transition-colors group-hover:bg-primary"
+                              style={{
+                                height: `${Math.max(heightPct, day.count > 0 ? 4 : 0)}%`,
+                                minHeight: day.count > 0 ? 2 : 0,
+                              }}
+                            />
+                            {/* Tooltip on hover */}
+                            <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10">
+                              <div className="whitespace-nowrap rounded bg-foreground px-2 py-1 text-xs text-white shadow">
+                                {label}: {day.count} view{day.count !== 1 ? 's' : ''}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                  {/* X-axis labels */}
+                  <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+                    <span>
+                      {new Date(analytics.dailyBreakdown[0]?.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                    <span>
+                      {new Date(analytics.dailyBreakdown[analytics.dailyBreakdown.length - 1]?.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Eye className="mx-auto h-10 w-10 opacity-30" />
+              <p className="mt-3 text-sm">No analytics data available.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ================================================================= */}
+      {/* Location Map                                                       */}
+      {/* ================================================================= */}
+      <Card className="mt-8">
+        <CardContent className="p-6">
+          <h2 className="mb-4 text-lg font-semibold">Location</h2>
+          <div className="overflow-hidden rounded-lg">
+            <iframe
+              title={`Map of ${property.name}`}
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip}`)}&output=embed`}
+              className="h-[250px] w-full md:h-[300px]"
+              style={{ border: 0 }}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

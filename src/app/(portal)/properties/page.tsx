@@ -5,6 +5,7 @@ import { formatSqft } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { RecentlyViewed } from '@/components/recently-viewed';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,8 +56,13 @@ export default async function PropertiesPage() {
         </Link>
       </div>
 
+      {/* Recently viewed properties */}
+      <div className="mt-6">
+        <RecentlyViewed />
+      </div>
+
       {/* Summary cards */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <div className="p-5">
             <p className="text-sm text-muted-foreground">Total Properties</p>

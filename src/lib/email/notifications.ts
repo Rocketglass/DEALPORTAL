@@ -15,6 +15,7 @@ import {
   leaseReadyForSignature,
   leaseExecuted,
   invoiceSent,
+  inspectionBooked,
 } from './templates';
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,18 @@ interface InvoiceForNotification {
   suiteNumber: string;
   commissionAmount: string;
   dueDate: string;
+}
+
+interface InspectionBookingForNotification {
+  contactName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  companyName?: string;
+  message?: string;
+  propertyAddress: string;
+  propertyId: string;
+  slotDate: string;
+  slotTime: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -239,4 +252,29 @@ export async function notifyInvoiceSent(
   });
 
   await sendEmail({ to: payeeEmail, subject, html });
+}
+
+// ---------------------------------------------------------------------------
+// 9. Inspection booked — sent to broker
+// ---------------------------------------------------------------------------
+
+export async function notifyInspectionBooked(
+  booking: InspectionBookingForNotification,
+  brokerEmail: string,
+  brokerName: string,
+): Promise<void> {
+  const { subject, html } = inspectionBooked({
+    brokerName,
+    contactName: booking.contactName,
+    contactEmail: booking.contactEmail,
+    contactPhone: booking.contactPhone,
+    companyName: booking.companyName,
+    message: booking.message,
+    propertyAddress: booking.propertyAddress,
+    slotDate: booking.slotDate,
+    slotTime: booking.slotTime,
+    propertyId: booking.propertyId,
+  });
+
+  await sendEmail({ to: brokerEmail, subject, html });
 }

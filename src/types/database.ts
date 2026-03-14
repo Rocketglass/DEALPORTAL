@@ -78,6 +78,16 @@ export type Database = {
         Insert: Omit<AuditLog, 'id' | 'created_at'> & { id?: string };
         Update: Partial<Omit<AuditLog, 'id'>>;
       };
+      comparable_transactions: {
+        Row: ComparableTransaction;
+        Insert: Omit<ComparableTransaction, 'id' | 'created_at'> & { id?: string };
+        Update: Partial<Omit<ComparableTransaction, 'id'>>;
+      };
+      property_views: {
+        Row: PropertyView;
+        Insert: Omit<PropertyView, 'id' | 'viewed_at'> & { id?: string };
+        Update: Partial<Omit<PropertyView, 'id'>>;
+      };
     };
   };
 };
@@ -417,6 +427,38 @@ export interface AuditLog {
   created_at: string;
 }
 
+export interface ComparableTransaction {
+  id: string;
+  property_id: string | null;
+  address: string;
+  city: string;
+  state: string;
+  property_type: string | null;
+  transaction_type: TransactionType;
+  transaction_date: string;
+  tenant_name: string | null;
+  sf: number | null;
+  rent_per_sqft: number | null;
+  monthly_rent: number | null;
+  lease_term_months: number | null;
+  sale_price: number | null;
+  price_per_sqft: number | null;
+  cap_rate: number | null;
+  notes: string | null;
+  source: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface PropertyView {
+  id: string;
+  property_id: string;
+  source: string | null;
+  viewer_ip: string | null;
+  user_agent: string | null;
+  viewed_at: string;
+}
+
 // ============================================================
 // Enums
 // ============================================================
@@ -433,6 +475,7 @@ export type LoiSectionKey = 'base_rent' | 'term' | 'tenant_improvements' | 'cam'
 export type NegotiationAction = 'propose' | 'accept' | 'counter' | 'reject';
 export type LeaseStatus = 'draft' | 'review' | 'sent_for_signature' | 'partially_signed' | 'executed' | 'expired' | 'terminated';
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+export type TransactionType = 'lease' | 'sale';
 
 // ============================================================
 // Joined/extended types for queries

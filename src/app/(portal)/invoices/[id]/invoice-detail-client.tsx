@@ -9,12 +9,15 @@ import {
   FileText,
   CreditCard,
   Circle,
+  X,
 } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { BackButton } from '@/components/ui/back-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import type { InvoiceStatus } from '@/types/database';
 import type { EnrichedInvoice } from './types';
 
@@ -89,6 +92,159 @@ function PaymentProgress({ status }: { status: InvoiceStatus }) {
 }
 
 // ---------------------------------------------------------------------------
+// Payment details form (shown when marking as paid)
+// ---------------------------------------------------------------------------
+
+const PAYMENT_METHODS = [
+  { value: 'check', label: 'Check' },
+  { value: 'wire', label: 'Wire Transfer' },
+  { value: 'ach', label: 'ACH' },
+  { value: 'other', label: 'Other' },
+];
+
+interface PaymentFormData {
+  payment_method: string;
+  payment_reference: string;
+  paid_amount: string;
+  paid_date: string;
+}
+
+function PaymentDetailsForm({
+  defaultAmount,
+  onSubmit,
+  onCancel,
+  loading,
+}: {
+  defaultAmount: number;
+  onSubmit: (data: PaymentFormData) => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  const [form, setForm] = useState<PaymentFormData>({
+    payment_method: 'check',
+    payment_reference: '',
+    paid_amount: defaultAmount.toFixed(2),
+    paid_date: new Date().toISOString().split('T')[0],
+  });
+
+  function updateField(field: keyof PaymentFormData, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-label="Record payment details" aria-modal="true">
+      <div
+        className="absolute inset-0 bg-black/40"
+        aria-hidden="true"
+        onClick={onCancel}
+      />
+      <div className="relative w-full max-w-md mx-4 rounded-xl bg-white shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[#e2e8f0] px-6 py-4">
+          <div>
+            <h3 className="text-base font-semibold text-[#0f172a]">Record Payment</h3>
+            <p className="text-xs text-[#64748b] mt-0.5">
+              Enter the payment details to mark this invoice as paid
+            </p>
+          </div>
+          <button
+            onClick={onCancel}
+            aria-label="Close payment form"
+            className="rounded-lg p-1.5 text-[#64748b] hover:bg-[#f1f5f9] transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Form body */}
+        <div className="px-6 py-5 space-y-4">
+          <Select
+            label="Payment Method"
+            required
+            value={form.payment_method}
+            onChange={(e) => updateField('payment_method', e.target.value)}
+          >
+            {PAYMENT_METHODS.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </Select>
+
+          <Input
+            label="Payment Reference"
+            placeholder={
+              form.payment_method === 'check'
+                ? 'Check number'
+                : form.payment_method === 'wire'
+                  ? 'Wire reference number'
+                  : form.payment_method === 'ach'
+                    ? 'ACH transaction ID'
+                    : 'Reference number'
+            }
+            value={form.payment_reference}
+            onChange={(e) => updateField('payment_reference', e.target.value)}
+            hint="Check number, wire reference, or transaction ID"
+          />
+
+          <Input
+            label="Payment Amount"
+            type="number"
+            required
+            min={0}
+            step="0.01"
+            value={form.paid_amount}
+            onChange={(e) => updateField('paid_amount', e.target.value)}
+          />
+
+          <Input
+            label="Payment Date"
+            type="date"
+            required
+            value={form.paid_date}
+            onChange={(e) => updateField('paid_date', e.target.value)}
+          />
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center gap-3 border-t border-[#e2e8f0] px-6 py-4">
+          <Button
+            variant="secondary"
+            size="md"
+            className="flex-1"
+            onClick={onCancel}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            size="md"
+            icon={CheckCircle2}
+            className="flex-1"
+            onClick={() => onSubmit(form)}
+            loading={loading}
+            disabled={loading}
+          >
+            {loading ? 'Saving...' : 'Confirm Payment'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Payment method label helper
+// ---------------------------------------------------------------------------
+
+function formatPaymentMethod(method: string | null): string {
+  if (!method) return '\u2014';
+  const found = PAYMENT_METHODS.find((m) => m.value === method);
+  return found ? found.label : method;
+}
+
+// ---------------------------------------------------------------------------
 // Main client component
 // ---------------------------------------------------------------------------
 
@@ -102,6 +258,7 @@ export default function InvoiceDetailClient({
   const [invoice, setInvoice] = useState(initialInvoice);
   const [sending, setSending] = useState(false);
   const [marking, setMarking] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
 
   // ---- Status actions ----------------------------------------------------
 
@@ -122,7 +279,7 @@ export default function InvoiceDetailClient({
     }
   };
 
-  const handleMarkAsPaid = async () => {
+  const handleMarkAsPaid = async (formData: PaymentFormData) => {
     setMarking(true);
     try {
       const res = await fetch(`/api/invoices/${invoice.id}/status`, {
@@ -130,28 +287,24 @@ export default function InvoiceDetailClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'paid',
-          paid_amount: invoice.commission_amount,
+          paid_amount: parseFloat(formData.paid_amount) || invoice.commission_amount,
+          payment_method: formData.payment_method,
+          payment_reference: formData.payment_reference || null,
+          paid_date: formData.paid_date,
         }),
       });
       if (res.ok) {
         const json = await res.json();
         setInvoice((prev) => ({ ...prev, ...json.invoice }));
+        setShowPaymentForm(false);
       }
     } finally {
       setMarking(false);
     }
   };
 
-  const handleDownloadPdf = async () => {
-    const { generateInvoicePdf } = await import('@/lib/pdf/invoice');
-    const pdfBytes = await generateInvoicePdf(invoice);
-    const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Invoice-${invoice.invoice_number}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownloadPdf = () => {
+    window.open(`/api/invoices/${invoice.id}/pdf`, '_blank');
   };
 
   return (
@@ -194,10 +347,10 @@ export default function InvoiceDetailClient({
             <Button
               variant="secondary"
               icon={CreditCard}
-              onClick={handleMarkAsPaid}
+              onClick={() => setShowPaymentForm(true)}
               disabled={marking}
             >
-              {marking ? 'Saving…' : 'Mark as Paid'}
+              Mark as Paid
             </Button>
           )}
         </div>
@@ -390,7 +543,7 @@ export default function InvoiceDetailClient({
           </div>
 
           {invoice.status === 'paid' && (
-            <div className="mt-4 grid grid-cols-1 gap-4 rounded-lg bg-green-50 p-4 sm:grid-cols-3">
+            <div className="mt-4 grid grid-cols-1 gap-4 rounded-lg bg-green-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <p className="text-xs font-medium text-[#64748b]">Payment Date</p>
                 <p className="mt-0.5 text-sm font-medium text-[#0f172a]">
@@ -399,8 +552,8 @@ export default function InvoiceDetailClient({
               </div>
               <div>
                 <p className="text-xs font-medium text-[#64748b]">Method</p>
-                <p className="mt-0.5 text-sm font-medium capitalize text-[#0f172a]">
-                  {invoice.payment_method ?? '\u2014'}
+                <p className="mt-0.5 text-sm font-medium text-[#0f172a]">
+                  {formatPaymentMethod(invoice.payment_method)}
                 </p>
               </div>
               <div>
@@ -409,6 +562,14 @@ export default function InvoiceDetailClient({
                 </p>
                 <p className="mt-0.5 text-sm font-medium text-[#0f172a]">
                   {invoice.payment_reference ?? '\u2014'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-[#64748b]">Amount Paid</p>
+                <p className="mt-0.5 text-sm font-bold text-green-700">
+                  {invoice.paid_amount != null
+                    ? formatCurrency(invoice.paid_amount)
+                    : '\u2014'}
                 </p>
               </div>
             </div>
@@ -429,6 +590,16 @@ export default function InvoiceDetailClient({
           )}
         </CardContent>
       </Card>
+
+      {/* Payment Details Modal */}
+      {showPaymentForm && (
+        <PaymentDetailsForm
+          defaultAmount={invoice.commission_amount}
+          onSubmit={handleMarkAsPaid}
+          onCancel={() => setShowPaymentForm(false)}
+          loading={marking}
+        />
+      )}
     </div>
   );
 }

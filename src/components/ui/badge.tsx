@@ -35,6 +35,11 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; dot?: str
   accepted: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
   countered: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
 
+  // Inspection booking statuses
+  confirmed: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
+  completed: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
+  no_show: { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
+
   // General / unit statuses
   active: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
   inactive: { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' },
@@ -42,6 +47,10 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; dot?: str
   occupied: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
   leased: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
   maintenance: { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-500' },
+
+  // Comp transaction types
+  lease: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
+  sale: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
 
   // Property types (reuse for type badges)
   industrial: { bg: 'bg-blue-100', text: 'text-blue-700' },

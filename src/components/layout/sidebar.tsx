@@ -10,6 +10,7 @@ import {
   Handshake,
   ScrollText,
   Receipt,
+  BarChart3,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -34,6 +35,7 @@ const navItems = [
   { href: '/lois', label: 'LOIs', icon: Handshake },
   { href: '/leases', label: 'Leases', icon: ScrollText },
   { href: '/invoices', label: 'Invoices', icon: Receipt },
+  { href: '/comps', label: 'Comps', icon: BarChart3 },
 ];
 
 export function Sidebar() {

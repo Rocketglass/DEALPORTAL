@@ -1,6 +1,12 @@
-import { FileText, Handshake, ScrollText, Receipt } from 'lucide-react';
+import { FileText, Handshake, ScrollText, Receipt, DollarSign, TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { getDashboardStats, getRecentActivity } from '@/lib/queries/dashboard';
+import {
+  getDashboardStats,
+  getRecentActivity,
+  getPipelineStats,
+  getCommissionSummary,
+} from '@/lib/queries/dashboard';
+import type { PipelineStage } from '@/lib/queries/dashboard';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,10 +52,92 @@ function formatRelativeDate(isoDate: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline bar component (server-rendered)
+// ---------------------------------------------------------------------------
+
+function PipelineRow({ stage }: { stage: PipelineStage }) {
+  const activeStatuses = stage.statuses.filter((s) => s.count > 0);
+  const activeTotal = activeStatuses.reduce((sum, s) => sum + s.count, 0);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-[#0f172a]">{stage.label}</h4>
+        <span className="text-sm tabular-nums text-[#64748b]">
+          {stage.total} total
+        </span>
+      </div>
+
+      {/* Horizontal bar */}
+      <div className="flex h-8 w-full overflow-hidden rounded-lg bg-[#f1f5f9]">
+        {activeStatuses.map((s) => {
+          const pct = activeTotal > 0 ? (s.count / activeTotal) * 100 : 0;
+          return (
+            <div
+              key={s.key}
+              className="flex items-center justify-center text-xs font-medium text-white transition-all"
+              style={{
+                width: `${pct}%`,
+                backgroundColor: s.color,
+                minWidth: s.count > 0 ? '2rem' : 0,
+              }}
+              title={`${s.label}: ${s.count}`}
+            >
+              {s.count > 0 && s.count}
+            </div>
+          );
+        })}
+        {activeTotal === 0 && (
+          <div className="flex flex-1 items-center justify-center text-xs text-[#94a3b8]">
+            No active deals
+          </div>
+        )}
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {stage.statuses.map((s) => (
+          <div key={s.key} className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: s.color }}
+            />
+            <span className="text-xs text-[#64748b]">
+              {s.label}{' '}
+              <span className="font-medium text-[#0f172a]">{s.count}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
 export default async function DashboardPage() {
-  const [{ data: stats }, { data: activity }] = await Promise.all([
+  const [
+    { data: stats },
+    { data: activity },
+    { data: pipeline },
+    { data: commission },
+  ] = await Promise.all([
     getDashboardStats(),
     getRecentActivity(),
+    getPipelineStats(),
+    getCommissionSummary(),
   ]);
 
   const statCards = [
@@ -86,6 +174,7 @@ export default async function DashboardPage() {
         Overview of your deal flow pipeline.
       </p>
 
+      {/* Stat cards */}
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
           <Card key={stat.label} className="transition-shadow duration-150 hover:shadow-md">
@@ -102,6 +191,94 @@ export default async function DashboardPage() {
         ))}
       </div>
 
+      {/* Commission Summary */}
+      {commission && (
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="transition-shadow duration-150 hover:shadow-md">
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Commissions Earned</p>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-[#0f172a]">
+                {formatCurrency(commission.earned)}
+              </p>
+              <p className="mt-0.5 text-xs text-[#64748b]">All time paid</p>
+            </CardContent>
+          </Card>
+
+          <Card className="transition-shadow duration-150 hover:shadow-md">
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Outstanding</p>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
+                  <Clock className="h-4 w-4 text-blue-600" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-[#0f172a]">
+                {formatCurrency(commission.outstanding)}
+              </p>
+              <p className="mt-0.5 text-xs text-[#64748b]">Sent or overdue</p>
+            </CardContent>
+          </Card>
+
+          <Card className="transition-shadow duration-150 hover:shadow-md">
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50">
+                  <DollarSign className="h-4 w-4 text-slate-500" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-[#0f172a]">
+                {formatCurrency(commission.pending)}
+              </p>
+              <p className="mt-0.5 text-xs text-[#64748b]">Draft invoices</p>
+            </CardContent>
+          </Card>
+
+          <Card className="transition-shadow duration-150 hover:shadow-md">
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">YTD Revenue</p>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eff6ff]">
+                  <TrendingUp className="h-4 w-4 text-[#1e40af]" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-[#1e40af]">
+                {formatCurrency(commission.ytd)}
+              </p>
+              <p className="mt-0.5 text-xs text-[#64748b]">
+                {new Date().getFullYear()} paid commissions
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Deal Pipeline */}
+      {pipeline && (
+        <Card className="mt-8">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold">Deal Pipeline</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Active deals by stage and status.
+            </p>
+
+            <div className="mt-6 space-y-6">
+              <PipelineRow stage={pipeline.applications} />
+              <div className="border-t border-[#e2e8f0]" />
+              <PipelineRow stage={pipeline.lois} />
+              <div className="border-t border-[#e2e8f0]" />
+              <PipelineRow stage={pipeline.leases} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent Activity */}
       <Card className="mt-8">
         <CardContent className="p-6">
           <h2 className="text-lg font-semibold">Recent Activity</h2>
