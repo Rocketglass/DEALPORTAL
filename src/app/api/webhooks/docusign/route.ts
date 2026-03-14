@@ -1,25 +1,29 @@
 /**
  * DocuSign Connect webhook handler.
  *
- * DocuSign sends webhook notifications (Connect) as XML or JSON payloads
- * when envelope and recipient events occur. This route handles:
- *
- * - `envelope-completed` — All parties have signed. Update lease status to
- *   'executed' and trigger commission invoice generation.
- * - `recipient-completed` — An individual signer has completed. Update
- *   signing progress (e.g., lease status to 'partially_signed').
+ * Handles envelope and recipient events from DocuSign Connect:
+ * - envelope-completed: All parties signed → lease status → 'executed'
+ * - recipient-completed: Individual signer done → lease → 'partially_signed'
  *
  * Security: Validates HMAC-SHA256 signature from DocuSign Connect.
- * This endpoint does NOT use session auth — it uses webhook signature verification.
- *
- * DocuSign Connect docs:
- * https://developers.docusign.com/platform/webhooks/connect/
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { getEnvelopeDocument } from '@/lib/docusign/client';
+import { generateCommissionInvoice } from '@/lib/commission/generate-invoice';
+import { notifyLeaseExecuted } from '@/lib/email/notifications';
+
+// Use service role client for webhook processing (no user session)
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Supabase not configured');
+  return createClient(url, key);
+}
 
 // ---------------------------------------------------------------------------
-// Type definitions for DocuSign Connect webhook payloads (JSON format)
+// Types
 // ---------------------------------------------------------------------------
 
 interface DocuSignConnectPayload {
@@ -62,14 +66,6 @@ interface DocuSignConnectPayload {
 // HMAC signature verification
 // ---------------------------------------------------------------------------
 
-/**
- * Verify the DocuSign Connect HMAC-SHA256 signature.
- *
- * DocuSign sends the HMAC signature in the `X-DocuSign-Signature-1` header.
- * The signature is computed over the raw request body using the shared secret.
- *
- * @see https://developers.docusign.com/platform/webhooks/connect/hmac/
- */
 async function verifyDocuSignSignature(
   request: NextRequest,
   body: string,
@@ -77,20 +73,14 @@ async function verifyDocuSignSignature(
   const hmacSecret = process.env.DOCUSIGN_CONNECT_HMAC_SECRET;
 
   if (!hmacSecret) {
-    // In development, skip verification if no secret is configured
     if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        '[DocuSign Webhook] No HMAC secret configured — skipping signature verification (dev only)',
-      );
+      console.warn('[DocuSign Webhook] No HMAC secret — skipping verification (dev only)');
       return true;
     }
-    console.error(
-      '[DocuSign Webhook] HMAC secret not configured in production — rejecting request',
-    );
+    console.error('[DocuSign Webhook] HMAC secret not configured in production');
     return false;
   }
 
-  // Get the signature from the request header
   const signature = request.headers.get('X-DocuSign-Signature-1');
   if (!signature) {
     console.error('[DocuSign Webhook] Missing X-DocuSign-Signature-1 header');
@@ -98,7 +88,6 @@ async function verifyDocuSignSignature(
   }
 
   try {
-    // Import the HMAC secret key
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
       'raw',
@@ -108,39 +97,20 @@ async function verifyDocuSignSignature(
       ['sign'],
     );
 
-    // Compute the HMAC over the raw body
     const mac = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
+    const computedSignature = btoa(String.fromCharCode(...new Uint8Array(mac)));
 
-    // Convert to base64 for comparison
-    const computedSignature = btoa(
-      String.fromCharCode(...new Uint8Array(mac)),
-    );
-
-    // Constant-time comparison to prevent timing attacks
-    if (signature.length !== computedSignature.length) {
-      console.error('[DocuSign Webhook] Signature length mismatch');
-      return false;
-    }
-
+    // Constant-time comparison
+    if (signature.length !== computedSignature.length) return false;
     const sigBytes = encoder.encode(signature);
     const computedBytes = encoder.encode(computedSignature);
-
     let mismatch = 0;
     for (let i = 0; i < sigBytes.length; i++) {
       mismatch |= sigBytes[i] ^ computedBytes[i];
     }
-
-    if (mismatch !== 0) {
-      console.error('[DocuSign Webhook] HMAC signature mismatch — request rejected');
-      return false;
-    }
-
-    return true;
+    return mismatch === 0;
   } catch (error) {
-    console.error(
-      '[DocuSign Webhook] Error verifying signature:',
-      error instanceof Error ? error.message : error,
-    );
+    console.error('[DocuSign Webhook] Signature verification error:', error);
     return false;
   }
 }
@@ -149,123 +119,222 @@ async function verifyDocuSignSignature(
 // Event handlers
 // ---------------------------------------------------------------------------
 
-/**
- * Handle envelope-completed event.
- *
- * All parties have signed the lease. This should:
- * 1. Update the lease status to 'executed'
- * 2. Set the signed_date
- * 3. Download the executed PDF from DocuSign and store it
- * 4. Trigger commission invoice generation
- * 5. Send notification emails to all parties
- */
-async function handleEnvelopeCompleted(
-  payload: DocuSignConnectPayload,
-): Promise<void> {
+async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise<void> {
   const { envelopeId, envelopeSummary } = payload.data;
+  const supabase = getServiceClient();
 
-  console.log(
-    `[DocuSign Webhook] Envelope completed: ${envelopeId}`,
-    `Completed at: ${envelopeSummary.completedDateTime}`,
-  );
+  console.log(`[DocuSign Webhook] Envelope completed: ${envelopeId}`);
 
-  // TODO: Look up lease by docusign_envelope_id
-  // const { data: lease } = await supabase
-  //   .from('leases')
-  //   .select('*')
-  //   .eq('docusign_envelope_id', envelopeId)
-  //   .single();
-  //
-  // if (!lease) {
-  //   console.error(`[DocuSign Webhook] No lease found for envelope ${envelopeId}`);
-  //   return;
-  // }
+  // Find the lease by envelope ID, including fields needed for notifications
+  const { data: lease, error: findError } = await supabase
+    .from('leases')
+    .select('id, property_id, unit_id, tenant_contact_id, landlord_contact_id, broker_contact_id, premises_address, lessee_name, commencement_date')
+    .eq('docusign_envelope_id', envelopeId)
+    .single();
 
-  // TODO: Update lease status to 'executed'
-  // await supabase
-  //   .from('leases')
-  //   .update({
-  //     status: 'executed',
-  //     docusign_status: 'completed',
-  //     signed_date: envelopeSummary.completedDateTime,
-  //     updated_at: new Date().toISOString(),
-  //   })
-  //   .eq('docusign_envelope_id', envelopeId);
+  if (findError || !lease) {
+    console.error(`[DocuSign Webhook] No lease found for envelope ${envelopeId}`, findError);
+    return;
+  }
 
-  // TODO: Download executed PDF from DocuSign
-  // const { getEnvelopeDocuments } = await import('@/lib/docusign/client');
-  // const pdfBytes = await getEnvelopeDocuments(envelopeId);
-  // Upload to storage and save URL
+  // Update lease to executed
+  const { error: updateError } = await supabase
+    .from('leases')
+    .update({
+      status: 'executed',
+      docusign_status: 'completed',
+      signed_date: envelopeSummary.completedDateTime ?? new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', lease.id);
 
-  // TODO: Generate commission invoice
-  // const { generateCommissionInvoice } = await import('@/lib/invoices');
-  // await generateCommissionInvoice(lease);
+  if (updateError) {
+    console.error(`[DocuSign Webhook] Failed to update lease ${lease.id}:`, updateError);
+    return;
+  }
 
-  // TODO: Send notification emails
-  // const { leaseExecuted } = await import('@/lib/email/templates');
-  // Send to tenant, landlord, and broker
+  // Download the executed PDF and store it
+  try {
+    const pdfBuffer = await getEnvelopeDocument(envelopeId);
+    const fileName = `${lease.id}/executed-${Date.now()}.pdf`;
 
-  void envelopeId;
+    const { error: uploadError } = await supabase.storage
+      .from('lease-documents')
+      .upload(fileName, pdfBuffer, {
+        contentType: 'application/pdf',
+        upsert: true,
+      });
+
+    if (!uploadError) {
+      const { data: urlData } = supabase.storage
+        .from('lease-documents')
+        .getPublicUrl(fileName);
+
+      await supabase
+        .from('leases')
+        .update({ executed_pdf_url: urlData.publicUrl })
+        .eq('id', lease.id);
+    } else {
+      console.error('[DocuSign Webhook] PDF upload error:', uploadError);
+    }
+  } catch (pdfError) {
+    console.error('[DocuSign Webhook] Failed to download executed PDF:', pdfError);
+  }
+
+  // Update unit status to occupied
+  await supabase
+    .from('units')
+    .update({
+      status: 'occupied',
+      current_lease_id: lease.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', lease.unit_id);
+
+  // Audit log
+  await supabase.from('audit_log').insert({
+    action: 'lease_executed',
+    entity_type: 'lease',
+    entity_id: lease.id,
+    new_value: {
+      envelope_id: envelopeId,
+      completed_at: envelopeSummary.completedDateTime,
+      signers: envelopeSummary.recipients.signers.map((s) => ({
+        name: s.name,
+        email: s.email,
+        signedAt: s.signedDateTime,
+      })),
+    },
+  });
+
+  console.log(`[DocuSign Webhook] Lease ${lease.id} marked as executed`);
+
+  // Auto-generate commission invoice now that the lease is executed
+  try {
+    const invoice = await generateCommissionInvoice(lease.id);
+    console.log(
+      `[DocuSign Webhook] Commission invoice ${invoice.invoice_number} generated for lease ${lease.id}`,
+    );
+  } catch (invoiceError) {
+    // Log but do not re-throw — a billing failure should not cause DocuSign
+    // to retry the webhook and double-update the lease.
+    console.error(
+      `[DocuSign Webhook] Failed to generate commission invoice for lease ${lease.id}:`,
+      invoiceError,
+    );
+  }
+
+  // Notify all parties (tenant, landlord, broker) that the lease is fully executed.
+  // Fetch contacts in parallel; errors here must not surface to DocuSign.
+  try {
+    const [
+      { data: tenant },
+      { data: landlord },
+      { data: broker },
+      { data: unit },
+    ] = await Promise.all([
+      supabase
+        .from('contacts')
+        .select('email, first_name, last_name, company_name')
+        .eq('id', lease.tenant_contact_id)
+        .maybeSingle(),
+      supabase
+        .from('contacts')
+        .select('email, first_name, last_name, company_name')
+        .eq('id', lease.landlord_contact_id)
+        .maybeSingle(),
+      supabase
+        .from('contacts')
+        .select('email, first_name, last_name, company_name')
+        .eq('id', lease.broker_contact_id)
+        .maybeSingle(),
+      supabase
+        .from('units')
+        .select('suite_number')
+        .eq('id', lease.unit_id)
+        .maybeSingle(),
+    ]);
+
+    const parties = [
+      { contact: tenant, fallbackName: 'Tenant' },
+      { contact: landlord, fallbackName: 'Landlord' },
+      { contact: broker, fallbackName: 'Broker' },
+    ]
+      .filter(({ contact }) => !!contact?.email)
+      .map(({ contact, fallbackName }) => ({
+        email: contact!.email as string,
+        name:
+          (contact!.company_name
+          ?? [contact!.first_name, contact!.last_name].filter(Boolean).join(' '))
+          || fallbackName,
+      }));
+
+    if (parties.length > 0) {
+      void notifyLeaseExecuted(
+        {
+          id: lease.id,
+          propertyAddress: lease.premises_address,
+          suiteNumber: unit?.suite_number ?? '',
+          tenantBusinessName: lease.lessee_name,
+          commencementDate: lease.commencement_date,
+        },
+        parties,
+      );
+    }
+  } catch (notifyError) {
+    console.error(
+      `[DocuSign Webhook] Failed to send executed notifications for lease ${lease.id}:`,
+      notifyError,
+    );
+  }
 }
 
-/**
- * Handle recipient-completed event.
- *
- * An individual signer has completed signing. This should:
- * 1. Update the lease's docusign_status to reflect progress
- * 2. If the lease was in 'sent_for_signature' status, move to 'partially_signed'
- * 3. Log the signing event in the audit trail
- */
-async function handleRecipientCompleted(
-  payload: DocuSignConnectPayload,
-): Promise<void> {
+async function handleRecipientCompleted(payload: DocuSignConnectPayload): Promise<void> {
   const { envelopeId, envelopeSummary } = payload.data;
+  const supabase = getServiceClient();
   const signers = envelopeSummary.recipients.signers;
-
   const completedSigners = signers.filter((s) => s.status === 'completed');
-  const totalSigners = signers.length;
 
   console.log(
-    `[DocuSign Webhook] Recipient completed for envelope ${envelopeId}`,
-    `Progress: ${completedSigners.length}/${totalSigners} signers`,
+    `[DocuSign Webhook] Recipient completed: ${envelopeId} (${completedSigners.length}/${signers.length})`,
   );
 
-  // TODO: Look up lease by docusign_envelope_id
-  // const { data: lease } = await supabase
-  //   .from('leases')
-  //   .select('*')
-  //   .eq('docusign_envelope_id', envelopeId)
-  //   .single();
-  //
-  // if (!lease) {
-  //   console.error(`[DocuSign Webhook] No lease found for envelope ${envelopeId}`);
-  //   return;
-  // }
+  const { data: lease, error } = await supabase
+    .from('leases')
+    .select('id, status')
+    .eq('docusign_envelope_id', envelopeId)
+    .single();
 
-  // TODO: Update lease to partially_signed if not already
-  // if (lease.status === 'sent_for_signature') {
-  //   await supabase
-  //     .from('leases')
-  //     .update({
-  //       status: 'partially_signed',
-  //       docusign_status: `${completedSigners.length}/${totalSigners} signed`,
-  //       updated_at: new Date().toISOString(),
-  //     })
-  //     .eq('docusign_envelope_id', envelopeId);
-  // }
+  if (error || !lease) {
+    console.error(`[DocuSign Webhook] No lease found for envelope ${envelopeId}`);
+    return;
+  }
 
-  // TODO: Create audit log entry
-  // await supabase.from('audit_log').insert({
-  //   action: 'docusign_recipient_signed',
-  //   entity_type: 'lease',
-  //   entity_id: lease.id,
-  //   new_value: {
-  //     signer: completedSigners[completedSigners.length - 1],
-  //     progress: `${completedSigners.length}/${totalSigners}`,
-  //   },
-  // });
+  // Move to partially_signed if still in sent_for_signature
+  if (lease.status === 'sent_for_signature') {
+    await supabase
+      .from('leases')
+      .update({
+        status: 'partially_signed',
+        docusign_status: `${completedSigners.length}/${signers.length} signed`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', lease.id);
+  }
 
-  void envelopeId;
+  // Audit log
+  const latestSigner = completedSigners[completedSigners.length - 1];
+  await supabase.from('audit_log').insert({
+    action: 'docusign_recipient_signed',
+    entity_type: 'lease',
+    entity_id: lease.id,
+    new_value: {
+      signer_name: latestSigner?.name,
+      signer_email: latestSigner?.email,
+      signed_at: latestSigner?.signedDateTime,
+      progress: `${completedSigners.length}/${signers.length}`,
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -276,63 +345,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.text();
 
-    // Verify webhook HMAC-SHA256 signature
     const isValid = await verifyDocuSignSignature(request, body);
     if (!isValid) {
-      const clientIp =
-        request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        request.headers.get('x-real-ip') ||
-        'unknown';
-      console.error(
-        `[DocuSign Webhook] Invalid HMAC signature from IP ${clientIp}`,
-      );
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
     const payload: DocuSignConnectPayload = JSON.parse(body);
-    const event = payload.event;
+    console.log(`[DocuSign Webhook] Event: ${payload.event}, Envelope: ${payload.data.envelopeId}`);
 
-    console.log(
-      `[DocuSign Webhook] Received event: ${event}`,
-      `Envelope: ${payload.data.envelopeId}`,
-    );
-
-    switch (event) {
+    switch (payload.event) {
       case 'envelope-completed':
         await handleEnvelopeCompleted(payload);
         break;
-
       case 'recipient-completed':
         await handleRecipientCompleted(payload);
         break;
-
       default:
-        // Acknowledge unhandled events without error
-        console.log(`[DocuSign Webhook] Unhandled event type: ${event}`);
-        break;
+        console.log(`[DocuSign Webhook] Unhandled event: ${payload.event}`);
     }
 
-    // DocuSign expects a 200 response to acknowledge receipt
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
-    console.error('[DocuSign Webhook] Error processing webhook:', error);
-
-    // Return 200 even on error to prevent DocuSign from retrying indefinitely.
-    // Log the error for investigation. In production, send to error tracking.
-    return NextResponse.json(
-      { received: true, error: 'Internal processing error' },
-      { status: 200 },
-    );
+    console.error('[DocuSign Webhook] Error:', error);
+    return NextResponse.json({ received: true, error: 'Internal error' }, { status: 200 });
   }
 }
 
-/**
- * DocuSign may send a GET request to verify the webhook endpoint is reachable
- * during Connect configuration.
- */
 export async function GET(): Promise<NextResponse> {
   return NextResponse.json({ status: 'ok', service: 'docusign-webhook' });
 }

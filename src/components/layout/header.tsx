@@ -12,6 +12,19 @@ import {
   type Notification,
 } from './notification-panel';
 
+/** Derive 1-2 character initials from a name or email address. */
+function getInitials(nameOrEmail: string): string {
+  const trimmed = nameOrEmail.trim();
+  // If it looks like an email, use the first two chars of the local part
+  if (trimmed.includes('@')) {
+    return trimmed.slice(0, 2).toUpperCase();
+  }
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '??';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/applications': 'Applications',
@@ -38,6 +51,26 @@ export function Header() {
   const [notifications, setNotifications] =
     useState<Notification[]>(mockNotifications);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Current authenticated user — fetched client-side so the header is
+  // always in sync with the active Supabase session.
+  const [userDisplay, setUserDisplay] = useState<{
+    initials: string;
+    label: string;
+  }>({ initials: '??', label: '' });
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      const name: string = user.user_metadata?.full_name ?? '';
+      const email: string = user.email ?? '';
+      const label = name || email;
+      const initials = getInitials(name || email);
+      setUserDisplay({ initials, label });
+    });
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -124,8 +157,11 @@ export function Header() {
             aria-haspopup="true"
             className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
-              NB
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white"
+              title={userDisplay.label}
+            >
+              {userDisplay.initials}
             </div>
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
@@ -140,8 +176,16 @@ export function Header() {
               <div
                 role="menu"
                 aria-label="User menu"
-                className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-border bg-white py-1 shadow-lg"
+                className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-border bg-white py-1 shadow-lg"
               >
+                {/* User identity — read-only header row */}
+                {userDisplay.label && (
+                  <div className="border-b border-border px-3 pb-2 pt-1.5">
+                    <p className="max-w-full truncate text-xs font-medium text-foreground">
+                      {userDisplay.label}
+                    </p>
+                  </div>
+                )}
                 <Link
                   href="/profile"
                   role="menuitem"

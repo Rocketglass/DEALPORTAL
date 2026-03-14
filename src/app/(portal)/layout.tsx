@@ -1,12 +1,35 @@
+import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { MobileNav } from '@/components/layout/mobile-nav';
 
-export default function PortalLayout({
+export const dynamic = 'force-dynamic';
+
+export default async function PortalLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Server-side auth guard — safety net in addition to middleware.
+  // Middleware handles the redirect in the common case; this catches any
+  // edge cases where middleware is bypassed (e.g. direct RSC fetches).
+  let user = null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+  } catch (err) {
+    console.error('[Portal Layout] Auth check failed:', err);
+  }
+
+  if (!user) {
+    const headersList = await headers();
+    const pathname = headersList.get('x-invoke-path') ?? '/dashboard';
+    redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
+  }
+
   return (
     <div className="flex min-h-screen">
       {/* Skip navigation link — first focusable element */}

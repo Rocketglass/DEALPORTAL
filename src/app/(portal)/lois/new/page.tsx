@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   DollarSign,
   Calendar,
@@ -18,6 +19,7 @@ import {
   Eye,
   Save,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,7 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { BackButton } from '@/components/ui/back-button';
-import type { LoiSectionKey } from '@/types/database';
+import type { Contact, Property, Unit, LoiSectionKey } from '@/types/database';
 
 // ---------------------------------------------------------------------------
 // Section configuration
@@ -50,6 +52,21 @@ const SECTIONS: SectionConfig[] = [
   { key: 'escalations', label: 'Rent Escalations', icon: TrendingUp },
   { key: 'free_rent', label: 'Free Rent', icon: Gift },
 ];
+
+// SECTION_LABELS maps a key to its human-readable label for loi_sections.section_label
+const SECTION_LABELS: Record<LoiSectionKey, string> = {
+  base_rent: 'Base Rent',
+  term: 'Term',
+  tenant_improvements: 'Tenant Improvements',
+  cam: 'CAM / Operating Expenses',
+  security_deposit: 'Security Deposit',
+  agreed_use: 'Agreed Use',
+  parking: 'Parking',
+  options: 'Options',
+  escalations: 'Rent Escalations',
+  free_rent: 'Free Rent',
+  other: 'Other',
+};
 
 // ---------------------------------------------------------------------------
 // Section data shapes
@@ -90,10 +107,18 @@ function isFilled(key: LoiSectionKey, data: SectionData): boolean {
   return Object.values(d).some((v) => typeof v === 'string' && v.trim() !== '');
 }
 
-function _requiredSectionsFilled(data: SectionData): boolean {
-  return (
-    isFilled('base_rent', data) && isFilled('term', data)
-  );
+/** Serialize a section's data object into the `proposed_value` string format */
+function serializeSection(key: LoiSectionKey, data: SectionData): string {
+  const d = data[key as keyof SectionData];
+  return Object.entries(d)
+    .filter(([, v]) => typeof v === 'string' && v.trim() !== '')
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('; ');
+}
+
+function contactLabel(c: Contact): string {
+  if (c.company_name) return c.company_name;
+  return [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || c.id;
 }
 
 // ---------------------------------------------------------------------------
@@ -101,17 +126,64 @@ function _requiredSectionsFilled(data: SectionData): boolean {
 // ---------------------------------------------------------------------------
 
 export default function CreateLoiPage() {
-  const [property, setProperty] = useState('');
-  const [suite, setSuite] = useState('');
-  const [tenantName, setTenantName] = useState('');
-  const [landlordName, setLandlordName] = useState('');
-  const [brokerName, setBrokerName] = useState('');
+  const router = useRouter();
+
+  // ----- Dropdown data -----
+  const [properties, setProperties] = useState<(Property & { units: Unit[] })[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
+
+  // ----- Form state -----
+  const [propertyId, setPropertyId] = useState('');
+  const [unitId, setUnitId] = useState('');
+  const [tenantContactId, setTenantContactId] = useState('');
+  const [landlordContactId, setLandlordContactId] = useState('');
+  const [brokerContactId, setBrokerContactId] = useState('');
+
   const [sections, setSections] = useState<SectionData>(INITIAL_DATA);
   const [expanded, setExpanded] = useState<Set<LoiSectionKey>>(new Set(['base_rent', 'term']));
   const [headerErrors, setHeaderErrors] = useState<Record<string, string>>({});
   const [sectionErrors, setSectionErrors] = useState<Set<LoiSectionKey>>(new Set());
   const [, setHasAttemptedSend] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
+
+  // ----- Submission state -----
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // ----- Load dropdown data on mount -----
+  useEffect(() => {
+    async function loadData() {
+      setLoadingData(true);
+      setDataError(null);
+      try {
+        const res = await fetch('/api/lois/dropdown-data');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? 'Failed to load form data');
+        setProperties(data.properties ?? []);
+        setContacts(data.contacts ?? []);
+      } catch (err) {
+        setDataError((err as Error).message);
+      } finally {
+        setLoadingData(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  // Available units filtered by selected property
+  const availableUnits =
+    properties.find((p) => p.id === propertyId)?.units ?? [];
+
+  // Filtered contact lists by role
+  const tenantContacts = contacts.filter((c) =>
+    c.type === 'tenant' || c.type === 'prospect',
+  );
+  const landlordContacts = contacts.filter((c) => c.type === 'landlord');
+  const brokerContacts = contacts.filter((c) => c.type === 'broker');
+
+  // ----- Section helpers -----
 
   function toggle(key: LoiSectionKey) {
     setExpanded((prev) => {
@@ -131,7 +203,6 @@ export default function CreateLoiPage() {
       ...prev,
       [key]: { ...prev[key], [field]: value },
     }));
-    // Clear section error when user edits
     setSectionErrors((prev) => {
       const next = new Set(prev);
       next.delete(key as LoiSectionKey);
@@ -148,40 +219,89 @@ export default function CreateLoiPage() {
     });
   }
 
-  function validateAndSend() {
+  // ----- Validation -----
+
+  function validate(): boolean {
     setHasAttemptedSend(true);
     const newHeaderErrors: Record<string, string> = {};
     const newSectionErrors = new Set<LoiSectionKey>();
 
-    // Header validation
-    if (!property.trim()) newHeaderErrors.property = 'Property name is required';
-    if (!suite.trim()) newHeaderErrors.suite = 'Suite is required';
-    if (!tenantName.trim()) newHeaderErrors.tenantName = 'Tenant name is required';
-    if (!landlordName.trim()) newHeaderErrors.landlordName = 'Landlord name is required';
-    if (!brokerName.trim()) newHeaderErrors.brokerName = 'Broker name is required';
+    if (!propertyId) newHeaderErrors.propertyId = 'Property is required';
+    if (!unitId) newHeaderErrors.unitId = 'Suite / unit is required';
+    if (!tenantContactId) newHeaderErrors.tenantContactId = 'Tenant is required';
+    if (!landlordContactId) newHeaderErrors.landlordContactId = 'Landlord is required';
+    if (!brokerContactId) newHeaderErrors.brokerContactId = 'Broker is required';
 
-    // Required sections
     if (!isFilled('base_rent', sections)) newSectionErrors.add('base_rent');
     if (!isFilled('term', sections)) newSectionErrors.add('term');
 
     setHeaderErrors(newHeaderErrors);
     setSectionErrors(newSectionErrors);
 
-    const hasErrors = Object.keys(newHeaderErrors).length > 0 || newSectionErrors.size > 0;
+    const hasErrors =
+      Object.keys(newHeaderErrors).length > 0 || newSectionErrors.size > 0;
     if (hasErrors) {
       setShakeKey((k) => k + 1);
-      // Auto-expand errored sections
       setExpanded((prev) => {
         const next = new Set(prev);
         newSectionErrors.forEach((k) => next.add(k));
         return next;
       });
-      return;
     }
-
-    // In production, submit to API
-    alert('LOI sent to landlord successfully!');
+    return !hasErrors;
   }
+
+  // ----- Build sections payload -----
+
+  function buildSectionsPayload() {
+    return SECTIONS.filter((sec) => isFilled(sec.key, sections)).map(
+      (sec, idx) => ({
+        section_key: sec.key,
+        section_label: SECTION_LABELS[sec.key],
+        display_order: idx + 1,
+        proposed_value: serializeSection(sec.key, sections),
+        status: 'proposed' as const,
+      }),
+    );
+  }
+
+  // ----- Submit -----
+
+  async function submit(status: 'draft' | 'sent') {
+    if (!validate()) return;
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const res = await fetch('/api/lois', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_id: propertyId,
+          unit_id: unitId,
+          tenant_contact_id: tenantContactId,
+          landlord_contact_id: landlordContactId,
+          broker_contact_id: brokerContactId,
+          status,
+          sections: buildSectionsPayload(),
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error ?? 'Failed to create LOI');
+      }
+
+      router.push(`/lois/${json.id}`);
+    } catch (err) {
+      setSubmitError((err as Error).message);
+      setSubmitting(false);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
 
   return (
     <div className="p-6 lg:p-8">
@@ -193,50 +313,147 @@ export default function CreateLoiPage() {
         Fill in the deal terms below. Expand each section to enter details.
       </p>
 
+      {/* Data load error */}
+      {dataError && (
+        <div className="mt-4 flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>Failed to load form data: {dataError}</span>
+        </div>
+      )}
+
+      {/* Submission error */}
+      {submitError && (
+        <div className="mt-4 flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{submitError}</span>
+        </div>
+      )}
+
       {/* ------------------------------------------------------------------ */}
       {/* Header fields                                                       */}
       {/* ------------------------------------------------------------------ */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Input
-          label="Property"
-          required
-          value={property}
-          onChange={(e) => { setProperty(e.target.value); clearHeaderError('property'); }}
-          placeholder="Search or enter property name"
-          error={headerErrors.property}
-        />
-        <Input
-          label="Suite"
-          required
-          value={suite}
-          onChange={(e) => { setSuite(e.target.value); clearHeaderError('suite'); }}
-          placeholder="e.g. 101"
-          error={headerErrors.suite}
-        />
-        <Input
-          label="Tenant Name"
-          required
-          value={tenantName}
-          onChange={(e) => { setTenantName(e.target.value); clearHeaderError('tenantName'); }}
-          placeholder="Company or individual"
-          error={headerErrors.tenantName}
-        />
-        <Input
-          label="Landlord Name"
-          required
-          value={landlordName}
-          onChange={(e) => { setLandlordName(e.target.value); clearHeaderError('landlordName'); }}
-          placeholder="Company or individual"
-          error={headerErrors.landlordName}
-        />
-        <Input
-          label="Broker Name"
-          required
-          value={brokerName}
-          onChange={(e) => { setBrokerName(e.target.value); clearHeaderError('brokerName'); }}
-          placeholder="Your name"
-          error={headerErrors.brokerName}
-        />
+        {/* Property */}
+        <div>
+          <Select
+            label="Property"
+            required
+            value={propertyId}
+            onChange={(e) => {
+              setPropertyId(e.target.value);
+              setUnitId('');
+              clearHeaderError('propertyId');
+            }}
+            error={headerErrors.propertyId}
+            disabled={loadingData}
+          >
+            <option value="">
+              {loadingData ? 'Loading…' : 'Select a property'}
+            </option>
+            {properties.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        {/* Unit / Suite */}
+        <div>
+          <Select
+            label="Suite"
+            required
+            value={unitId}
+            onChange={(e) => {
+              setUnitId(e.target.value);
+              clearHeaderError('unitId');
+            }}
+            error={headerErrors.unitId}
+            disabled={!propertyId || loadingData}
+          >
+            <option value="">
+              {!propertyId ? 'Select a property first' : 'Select a suite'}
+            </option>
+            {availableUnits.map((u) => (
+              <option key={u.id} value={u.id}>
+                Suite {u.suite_number}
+                {u.sf ? ` — ${u.sf.toLocaleString()} SF` : ''}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        {/* Tenant */}
+        <div>
+          <Select
+            label="Tenant"
+            required
+            value={tenantContactId}
+            onChange={(e) => {
+              setTenantContactId(e.target.value);
+              clearHeaderError('tenantContactId');
+            }}
+            error={headerErrors.tenantContactId}
+            disabled={loadingData}
+          >
+            <option value="">
+              {loadingData ? 'Loading…' : 'Select a tenant'}
+            </option>
+            {tenantContacts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {contactLabel(c)}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        {/* Landlord */}
+        <div>
+          <Select
+            label="Landlord"
+            required
+            value={landlordContactId}
+            onChange={(e) => {
+              setLandlordContactId(e.target.value);
+              clearHeaderError('landlordContactId');
+            }}
+            error={headerErrors.landlordContactId}
+            disabled={loadingData}
+          >
+            <option value="">
+              {loadingData ? 'Loading…' : 'Select a landlord'}
+            </option>
+            {landlordContacts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {contactLabel(c)}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        {/* Broker */}
+        <div>
+          <Select
+            label="Broker"
+            required
+            value={brokerContactId}
+            onChange={(e) => {
+              setBrokerContactId(e.target.value);
+              clearHeaderError('brokerContactId');
+            }}
+            error={headerErrors.brokerContactId}
+            disabled={loadingData}
+          >
+            <option value="">
+              {loadingData ? 'Loading…' : 'Select a broker'}
+            </option>
+            {brokerContacts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {contactLabel(c)}
+              </option>
+            ))}
+          </Select>
+        </div>
       </div>
 
       {/* ------------------------------------------------------------------ */}
@@ -263,13 +480,26 @@ export default function CreateLoiPage() {
                 className="flex w-full items-center justify-between px-5 py-4 text-left"
               >
                 <div className="flex items-center gap-3">
-                  <sec.icon className={cn('h-5 w-5', hasError ? 'text-red-500' : filled ? 'text-primary' : 'text-muted-foreground')} />
+                  <sec.icon
+                    className={cn(
+                      'h-5 w-5',
+                      hasError
+                        ? 'text-red-500'
+                        : filled
+                        ? 'text-primary'
+                        : 'text-muted-foreground',
+                    )}
+                  />
                   <span className="text-sm font-semibold">{sec.label}</span>
                   {sec.required && (
-                    <span className={cn(
-                      'rounded px-1.5 py-0.5 text-[10px] font-medium',
-                      hasError ? 'bg-red-50 text-red-600' : 'bg-muted text-muted-foreground',
-                    )}>
+                    <span
+                      className={cn(
+                        'rounded px-1.5 py-0.5 text-[10px] font-medium',
+                        hasError
+                          ? 'bg-red-50 text-red-600'
+                          : 'bg-muted text-muted-foreground',
+                      )}
+                    >
                       Required
                     </span>
                   )}
@@ -318,16 +548,22 @@ export default function CreateLoiPage() {
       {/* Bottom action bar                                                   */}
       {/* ------------------------------------------------------------------ */}
       <div className="mt-8 flex items-center justify-end gap-3 rounded-xl bg-white px-5 py-4 shadow-sm">
-        <Button variant="secondary" icon={Save}>
+        <Button
+          variant="secondary"
+          icon={submitting ? Loader2 : Save}
+          onClick={() => submit('draft')}
+          disabled={submitting || loadingData}
+        >
           Save as Draft
         </Button>
-        <Button variant="secondary" icon={Eye}>
+        <Button variant="secondary" icon={Eye} disabled={submitting}>
           Preview LOI
         </Button>
         <Button
           variant="primary"
-          icon={Send}
-          onClick={validateAndSend}
+          icon={submitting ? Loader2 : Send}
+          onClick={() => submit('sent')}
+          disabled={submitting || loadingData}
         >
           Send to Landlord
         </Button>
@@ -347,16 +583,37 @@ function SectionFields({
 }: {
   sectionKey: LoiSectionKey;
   data: SectionData;
-  onChange: <K extends keyof SectionData>(key: K, field: keyof SectionData[K], value: string) => void;
+  onChange: <K extends keyof SectionData>(
+    key: K,
+    field: keyof SectionData[K],
+    value: string,
+  ) => void;
 }) {
   switch (sectionKey) {
     case 'base_rent': {
       const d = data.base_rent;
       return (
         <div className="grid gap-4 sm:grid-cols-3">
-          <Input label="Monthly Amount ($)" type="text" value={d.monthlyAmount} onChange={(e) => onChange('base_rent', 'monthlyAmount', e.target.value)} placeholder="e.g. 5,000" />
-          <Input label="Per SF Rate ($)" type="text" value={d.perSfRate} onChange={(e) => onChange('base_rent', 'perSfRate', e.target.value)} placeholder="e.g. 1.25" />
-          <Input label="Rent Commencement Date" type="date" value={d.commencementDate} onChange={(e) => onChange('base_rent', 'commencementDate', e.target.value)} />
+          <Input
+            label="Monthly Amount ($)"
+            type="text"
+            value={d.monthlyAmount}
+            onChange={(e) => onChange('base_rent', 'monthlyAmount', e.target.value)}
+            placeholder="e.g. 5,000"
+          />
+          <Input
+            label="Per SF Rate ($)"
+            type="text"
+            value={d.perSfRate}
+            onChange={(e) => onChange('base_rent', 'perSfRate', e.target.value)}
+            placeholder="e.g. 1.25"
+          />
+          <Input
+            label="Rent Commencement Date"
+            type="date"
+            value={d.commencementDate}
+            onChange={(e) => onChange('base_rent', 'commencementDate', e.target.value)}
+          />
         </div>
       );
     }
@@ -365,10 +622,35 @@ function SectionFields({
       const d = data.term;
       return (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Input label="Years" type="number" min={0} value={d.years} onChange={(e) => onChange('term', 'years', e.target.value)} placeholder="e.g. 5" />
-          <Input label="Months" type="number" min={0} max={11} value={d.months} onChange={(e) => onChange('term', 'months', e.target.value)} placeholder="e.g. 0" />
-          <Input label="Commencement Date" type="date" value={d.commencementDate} onChange={(e) => onChange('term', 'commencementDate', e.target.value)} />
-          <Input label="Expiration Date" type="date" value={d.expirationDate} onChange={(e) => onChange('term', 'expirationDate', e.target.value)} />
+          <Input
+            label="Years"
+            type="number"
+            min={0}
+            value={d.years}
+            onChange={(e) => onChange('term', 'years', e.target.value)}
+            placeholder="e.g. 5"
+          />
+          <Input
+            label="Months"
+            type="number"
+            min={0}
+            max={11}
+            value={d.months}
+            onChange={(e) => onChange('term', 'months', e.target.value)}
+            placeholder="e.g. 0"
+          />
+          <Input
+            label="Commencement Date"
+            type="date"
+            value={d.commencementDate}
+            onChange={(e) => onChange('term', 'commencementDate', e.target.value)}
+          />
+          <Input
+            label="Expiration Date"
+            type="date"
+            value={d.expirationDate}
+            onChange={(e) => onChange('term', 'expirationDate', e.target.value)}
+          />
         </div>
       );
     }
@@ -377,9 +659,27 @@ function SectionFields({
       const d = data.tenant_improvements;
       return (
         <div className="grid gap-4 sm:grid-cols-3">
-          <Input label="Dollar Amount ($)" type="text" value={d.amount} onChange={(e) => onChange('tenant_improvements', 'amount', e.target.value)} placeholder="e.g. 25,000" />
-          <Input label="Description" type="text" value={d.description} onChange={(e) => onChange('tenant_improvements', 'description', e.target.value)} placeholder="Describe improvements" />
-          <Select label="Who Pays" value={d.whoPays} onChange={(e) => onChange('tenant_improvements', 'whoPays', e.target.value)}>
+          <Input
+            label="Dollar Amount ($)"
+            type="text"
+            value={d.amount}
+            onChange={(e) => onChange('tenant_improvements', 'amount', e.target.value)}
+            placeholder="e.g. 25,000"
+          />
+          <Input
+            label="Description"
+            type="text"
+            value={d.description}
+            onChange={(e) =>
+              onChange('tenant_improvements', 'description', e.target.value)
+            }
+            placeholder="Describe improvements"
+          />
+          <Select
+            label="Who Pays"
+            value={d.whoPays}
+            onChange={(e) => onChange('tenant_improvements', 'whoPays', e.target.value)}
+          >
             <option value="landlord">Landlord</option>
             <option value="tenant">Tenant</option>
             <option value="shared">Shared</option>
@@ -392,13 +692,29 @@ function SectionFields({
       const d = data.cam;
       return (
         <div className="grid gap-4 sm:grid-cols-3">
-          <Input label="Percentage (%)" type="text" value={d.percentage} onChange={(e) => onChange('cam', 'percentage', e.target.value)} placeholder="e.g. 15" />
-          <Select label="Structure" value={d.structure} onChange={(e) => onChange('cam', 'structure', e.target.value)}>
+          <Input
+            label="Percentage (%)"
+            type="text"
+            value={d.percentage}
+            onChange={(e) => onChange('cam', 'percentage', e.target.value)}
+            placeholder="e.g. 15"
+          />
+          <Select
+            label="Structure"
+            value={d.structure}
+            onChange={(e) => onChange('cam', 'structure', e.target.value)}
+          >
             <option value="nnn">NNN (Triple Net)</option>
             <option value="modified_gross">Modified Gross</option>
             <option value="full_service">Full Service</option>
           </Select>
-          <Input label="Base Year" type="text" value={d.baseYear} onChange={(e) => onChange('cam', 'baseYear', e.target.value)} placeholder="e.g. 2026" />
+          <Input
+            label="Base Year"
+            type="text"
+            value={d.baseYear}
+            onChange={(e) => onChange('cam', 'baseYear', e.target.value)}
+            placeholder="e.g. 2026"
+          />
         </div>
       );
     }
@@ -407,7 +723,13 @@ function SectionFields({
       const d = data.security_deposit;
       return (
         <div className="max-w-xs">
-          <Input label="Amount ($)" type="text" value={d.amount} onChange={(e) => onChange('security_deposit', 'amount', e.target.value)} placeholder="e.g. 10,000" />
+          <Input
+            label="Amount ($)"
+            type="text"
+            value={d.amount}
+            onChange={(e) => onChange('security_deposit', 'amount', e.target.value)}
+            placeholder="e.g. 10,000"
+          />
         </div>
       );
     }
@@ -415,7 +737,13 @@ function SectionFields({
     case 'agreed_use': {
       const d = data.agreed_use;
       return (
-        <Textarea label="Permitted Use" rows={3} value={d.description} onChange={(e) => onChange('agreed_use', 'description', e.target.value)} placeholder="Describe the permitted use of the premises" />
+        <Textarea
+          label="Permitted Use"
+          rows={3}
+          value={d.description}
+          onChange={(e) => onChange('agreed_use', 'description', e.target.value)}
+          placeholder="Describe the permitted use of the premises"
+        />
       );
     }
 
@@ -423,8 +751,19 @@ function SectionFields({
       const d = data.parking;
       return (
         <div className="grid gap-4 sm:grid-cols-2 max-w-lg">
-          <Input label="Number of Spaces" type="number" min={0} value={d.spaces} onChange={(e) => onChange('parking', 'spaces', e.target.value)} placeholder="e.g. 10" />
-          <Select label="Type" value={d.type} onChange={(e) => onChange('parking', 'type', e.target.value)}>
+          <Input
+            label="Number of Spaces"
+            type="number"
+            min={0}
+            value={d.spaces}
+            onChange={(e) => onChange('parking', 'spaces', e.target.value)}
+            placeholder="e.g. 10"
+          />
+          <Select
+            label="Type"
+            value={d.type}
+            onChange={(e) => onChange('parking', 'type', e.target.value)}
+          >
             <option value="unreserved">Unreserved</option>
             <option value="reserved">Reserved</option>
             <option value="mixed">Mixed</option>
@@ -437,9 +776,27 @@ function SectionFields({
       const d = data.options;
       return (
         <div className="space-y-4">
-          <Textarea label="Renewal Options" rows={2} value={d.renewalOptions} onChange={(e) => onChange('options', 'renewalOptions', e.target.value)} placeholder="e.g. Two (2) five-year renewal options at fair market value" />
-          <Textarea label="Expansion Options" rows={2} value={d.expansionOptions} onChange={(e) => onChange('options', 'expansionOptions', e.target.value)} placeholder="e.g. Right to expand into adjacent Suite 102" />
-          <Textarea label="Right of First Refusal" rows={2} value={d.rofr} onChange={(e) => onChange('options', 'rofr', e.target.value)} placeholder="e.g. ROFR on any adjacent space that becomes available" />
+          <Textarea
+            label="Renewal Options"
+            rows={2}
+            value={d.renewalOptions}
+            onChange={(e) => onChange('options', 'renewalOptions', e.target.value)}
+            placeholder="e.g. Two (2) five-year renewal options at fair market value"
+          />
+          <Textarea
+            label="Expansion Options"
+            rows={2}
+            value={d.expansionOptions}
+            onChange={(e) => onChange('options', 'expansionOptions', e.target.value)}
+            placeholder="e.g. Right to expand into adjacent Suite 102"
+          />
+          <Textarea
+            label="Right of First Refusal"
+            rows={2}
+            value={d.rofr}
+            onChange={(e) => onChange('options', 'rofr', e.target.value)}
+            placeholder="e.g. ROFR on any adjacent space that becomes available"
+          />
         </div>
       );
     }
@@ -448,8 +805,20 @@ function SectionFields({
       const d = data.escalations;
       return (
         <div className="grid gap-4 sm:grid-cols-2 max-w-lg">
-          <Input label="Annual Increase (%)" type="text" value={d.annualIncrease} onChange={(e) => onChange('escalations', 'annualIncrease', e.target.value)} placeholder="e.g. 3" />
-          <Input label="Schedule / Notes" type="text" value={d.schedule} onChange={(e) => onChange('escalations', 'schedule', e.target.value)} placeholder="e.g. Annual on anniversary" />
+          <Input
+            label="Annual Increase (%)"
+            type="text"
+            value={d.annualIncrease}
+            onChange={(e) => onChange('escalations', 'annualIncrease', e.target.value)}
+            placeholder="e.g. 3"
+          />
+          <Input
+            label="Schedule / Notes"
+            type="text"
+            value={d.schedule}
+            onChange={(e) => onChange('escalations', 'schedule', e.target.value)}
+            placeholder="e.g. Annual on anniversary"
+          />
         </div>
       );
     }
@@ -458,8 +827,21 @@ function SectionFields({
       const d = data.free_rent;
       return (
         <div className="grid gap-4 sm:grid-cols-2 max-w-lg">
-          <Input label="Number of Months" type="number" min={0} value={d.months} onChange={(e) => onChange('free_rent', 'months', e.target.value)} placeholder="e.g. 2" />
-          <Input label="Conditions" type="text" value={d.conditions} onChange={(e) => onChange('free_rent', 'conditions', e.target.value)} placeholder="e.g. First 2 months of term" />
+          <Input
+            label="Number of Months"
+            type="number"
+            min={0}
+            value={d.months}
+            onChange={(e) => onChange('free_rent', 'months', e.target.value)}
+            placeholder="e.g. 2"
+          />
+          <Input
+            label="Conditions"
+            type="text"
+            value={d.conditions}
+            onChange={(e) => onChange('free_rent', 'conditions', e.target.value)}
+            placeholder="e.g. First 2 months of term"
+          />
         </div>
       );
     }

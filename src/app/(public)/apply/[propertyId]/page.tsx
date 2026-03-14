@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, type DragEvent, type ChangeEvent } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Building2,
@@ -589,6 +589,7 @@ function FileUploadZone({
 export default function TenantApplicationPage() {
   const params = useParams<{ propertyId: string }>();
   const propertyId = params.propertyId;
+  const router = useRouter();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
@@ -598,6 +599,11 @@ export default function TenantApplicationPage() {
   const [hasAttemptedStep, setHasAttemptedStep] = useState<Set<number>>(new Set());
   const [shakeKey, setShakeKey] = useState(0);
   const [submitErrorSummary, setSubmitErrorSummary] = useState<string[]>([]);
+
+  // Submission / upload progress state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     businessName: '',
@@ -783,14 +789,97 @@ export default function TenantApplicationPage() {
     [currentStep, completedSteps],
   );
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     setHasAttemptedStep((prev) => new Set(prev).add(5));
     if (!validateStep(5)) return;
-    // In the future, this is where we'd submit to Supabase
-    setCompletedSteps((prev) => new Set(prev).add(5));
-    setIsSubmitted(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [validateStep]);
+
+    setIsSubmitting(true);
+    setSubmissionError(null);
+    setUploadProgress(null);
+
+    try {
+      // ----------------------------------------------------------------
+      // 1. POST application form data to create application + contact
+      // ----------------------------------------------------------------
+      const appRes = await fetch('/api/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyId,
+          businessName: formData.businessName,
+          businessType: formData.businessType,
+          stateOfIncorporation: formData.stateOfIncorporation,
+          agreedUse: formData.agreedUse,
+          yearsInBusiness: formData.yearsInBusiness,
+          numberOfEmployees: formData.numberOfEmployees,
+          requestedSf: formData.requestedSf,
+          desiredTermMonths: formData.desiredTermMonths,
+          desiredMoveIn: formData.desiredMoveIn,
+          monthlyRentBudget: formData.monthlyRentBudget,
+          contactFirstName: formData.contactFirstName,
+          contactLastName: formData.contactLastName,
+          contactEmail: formData.contactEmail,
+          contactPhone: formData.contactPhone,
+          guarantorName: formData.guarantorName,
+          guarantorEmail: formData.guarantorEmail,
+          guarantorPhone: formData.guarantorPhone,
+        }),
+      });
+
+      if (!appRes.ok) {
+        const { error } = await appRes.json().catch(() => ({ error: 'Submission failed' }));
+        throw new Error(error ?? 'Failed to submit application');
+      }
+
+      const { applicationId } = await appRes.json();
+
+      // ----------------------------------------------------------------
+      // 2. Upload each document sequentially, showing progress
+      // ----------------------------------------------------------------
+      if (files.length > 0) {
+        setUploadProgress({ current: 0, total: files.length });
+
+        for (let i = 0; i < files.length; i++) {
+          const { file, category } = files[i];
+          const docFormData = new globalThis.FormData();
+          docFormData.append('file', file);
+          docFormData.append('documentType', category);
+
+          const docRes = await fetch(`/api/applications/${applicationId}/documents`, {
+            method: 'POST',
+            body: docFormData,
+          });
+
+          if (!docRes.ok) {
+            // Non-fatal: log the failure but continue uploading other files
+            const { error } = await docRes.json().catch(() => ({ error: 'Upload failed' }));
+            console.warn(`[apply] document upload failed for "${file.name}":`, error);
+          }
+
+          setUploadProgress({ current: i + 1, total: files.length });
+        }
+      }
+
+      // ----------------------------------------------------------------
+      // 3. Success — mark complete and redirect to status page
+      // ----------------------------------------------------------------
+      setCompletedSteps((prev) => new Set(prev).add(5));
+      setIsSubmitted(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Redirect after a brief moment so the success screen is visible
+      setTimeout(() => {
+        router.push(`/applications/status?email=${encodeURIComponent(formData.contactEmail)}`);
+      }, 3000);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setSubmissionError(message);
+      setShakeKey((k) => k + 1);
+    } finally {
+      setIsSubmitting(false);
+      setUploadProgress(null);
+    }
+  }, [validateStep, formData, files, propertyId, router]);
 
   // ---- today's date for date picker min ----
   const today = new Date().toISOString().split('T')[0];
@@ -817,18 +906,21 @@ export default function TenantApplicationPage() {
             Thank you, {formData.contactFirstName}. Your application for {formData.businessName} has been received.
             We will review your information and be in touch shortly.
           </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Redirecting you to your application status page&hellip;
+          </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href={`/applications/status?email=${encodeURIComponent(formData.contactEmail)}`}
+              className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors"
+            >
+              Track Your Application
+            </Link>
             <Link
               href={`/browse/${propertyId}`}
               className="rounded-lg border border-border bg-white px-5 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors"
             >
               Back to Property
-            </Link>
-            <Link
-              href="/browse"
-              className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors"
-            >
-              Browse Properties
             </Link>
           </div>
         </main>
@@ -1322,13 +1414,44 @@ export default function TenantApplicationPage() {
             {currentStep === 5 && renderStep5()}
           </div>
 
+          {/* Submission error banner */}
+          {submissionError && currentStep === 5 && (
+            <div className="mx-5 mb-0 mt-0 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 sm:mx-8">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
+                <p className="text-sm text-destructive">{submissionError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Upload progress bar */}
+          {uploadProgress && (
+            <div className="mx-5 mb-0 mt-0 sm:mx-8">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-muted-foreground">
+                  Uploading documents&hellip; {uploadProgress.current} of {uploadProgress.total}
+                </p>
+                <p className="text-xs font-medium text-foreground">
+                  {Math.round((uploadProgress.current / uploadProgress.total) * 100)}%
+                </p>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-300"
+                  style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Navigation */}
           <div className="flex items-center justify-between border-t border-border px-5 py-4 sm:px-8">
             {currentStep > 1 ? (
               <button
                 type="button"
                 onClick={goBack}
-                className="flex items-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors"
+                disabled={isSubmitting}
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors disabled:opacity-50"
               >
                 <ChevronLeft className="h-4 w-4" />
                 Back
@@ -1350,9 +1473,19 @@ export default function TenantApplicationPage() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors"
+                disabled={isSubmitting}
+                className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Submit Application
+                {isSubmitting ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    {uploadProgress
+                      ? `Uploading ${uploadProgress.current}/${uploadProgress.total}…`
+                      : 'Submitting…'}
+                  </>
+                ) : (
+                  'Submit Application'
+                )}
               </button>
             )}
           </div>

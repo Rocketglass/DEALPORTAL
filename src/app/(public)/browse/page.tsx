@@ -1,28 +1,16 @@
 import Link from 'next/link';
 import { Building2, MapPin, Maximize2 } from 'lucide-react';
 import { formatSqft } from '@/lib/utils';
+import { getProperties } from '@/lib/queries/properties';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Available Properties | Rocket Realty',
 };
 
-async function getProperties() {
-  try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from('properties')
-      .select('*, units!inner(id, suite_number, sf, status, marketing_rate)')
-      .eq('is_active', true)
-      .order('name');
-    return data;
-  } catch {
-    return null;
-  }
-}
-
 export default async function PropertiesPage() {
-  const properties = await getProperties();
+  const { data: properties } = await getProperties();
 
   return (
     <div className="min-h-screen bg-muted">
@@ -55,10 +43,10 @@ export default async function PropertiesPage() {
         ) : (
           <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {properties.map((property) => {
-              const vacantUnits = (property.units as Array<{ id: string; suite_number: string; sf: number; status: string; marketing_rate: number | null }>).filter(
+              const vacantUnits = (property.units ?? []).filter(
                 (u) => u.status === 'vacant'
               );
-              const photos = property.photos as string[];
+              const photos = property.photos as string[] | null;
               const coverPhoto = photos?.[0];
 
               return (

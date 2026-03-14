@@ -7,7 +7,7 @@ import type {
 
 type InvoiceInsert = Database['public']['Tables']['commission_invoices']['Insert'];
 
-interface InvoiceWithLease extends CommissionInvoice {
+export interface InvoiceWithLease extends CommissionInvoice {
   lease: {
     id: string;
     lessee_name: string;
@@ -15,6 +15,30 @@ interface InvoiceWithLease extends CommissionInvoice {
     premises_address: string;
     premises_city: string;
     premises_state: string;
+  };
+}
+
+export interface InvoiceWithDetail extends CommissionInvoice {
+  lease: {
+    id: string;
+    lessee_name: string;
+    lessor_name: string;
+    premises_address: string;
+    premises_city: string;
+    premises_state: string;
+    unit: {
+      suite_number: string;
+    } | null;
+    property: {
+      address: string;
+      city: string;
+      state: string;
+    } | null;
+    broker: {
+      first_name: string | null;
+      last_name: string | null;
+      company_name: string | null;
+    } | null;
   };
 }
 
@@ -80,6 +104,47 @@ export async function getInvoice(id: string): Promise<{
     return { data: data as InvoiceWithLease, error: null };
   } catch (err) {
     console.error('getInvoice error:', err);
+    return { data: null, error: (err as Error).message };
+  }
+}
+
+/**
+ * Fetch a single commission invoice by ID with full details including
+ * nested property, unit, and broker information via the lease relation.
+ */
+export async function getInvoiceWithDetail(id: string): Promise<{
+  data: InvoiceWithDetail | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('commission_invoices')
+      .select(`
+        *,
+        lease:leases(
+          id,
+          lessee_name,
+          lessor_name,
+          premises_address,
+          premises_city,
+          premises_state,
+          unit:units(suite_number),
+          property:properties(address, city, state),
+          broker:contacts!leases_broker_contact_id_fkey(
+            first_name,
+            last_name,
+            company_name
+          )
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return { data: data as InvoiceWithDetail, error: null };
+  } catch (err) {
+    console.error('getInvoiceWithDetail error:', err);
     return { data: null, error: (err as Error).message };
   }
 }

@@ -68,32 +68,5 @@
       ]
     }
   ],
-  "redirects": [
-    {
-      "source": "/properties",
-      "destination": "/browse",
-      "permanent": true
-    },
-    {
-      "source": "/properties/:path*",
-      "destination": "/browse/:path*",
-      "permanent": true
-    }
-  ],
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL": "@supabase-url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key",
-    "DOCUSIGN_INTEGRATION_KEY": "@docusign-integration-key",
-    "DOCUSIGN_SECRET_KEY": "@docusign-secret-key",
-    "DOCUSIGN_ACCOUNT_ID": "@docusign-account-id",
-    "DOCUSIGN_BASE_URL": "@docusign-base-url",
-    "DOCUSIGN_CONNECT_HMAC_SECRET": "@docusign-hmac-secret",
-    "DOCUSIGN_RSA_PRIVATE_KEY": "@docusign-rsa-private-key",
-    "DOCUSIGN_USER_ID": "@docusign-user-id",
-    "RESEND_API_KEY": "@resend-api-key",
-    "RESEND_FROM_EMAIL": "@resend-from-email",
-    "NEXT_PUBLIC_APP_URL": "@app-url",
-    "NEXT_PUBLIC_PORTAL_URL": "@portal-url"
-  }
+  "redirects": []
 }

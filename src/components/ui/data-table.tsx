@@ -22,7 +22,7 @@ interface FilterConfig {
   options: { value: string; label: string }[];
 }
 
-interface DataTableProps<T> {
+interface DataTableProps<T extends object> {
   data: T[];
   columns: Column<T>[];
   searchKeys: string[];
@@ -36,16 +36,16 @@ interface DataTableProps<T> {
   searchPlaceholder?: string;
 }
 
-function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+function getNestedValue(obj: object, path: string): unknown {
   return path.split('.').reduce((current: unknown, key) => {
     if (current && typeof current === 'object') {
       return (current as Record<string, unknown>)[key];
     }
     return undefined;
-  }, obj);
+  }, obj as unknown);
 }
 
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T extends object>({
   data,
   columns,
   searchKeys,
@@ -237,7 +237,7 @@ export function DataTable<T extends Record<string, unknown>>({
               <tbody>
                 {paginated.map((row, idx) => (
                   <tr
-                    key={(row.id as string | number) ?? idx}
+                    key={((row as Record<string, unknown>).id as string | number) ?? idx}
                     className="border-b border-border last:border-0 transition-colors duration-150 hover:bg-muted/50"
                   >
                     {columns.map((col) => (

@@ -61,6 +61,29 @@ export async function getQrCode(shortCode: string): Promise<{
 }
 
 /**
+ * Fetch all QR codes for a specific property, ordered by creation date.
+ */
+export async function getQrCodesByProperty(propertyId: string): Promise<{
+  data: QrCode[] | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('qr_codes')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('created_at');
+
+    if (error) throw error;
+    return { data: data as QrCode[], error: null };
+  } catch (err) {
+    console.error('getQrCodesByProperty error:', err);
+    return { data: null, error: (err as Error).message };
+  }
+}
+
+/**
  * Increment the scan count for a QR code and update the last scanned timestamp.
  * Called each time a prospect scans the code at a property.
  */

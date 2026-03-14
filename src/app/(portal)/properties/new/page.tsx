@@ -104,14 +104,39 @@ export default function NewPropertyPage() {
     return Object.keys(newErrors).length === 0;
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
     setSaving(true);
-    // In production this would POST to an API
-    setTimeout(() => {
-      router.push('/properties');
-    }, 500);
+
+    try {
+      const res = await fetch('/api/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        // Surface server-side field errors if available
+        if (body.error && typeof body.error === 'string') {
+          const lower = body.error.toLowerCase();
+          if (lower.includes('name')) setErrors((prev) => ({ ...prev, name: body.error }));
+          else if (lower.includes('address')) setErrors((prev) => ({ ...prev, address: body.error }));
+          else if (lower.includes('city')) setErrors((prev) => ({ ...prev, city: body.error }));
+          else if (lower.includes('zip')) setErrors((prev) => ({ ...prev, zip: body.error }));
+          else if (lower.includes('state')) setErrors((prev) => ({ ...prev, state: body.error }));
+          else setErrors((prev) => ({ ...prev, name: body.error }));
+        }
+        setSaving(false);
+        return;
+      }
+
+      const { id } = await res.json();
+      router.push(`/properties/${id}`);
+    } catch {
+      setSaving(false);
+    }
   }
 
   return (

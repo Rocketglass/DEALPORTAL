@@ -5,6 +5,14 @@ import type {
   Unit,
 } from '@/types/database';
 
+export interface PropertyWithUnitCounts extends Property {
+  units: Unit[];
+  totalUnits: number;
+  vacantUnits: number;
+  occupiedUnits: number;
+  pendingUnits: number;
+}
+
 type PropertyInsert = Database['public']['Tables']['properties']['Insert'];
 type PropertyUpdate = Database['public']['Tables']['properties']['Update'];
 type UnitUpdate = Database['public']['Tables']['units']['Update'];
@@ -33,6 +41,42 @@ export async function getProperties(): Promise<{
     return { data: data as PropertyWithUnits[], error: null };
   } catch (err) {
     console.error('getProperties error:', err);
+    return { data: null, error: (err as Error).message };
+  }
+}
+
+/**
+ * Fetch all active properties with their units and pre-computed unit counts.
+ * Each returned property includes totalUnits, vacantUnits, occupiedUnits, and pendingUnits.
+ */
+export async function getPropertiesWithUnitCounts(): Promise<{
+  data: PropertyWithUnitCounts[] | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('properties')
+      .select('*, units(*)')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) throw error;
+
+    const properties = (data as PropertyWithUnitCounts[]).map((property) => {
+      const units: Unit[] = property.units ?? [];
+      return {
+        ...property,
+        totalUnits: units.length,
+        vacantUnits: units.filter((u) => u.status === 'vacant').length,
+        occupiedUnits: units.filter((u) => u.status === 'occupied').length,
+        pendingUnits: units.filter((u) => u.status === 'pending').length,
+      };
+    });
+
+    return { data: properties, error: null };
+  } catch (err) {
+    console.error('getPropertiesWithUnitCounts error:', err);
     return { data: null, error: (err as Error).message };
   }
 }

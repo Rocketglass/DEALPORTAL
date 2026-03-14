@@ -44,9 +44,10 @@ export async function POST(request: NextRequest) {
 
   const shortCode = generateShortCode();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // QR codes land on the public browse detail page, not the authenticated portal
   const portalUrl = sanitizedUnitId
-    ? `${appUrl}/properties/${sanitizedPropertyId}?unit=${sanitizedUnitId}`
-    : `${appUrl}/properties/${sanitizedPropertyId}`;
+    ? `${appUrl}/browse/${sanitizedPropertyId}?unit=${sanitizedUnitId}`
+    : `${appUrl}/browse/${sanitizedPropertyId}`;
   const qrTargetUrl = `${appUrl}/p/${shortCode}`;
 
   // Generate QR code as data URL

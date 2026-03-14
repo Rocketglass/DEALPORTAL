@@ -14,15 +14,20 @@ export async function createClient() {
   return createServerClient(url, key, {
     cookies: {
       getAll() {
-        return cookieStore.getAll();
+        return cookieStore.getAll().map((cookie) => ({
+          name: cookie.name,
+          value: cookie.value,
+        }));
       },
       setAll(cookiesToSet) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
+          for (const { name, value, options } of cookiesToSet) {
+            cookieStore.set(name, value, options);
+          }
         } catch {
-          // Called from Server Component — ignored if middleware handles refresh
+          // Called from Server Component — cookies can only be set in
+          // Server Actions or Route Handlers. The middleware handles
+          // session refresh, so this is safe to ignore here.
         }
       },
     },

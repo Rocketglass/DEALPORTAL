@@ -2,22 +2,15 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, MapPin, Maximize2, ArrowLeft, DoorOpen, Car, Zap } from 'lucide-react';
 import { formatSqft, formatCurrency } from '@/lib/utils';
+import { getProperty, getUnits } from '@/lib/queries/properties';
+
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
-    const { data: property } = await supabase
-      .from('properties')
-      .select('name, address, city')
-      .eq('id', id)
-      .single();
-    if (!property) return { title: 'Property Not Found' };
-    return { title: `${property.name} | Rocket Realty` };
-  } catch {
-    return { title: 'Property | Rocket Realty' };
-  }
+  const { id } = await params;
+  const { data: property } = await getProperty(id);
+  if (!property) return { title: 'Property Not Found' };
+  return { title: `${property.name} | Rocket Realty` };
 }
 
 export default async function PropertyDetailPage({
@@ -27,38 +20,17 @@ export default async function PropertyDetailPage({
 }) {
   const { id } = await params;
 
-  let property = null;
-  let units: Array<{ id: string; suite_number: string; sf: number; status: string; marketing_rate: number | null; unit_type: string | null }> = [];
+  const [{ data: property }, { data: units }] = await Promise.all([
+    getProperty(id),
+    getUnits(id),
+  ]);
 
-  try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+  // Only show active properties on the public browse page
+  if (!property || property.is_active === false) notFound();
 
-    const { data: p } = await supabase
-      .from('properties')
-      .select('*')
-      .eq('id', id)
-      .eq('is_active', true)
-      .single();
-
-    property = p;
-
-    if (property) {
-      const { data: u } = await supabase
-        .from('units')
-        .select('*')
-        .eq('property_id', id)
-        .order('suite_number');
-      units = u ?? [];
-    }
-  } catch {
-    // Supabase not configured — show placeholder
-  }
-
-  if (!property) notFound();
-
-  const vacantUnits = units.filter((u) => u.status === 'vacant');
-  const photos = property.photos as string[];
+  const allUnits = units ?? [];
+  const vacantUnits = allUnits.filter((u) => u.status === 'vacant');
+  const photos = property.photos as string[] | null;
 
   return (
     <div className="min-h-screen bg-muted">
@@ -193,7 +165,7 @@ export default async function PropertyDetailPage({
                     </div>
                   </div>
                   <Link
-                    href={`/register?property=${property.id}&unit=${unit.id}`}
+                    href={`/apply/${property.id}?unit=${unit.id}`}
                     className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
                   >
                     Apply Now

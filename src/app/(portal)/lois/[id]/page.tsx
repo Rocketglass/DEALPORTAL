@@ -1,243 +1,51 @@
-'use client';
-
-import { useState } from 'react';
-import {
-  DollarSign,
-  Calendar,
-  Paintbrush,
-  BarChart3,
-  Shield,
-  FileCheck,
-  Car,
-  RefreshCw,
-  TrendingUp,
-  Gift,
-  ChevronDown,
-  ChevronUp,
-  CheckCircle2,
-  XCircle,
-  MessageSquare,
-  Clock,
-  Send,
-  Copy,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { notFound } from 'next/navigation';
+import { Send, Copy } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
+import { getLoi } from '@/lib/queries/lois';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BackButton } from '@/components/ui/back-button';
 import { Card, CardContent } from '@/components/ui/card';
-import type { LoiSectionKey, LoiSectionStatus, LoiStatus } from '@/types/database';
+import { LoiSectionsPanel } from './loi-sections-panel';
+import type { Contact, LoiSectionStatus } from '@/types/database';
 
-// ---------------------------------------------------------------------------
-// Icon map
-// ---------------------------------------------------------------------------
+export const dynamic = 'force-dynamic';
 
-const SECTION_ICONS: Record<LoiSectionKey, React.ElementType> = {
-  base_rent: DollarSign,
-  term: Calendar,
-  tenant_improvements: Paintbrush,
-  cam: BarChart3,
-  security_deposit: Shield,
-  agreed_use: FileCheck,
-  parking: Car,
-  options: RefreshCw,
-  escalations: TrendingUp,
-  free_rent: Gift,
-  other: FileCheck,
-};
-
-// ---------------------------------------------------------------------------
-// Status badge colors
-// ---------------------------------------------------------------------------
-
-const sectionStatusConfig: Record<LoiSectionStatus, { label: string; bg: string; text: string; icon: React.ElementType }> = {
-  proposed: { label: 'Proposed', bg: 'bg-blue-50', text: 'text-blue-700', icon: Clock },
-  accepted: { label: 'Accepted', bg: 'bg-green-50', text: 'text-green-700', icon: CheckCircle2 },
-  countered: { label: 'Countered', bg: 'bg-amber-50', text: 'text-amber-700', icon: MessageSquare },
-  rejected: { label: 'Rejected', bg: 'bg-red-50', text: 'text-red-700', icon: XCircle },
-};
-
-// ---------------------------------------------------------------------------
-// Mock data
-// ---------------------------------------------------------------------------
-
-interface MockSection {
-  id: string;
-  sectionKey: LoiSectionKey;
-  label: string;
-  proposedValue: string;
-  landlordResponse: string | null;
-  agreedValue: string | null;
-  status: LoiSectionStatus;
-  history: { action: string; value: string; by: string; date: string }[];
+interface Props {
+  params: Promise<{ id: string }>;
 }
 
-const MOCK_LOI = {
-  id: 'loi-001',
-  property: 'Santee Business Park',
-  suite: '101',
-  tenant: 'Pacific Coast Logistics',
-  landlord: 'East County Properties LLC',
-  broker: 'Neil Bajaj',
-  status: 'in_negotiation' as LoiStatus,
-  version: 2,
-  createdAt: '2026-02-15',
-  sentAt: '2026-02-16',
-};
+export default async function LoiDetailPage({ params }: Props) {
+  const { id } = await params;
+  const { data: loi, error } = await getLoi(id);
 
-const MOCK_SECTIONS: MockSection[] = [
-  {
-    id: 's1',
-    sectionKey: 'base_rent',
-    label: 'Base Rent',
-    proposedValue: '$4,500/mo ($1.15/SF)',
-    landlordResponse: '$5,000/mo ($1.28/SF)',
-    agreedValue: null,
-    status: 'countered',
-    history: [
-      { action: 'Proposed', value: '$4,500/mo ($1.15/SF)', by: 'Neil Bajaj', date: '2026-02-16' },
-      { action: 'Countered', value: '$5,000/mo ($1.28/SF)', by: 'East County Properties', date: '2026-02-18' },
-    ],
-  },
-  {
-    id: 's2',
-    sectionKey: 'term',
-    label: 'Term',
-    proposedValue: '5 years, commencing June 1, 2026',
-    landlordResponse: null,
-    agreedValue: '5 years, commencing June 1, 2026',
-    status: 'accepted',
-    history: [
-      { action: 'Proposed', value: '5 years, commencing June 1, 2026', by: 'Neil Bajaj', date: '2026-02-16' },
-      { action: 'Accepted', value: '5 years, commencing June 1, 2026', by: 'East County Properties', date: '2026-02-18' },
-    ],
-  },
-  {
-    id: 's3',
-    sectionKey: 'tenant_improvements',
-    label: 'Tenant Improvements',
-    proposedValue: '$30,000 TI allowance, landlord-funded',
-    landlordResponse: '$20,000 TI allowance, landlord-funded',
-    agreedValue: null,
-    status: 'countered',
-    history: [
-      { action: 'Proposed', value: '$30,000 TI allowance, landlord-funded', by: 'Neil Bajaj', date: '2026-02-16' },
-      { action: 'Countered', value: '$20,000 TI allowance, landlord-funded', by: 'East County Properties', date: '2026-02-18' },
-    ],
-  },
-  {
-    id: 's4',
-    sectionKey: 'cam',
-    label: 'CAM / Operating Expenses',
-    proposedValue: 'NNN, 12% pro-rata share, base year 2026',
-    landlordResponse: null,
-    agreedValue: 'NNN, 12% pro-rata share, base year 2026',
-    status: 'accepted',
-    history: [
-      { action: 'Proposed', value: 'NNN, 12% pro-rata share, base year 2026', by: 'Neil Bajaj', date: '2026-02-16' },
-      { action: 'Accepted', value: 'NNN, 12% pro-rata share, base year 2026', by: 'East County Properties', date: '2026-02-18' },
-    ],
-  },
-  {
-    id: 's5',
-    sectionKey: 'security_deposit',
-    label: 'Security Deposit',
-    proposedValue: '$9,000 (2 months rent)',
-    landlordResponse: null,
-    agreedValue: '$9,000 (2 months rent)',
-    status: 'accepted',
-    history: [
-      { action: 'Proposed', value: '$9,000 (2 months rent)', by: 'Neil Bajaj', date: '2026-02-16' },
-      { action: 'Accepted', value: '$9,000 (2 months rent)', by: 'East County Properties', date: '2026-02-18' },
-    ],
-  },
-  {
-    id: 's6',
-    sectionKey: 'agreed_use',
-    label: 'Agreed Use',
-    proposedValue: 'Warehousing, distribution, and light assembly',
-    landlordResponse: null,
-    agreedValue: 'Warehousing, distribution, and light assembly',
-    status: 'accepted',
-    history: [
-      { action: 'Proposed', value: 'Warehousing, distribution, and light assembly', by: 'Neil Bajaj', date: '2026-02-16' },
-      { action: 'Accepted', value: 'Warehousing, distribution, and light assembly', by: 'East County Properties', date: '2026-02-18' },
-    ],
-  },
-  {
-    id: 's7',
-    sectionKey: 'parking',
-    label: 'Parking',
-    proposedValue: '8 unreserved spaces',
-    landlordResponse: null,
-    agreedValue: null,
-    status: 'proposed',
-    history: [
-      { action: 'Proposed', value: '8 unreserved spaces', by: 'Neil Bajaj', date: '2026-02-16' },
-    ],
-  },
-  {
-    id: 's8',
-    sectionKey: 'options',
-    label: 'Options',
-    proposedValue: 'One (1) 5-year renewal option at fair market value',
-    landlordResponse: null,
-    agreedValue: null,
-    status: 'proposed',
-    history: [
-      { action: 'Proposed', value: 'One (1) 5-year renewal option at fair market value', by: 'Neil Bajaj', date: '2026-02-16' },
-    ],
-  },
-  {
-    id: 's9',
-    sectionKey: 'escalations',
-    label: 'Rent Escalations',
-    proposedValue: '3% annual increase on lease anniversary',
-    landlordResponse: null,
-    agreedValue: '3% annual increase on lease anniversary',
-    status: 'accepted',
-    history: [
-      { action: 'Proposed', value: '3% annual increase on lease anniversary', by: 'Neil Bajaj', date: '2026-02-16' },
-      { action: 'Accepted', value: '3% annual increase on lease anniversary', by: 'East County Properties', date: '2026-02-18' },
-    ],
-  },
-  {
-    id: 's10',
-    sectionKey: 'free_rent',
-    label: 'Free Rent',
-    proposedValue: '2 months free rent at commencement',
-    landlordResponse: null,
-    agreedValue: null,
-    status: 'rejected',
-    history: [
-      { action: 'Proposed', value: '2 months free rent at commencement', by: 'Neil Bajaj', date: '2026-02-16' },
-      { action: 'Rejected', value: 'No free rent concession available', by: 'East County Properties', date: '2026-02-18' },
-    ],
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-export default function LoiDetailPage() {
-  const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
-
-  function toggleHistory(id: string) {
-    setExpandedHistory((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  if (error || !loi) {
+    return notFound();
   }
 
-  const agreed = MOCK_SECTIONS.filter((s) => s.status === 'accepted').length;
-  const countered = MOCK_SECTIONS.filter((s) => s.status === 'countered').length;
-  const pending = MOCK_SECTIONS.filter((s) => s.status === 'proposed').length;
-  const rejected = MOCK_SECTIONS.filter((s) => s.status === 'rejected').length;
-  const total = MOCK_SECTIONS.length;
-  const progressPercent = Math.round((agreed / total) * 100);
+  // Resolve display names
+  function contactName(contact: Contact | null): string {
+    if (!contact) return '—';
+    if (contact.company_name) return contact.company_name;
+    const parts = [contact.first_name, contact.last_name].filter(Boolean);
+    return parts.join(' ') || '—';
+  }
+
+  const propertyName = loi.property?.name ?? '—';
+  const suiteNumber = loi.unit?.suite_number;
+  const tenantName = contactName(loi.tenant);
+  const landlordName = contactName(loi.landlord);
+  const brokerName = contactName(loi.broker);
+
+  // Section stats
+  const sections = loi.sections ?? [];
+  const statusCounts = sections.reduce<Record<LoiSectionStatus, number>>(
+    (acc, s) => { acc[s.status] = (acc[s.status] ?? 0) + 1; return acc; },
+    { proposed: 0, accepted: 0, countered: 0, rejected: 0 },
+  );
+  const total = sections.length;
+  const agreed = statusCounts.accepted;
+  const progressPercent = total > 0 ? Math.round((agreed / total) * 100) : 0;
 
   return (
     <div className="p-6 lg:p-8">
@@ -248,16 +56,24 @@ export default function LoiDetailPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{MOCK_LOI.property}</h1>
-            <Badge status={MOCK_LOI.status} />
+            <h1 className="text-2xl font-bold">{propertyName}</h1>
+            <Badge status={loi.status} />
           </div>
-          <p className="mt-1 text-muted-foreground">
-            Suite {MOCK_LOI.suite} &middot; Version {MOCK_LOI.version}
-          </p>
+          {suiteNumber && (
+            <p className="mt-1 text-muted-foreground">
+              Suite {suiteNumber} &middot; Version {loi.version}
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
-            <span>Tenant: <span className="font-medium text-foreground">{MOCK_LOI.tenant}</span></span>
-            <span>Landlord: <span className="font-medium text-foreground">{MOCK_LOI.landlord}</span></span>
-            <span>Broker: <span className="font-medium text-foreground">{MOCK_LOI.broker}</span></span>
+            <span>
+              Tenant: <span className="font-medium text-foreground">{tenantName}</span>
+            </span>
+            <span>
+              Landlord: <span className="font-medium text-foreground">{landlordName}</span>
+            </span>
+            <span>
+              Broker: <span className="font-medium text-foreground">{brokerName}</span>
+            </span>
           </div>
         </div>
         <div className="flex gap-2">
@@ -272,87 +88,12 @@ export default function LoiDetailPage() {
 
       {/* Main content + sidebar */}
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_280px]">
-        {/* Section cards */}
-        <div className="space-y-3">
-          {MOCK_SECTIONS.map((section) => {
-            const Icon = SECTION_ICONS[section.sectionKey];
-            const statusCfg = sectionStatusConfig[section.status];
-            const StatusIcon = statusCfg.icon;
-            const historyOpen = expandedHistory.has(section.id);
-
-            return (
-              <Card key={section.id}>
-                <div className="px-5 py-4">
-                  {/* Section header row */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Icon className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-sm font-semibold">{section.label}</span>
-                    </div>
-                    <span
-                      className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium', statusCfg.bg, statusCfg.text)}
-                      aria-label={`Status: ${statusCfg.label}`}
-                    >
-                      <StatusIcon className="h-3 w-3" aria-hidden="true" />
-                      {statusCfg.label}
-                    </span>
-                  </div>
-
-                  {/* Values */}
-                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">Proposed</p>
-                      <p className="mt-0.5 text-sm">{section.proposedValue}</p>
-                    </div>
-                    {section.landlordResponse && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground">Landlord Response</p>
-                        <p className="mt-0.5 text-sm">{section.landlordResponse}</p>
-                      </div>
-                    )}
-                    {section.agreedValue && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground">Agreed</p>
-                        <p className="mt-0.5 text-sm font-medium text-green-700">{section.agreedValue}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* History toggle */}
-                  <button
-                    type="button"
-                    onClick={() => toggleHistory(section.id)}
-                    aria-expanded={historyOpen}
-                    aria-controls={`history-${section.id}`}
-                    className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    {historyOpen ? <ChevronUp className="h-3 w-3" aria-hidden="true" /> : <ChevronDown className="h-3 w-3" aria-hidden="true" />}
-                    Negotiation History ({section.history.length})
-                  </button>
-                </div>
-
-                {/* Expanded history */}
-                {historyOpen && (
-                  <div id={`history-${section.id}`} className="border-t border-border px-5 pb-4 pt-3">
-                    <div className="space-y-2">
-                      {section.history.map((entry, i) => (
-                        <div key={i} className="flex items-start gap-3 text-sm">
-                          <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" />
-                          <div>
-                            <span className="font-medium">{entry.action}</span>
-                            <span className="text-muted-foreground"> by {entry.by}</span>
-                            <span className="text-muted-foreground"> &middot; {entry.date}</span>
-                            <p className="mt-0.5 text-muted-foreground">{entry.value}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+        {/* Sections (client component for interactive history toggles) */}
+        {sections.length > 0 ? (
+          <LoiSectionsPanel sections={sections as Parameters<typeof LoiSectionsPanel>[0]['sections']} />
+        ) : (
+          <p className="text-sm text-muted-foreground">No sections have been added to this LOI yet.</p>
+        )}
 
         {/* Summary sidebar */}
         <div className="space-y-4 lg:sticky lg:top-8 lg:self-start">
@@ -380,25 +121,25 @@ export default function LoiDetailPage() {
                   <span className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-green-500" /> Accepted
                   </span>
-                  <span className="font-medium">{agreed}</span>
+                  <span className="font-medium">{statusCounts.accepted}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-amber-500" /> Countered
                   </span>
-                  <span className="font-medium">{countered}</span>
+                  <span className="font-medium">{statusCounts.countered}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-blue-500" /> Pending
                   </span>
-                  <span className="font-medium">{pending}</span>
+                  <span className="font-medium">{statusCounts.proposed}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-red-500" /> Rejected
                   </span>
-                  <span className="font-medium">{rejected}</span>
+                  <span className="font-medium">{statusCounts.rejected}</span>
                 </div>
               </div>
             </CardContent>
@@ -411,15 +152,29 @@ export default function LoiDetailPage() {
               <div className="mt-3 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Created</span>
-                  <span>{MOCK_LOI.createdAt}</span>
+                  <span>{formatDate(loi.created_at)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Sent</span>
-                  <span>{MOCK_LOI.sentAt}</span>
-                </div>
+                {loi.sent_at && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Sent</span>
+                    <span>{formatDate(loi.sent_at)}</span>
+                  </div>
+                )}
+                {loi.expires_at && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Expires</span>
+                    <span>{formatDate(loi.expires_at)}</span>
+                  </div>
+                )}
+                {loi.agreed_at && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Agreed</span>
+                    <span>{formatDate(loi.agreed_at)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Version</span>
-                  <span>{MOCK_LOI.version}</span>
+                  <span>{loi.version}</span>
                 </div>
               </div>
             </CardContent>

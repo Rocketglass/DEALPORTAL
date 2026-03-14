@@ -8,27 +8,40 @@ import { getSecurityHeaders } from '@/lib/security/headers';
  */
 const PROTECTED_PORTAL_ROUTES = [
   '/dashboard',
+  '/properties',
   '/applications',
   '/lois',
   '/leases',
   '/invoices',
   '/settings',
-  '/properties/manage',
 ];
 
 /**
- * Check if a pathname matches any protected portal route.
+ * Routes that must always be publicly accessible — even though they may start
+ * with a prefix that looks protected. Listed explicitly to avoid false matches.
  */
-function isProtectedRoute(pathname: string): boolean {
-  return PROTECTED_PORTAL_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
-}
+const PUBLIC_ROUTES = [
+  '/auth/callback',
+  '/auth/confirm',
+];
 
 /**
  * Auth pages that logged-in users should be redirected away from.
  */
 const AUTH_PAGES = ['/login', '/register'];
+
+/**
+ * Check if a pathname matches any protected portal route.
+ * Explicitly-listed public routes are never considered protected.
+ */
+function isProtectedRoute(pathname: string): boolean {
+  if (PUBLIC_ROUTES.some((pub) => pathname === pub || pathname.startsWith(`${pub}/`))) {
+    return false;
+  }
+  return PROTECTED_PORTAL_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+}
 
 /**
  * Simple in-memory rate limiting tracker.
@@ -220,12 +233,29 @@ export async function updateSession(request: NextRequest) {
     return response;
   }
 
+  // Public API routes — accessible without authentication.
+  // Service-role client is used inside these handlers to bypass RLS.
+  // Keep this list narrow — only routes that genuinely need unauthenticated access.
+  const isPublicApiRoute =
+    pathname.startsWith('/api/webhooks/') ||
+    pathname.startsWith('/api/public/') ||
+    // Tenant: look up application status by email
+    pathname === '/api/applications/status' ||
+    // Tenant: upload documents to an existing application
+    /^\/api\/applications\/[^/]+\/documents/.test(pathname) ||
+    // Tenant: submit the initial application
+    pathname === '/api/applications' ||
+    // Landlord: read LOI sections for public review page
+    /^\/api\/lois\/[^/]+\/review-data/.test(pathname) ||
+    // Landlord: submit LOI section responses
+    /^\/api\/lois\/[^/]+\/respond/.test(pathname);
+
   // Protected API routes — return 401 JSON if not authenticated
+  // /auth/callback is a public route; it runs before a session exists
   if (
     !user &&
     pathname.startsWith('/api/') &&
-    !pathname.startsWith('/api/webhooks/') &&
-    !pathname.startsWith('/api/public/')
+    !isPublicApiRoute
   ) {
     console.warn(
       `[Auth] Unauthenticated API access attempt to ${pathname} from IP ${clientIp}`,

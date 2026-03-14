@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
   Building2,
   LayoutDashboard,
@@ -16,6 +17,16 @@ import { cn } from '@/lib/utils';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
+/** Derive 1-2 character initials from a name or email address. */
+function getInitials(nameOrEmail: string): string {
+  const trimmed = nameOrEmail.trim();
+  if (trimmed.includes('@')) return trimmed.slice(0, 2).toUpperCase();
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '??';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/properties', label: 'Properties', icon: Building2 },
@@ -28,6 +39,27 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+
+  const [userDisplay, setUserDisplay] = useState<{
+    initials: string;
+    name: string;
+    email: string;
+  }>({ initials: '??', name: '', email: '' });
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      const name: string = user.user_metadata?.full_name ?? '';
+      const email: string = user.email ?? '';
+      setUserDisplay({
+        initials: getInitials(name || email),
+        name,
+        email,
+      });
+    });
+  }, []);
 
   async function handleSignOut() {
     if (isSupabaseConfigured()) {
@@ -71,6 +103,25 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-border p-3 space-y-1">
+        {/* Logged-in user identity */}
+        {(userDisplay.name || userDisplay.email) && (
+          <div className="mb-2 flex items-center gap-3 px-3 py-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
+              {userDisplay.initials}
+            </div>
+            <div className="min-w-0">
+              {userDisplay.name && (
+                <p className="truncate text-sm font-medium text-foreground">
+                  {userDisplay.name}
+                </p>
+              )}
+              <p className="truncate text-xs text-muted-foreground">
+                {userDisplay.email}
+              </p>
+            </div>
+          </div>
+        )}
+
         <Link
           href="/settings"
           className={cn(

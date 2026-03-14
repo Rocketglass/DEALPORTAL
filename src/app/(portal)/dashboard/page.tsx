@@ -1,45 +1,82 @@
 import { FileText, Handshake, ScrollText, Receipt } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent } from '@/components/ui/card';
+import { getDashboardStats, getRecentActivity } from '@/lib/queries/dashboard';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Dashboard | Rocket Realty',
 };
 
+const ENTITY_LABELS: Record<string, string> = {
+  application: 'Application',
+  loi: 'LOI',
+  lease: 'Lease',
+  invoice: 'Invoice',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  submitted: 'bg-blue-100 text-blue-700',
+  under_review: 'bg-amber-100 text-amber-700',
+  approved: 'bg-green-100 text-green-700',
+  draft: 'bg-slate-100 text-slate-600',
+  sent: 'bg-blue-100 text-blue-700',
+  in_negotiation: 'bg-amber-100 text-amber-700',
+  agreed: 'bg-green-100 text-green-700',
+  sent_for_signature: 'bg-blue-100 text-blue-700',
+  executed: 'bg-green-100 text-green-700',
+  paid: 'bg-green-100 text-green-700',
+  overdue: 'bg-red-100 text-red-700',
+};
+
+function formatStatus(status: string): string {
+  return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatRelativeDate(isoDate: string): string {
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export default async function DashboardPage() {
-  let applicationCount = 0;
-  let loiCount = 0;
-  let activeLeaseCount = 0;
-  let invoiceCount = 0;
+  const [{ data: stats }, { data: activity }] = await Promise.all([
+    getDashboardStats(),
+    getRecentActivity(),
+  ]);
 
-  try {
-    const supabase = await createClient();
-
-    const [
-      { count: appCount },
-      { count: lCount },
-      { count: leaseCount },
-      { count: invCount },
-    ] = await Promise.all([
-      supabase.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'submitted'),
-      supabase.from('lois').select('*', { count: 'exact', head: true }).in('status', ['sent', 'in_negotiation']),
-      supabase.from('leases').select('*', { count: 'exact', head: true }).eq('status', 'executed'),
-      supabase.from('commission_invoices').select('*', { count: 'exact', head: true }).eq('status', 'sent'),
-    ]);
-
-    applicationCount = appCount ?? 0;
-    loiCount = lCount ?? 0;
-    activeLeaseCount = leaseCount ?? 0;
-    invoiceCount = invCount ?? 0;
-  } catch {
-    // Supabase not configured
-  }
-
-  const stats = [
-    { label: 'Pending Applications', value: applicationCount, icon: FileText, color: 'text-blue-600' },
-    { label: 'Active LOIs', value: loiCount, icon: Handshake, color: 'text-amber-600' },
-    { label: 'Executed Leases', value: activeLeaseCount, icon: ScrollText, color: 'text-green-600' },
-    { label: 'Outstanding Invoices', value: invoiceCount, icon: Receipt, color: 'text-purple-600' },
+  const statCards = [
+    {
+      label: 'Pending Applications',
+      value: stats?.applications.submitted ?? 0,
+      icon: FileText,
+      color: 'text-blue-600',
+    },
+    {
+      label: 'Active LOIs',
+      value: (stats?.lois.draft ?? 0) + (stats?.lois.in_negotiation ?? 0),
+      icon: Handshake,
+      color: 'text-amber-600',
+    },
+    {
+      label: 'Executed Leases',
+      value: stats?.leases.executed ?? 0,
+      icon: ScrollText,
+      color: 'text-green-600',
+    },
+    {
+      label: 'Outstanding Invoices',
+      value: stats?.invoices.sent ?? 0,
+      icon: Receipt,
+      color: 'text-purple-600',
+    },
   ];
 
   return (
@@ -50,7 +87,7 @@ export default async function DashboardPage() {
       </p>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <Card key={stat.label} className="transition-shadow duration-150 hover:shadow-md">
             <CardContent>
               <div className="flex items-center justify-between">
@@ -65,13 +102,39 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent activity placeholder — will be built out in Phase 2 */}
       <Card className="mt-8">
         <CardContent className="p-6">
           <h2 className="text-lg font-semibold">Recent Activity</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Activity feed will appear here as applications and deals come in.
-          </p>
+
+          {!activity || activity.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Activity feed will appear here as applications and deals come in.
+            </p>
+          ) : (
+            <ul className="mt-4 divide-y divide-border">
+              {activity.map((item) => (
+                <li key={`${item.entity_type}-${item.id}`} className="flex items-center justify-between py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {item.title}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {ENTITY_LABELS[item.entity_type] ?? item.entity_type}
+                      {' · '}
+                      {formatRelativeDate(item.created_at)}
+                    </p>
+                  </div>
+                  <span
+                    className={`ml-4 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      STATUS_COLORS[item.status] ?? 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {formatStatus(item.status)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </div>

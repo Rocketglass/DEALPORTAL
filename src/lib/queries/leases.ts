@@ -25,7 +25,7 @@ export async function getLeases(): Promise<{
       .select(`
         *,
         property:properties(*),
-        unit:units(*),
+        unit:units!leases_unit_id_fkey(*),
         tenant:contacts!leases_tenant_contact_id_fkey(*),
         landlord:contacts!leases_landlord_contact_id_fkey(*),
         broker:contacts!leases_broker_contact_id_fkey(*),
@@ -56,7 +56,7 @@ export async function getLease(id: string): Promise<{
       .select(`
         *,
         property:properties(*),
-        unit:units(*),
+        unit:units!leases_unit_id_fkey(*),
         tenant:contacts!leases_tenant_contact_id_fkey(*),
         landlord:contacts!leases_landlord_contact_id_fkey(*),
         broker:contacts!leases_broker_contact_id_fkey(*),

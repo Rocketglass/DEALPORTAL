@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   User,
   Percent,
@@ -20,15 +20,41 @@ import { useToast } from '@/components/ui/toast';
 // --- Profile Section ---
 function ProfileSection() {
   const [profile, setProfile] = useState({
-    firstName: 'Neil',
-    lastName: 'Bajaj',
-    email: 'neil@rocketrealty.com',
-    phone: '(619) 555-0100',
-    company: 'Rocket Realty',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    company: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  // Load real profile data on mount
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const res = await fetch('/api/user/profile');
+        if (res.ok) {
+          const { profile: data } = await res.json();
+          setProfile({
+            firstName: data.first_name ?? '',
+            lastName: data.last_name ?? '',
+            email: data.email ?? '',
+            phone: data.phone ?? '',
+            company: data.company_name ?? '',
+          });
+        }
+      } catch {
+        // If profile fetch fails, leave defaults blank
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadProfile();
+  }, []);
 
   function clearError(field: string) {
     setErrors((prev) => {
@@ -39,7 +65,7 @@ function ProfileSection() {
     });
   }
 
-  function handleSave() {
+  async function handleSave() {
     const newErrors: Record<string, string> = {};
     if (!profile.email.trim()) {
       newErrors.email = 'Email address is required';
@@ -49,9 +75,54 @@ function ProfileSection() {
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
-    setSaved(true);
-    toast({ title: 'Profile saved', description: 'Your profile has been updated.', variant: 'success' });
-    setTimeout(() => setSaved(false), 2000);
+    setSaving(true);
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          email: profile.email,
+          phone: profile.phone,
+          company: profile.company,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        if (body.error?.toLowerCase().includes('email')) {
+          setErrors({ email: body.error });
+        } else {
+          toast({ title: 'Save failed', description: body.error ?? 'Unknown error', variant: 'error' });
+        }
+        return;
+      }
+
+      setSaved(true);
+      toast({ title: 'Profile saved', description: 'Your profile has been updated.', variant: 'success' });
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      toast({ title: 'Save failed', description: 'Network error — please try again.', variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            <h2 className="text-base font-semibold">Profile</h2>
+          </div>
+          <div className="mt-6 h-32 animate-pulse rounded-lg bg-muted" />
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -98,8 +169,8 @@ function ProfileSection() {
         </div>
 
         <div className="mt-6 flex justify-end">
-          <Button variant="primary" icon={saved ? Check : Save} onClick={handleSave}>
-            {saved ? 'Saved' : 'Save Changes'}
+          <Button variant="primary" icon={saved ? Check : Save} onClick={handleSave} loading={saving}>
+            {saved ? 'Saved' : saving ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
       </CardContent>
