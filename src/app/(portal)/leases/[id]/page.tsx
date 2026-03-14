@@ -1,9 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import {
-  ChevronLeft,
   ChevronDown,
   ChevronUp,
   Pencil,
@@ -21,12 +19,15 @@ import {
   Paperclip,
   CheckCircle2,
   Clock,
-  AlertCircle,
   XCircle,
   User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDate, formatSqft } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { BackButton } from '@/components/ui/back-button';
+import { Card } from '@/components/ui/card';
 import type { Lease, RentEscalation, LeaseStatus } from '@/types/database';
 
 // ============================================================
@@ -193,6 +194,8 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+let collapsibleCounter = 0;
+
 function CollapsibleSection({
   number,
   title,
@@ -207,28 +210,31 @@ function CollapsibleSection({
   defaultOpen?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [sectionId] = useState(() => `collapsible-${++collapsibleCounter}`);
 
   return (
-    <div className="rounded-xl bg-white shadow-sm overflow-hidden">
+    <Card className="overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-controls={sectionId}
         className="flex items-center justify-between w-full px-5 py-4 text-left hover:bg-muted/30 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <Icon className="h-4.5 w-4.5 text-muted-foreground" />
+          <Icon className="h-4.5 w-4.5 text-muted-foreground" aria-hidden="true" />
           <div>
             <span className="text-xs text-muted-foreground font-medium">{number}</span>
             <h3 className="text-sm font-semibold">{title}</h3>
           </div>
         </div>
         {isOpen ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          <ChevronUp className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         )}
       </button>
-      {isOpen && <div className="px-5 pb-5 border-t border-border/50">{children}</div>}
-    </div>
+      {isOpen && <div id={sectionId} className="px-5 pb-5 border-t border-border/50">{children}</div>}
+    </Card>
   );
 }
 
@@ -247,13 +253,7 @@ export default function LeaseDetailPage() {
   return (
     <div className="p-6 lg:p-8 max-w-5xl">
       {/* Back navigation */}
-      <Link
-        href="/leases"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        Back to Leases
-      </Link>
+      <BackButton href="/leases" label="Back to Leases" className="mb-6" />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8">
@@ -262,14 +262,7 @@ export default function LeaseDetailPage() {
             <h1 className="text-2xl font-bold">
               {property.name} — Suite {unit.suite_number}
             </h1>
-            <span
-              className={cn(
-                'inline-block rounded-full px-2.5 py-0.5 text-xs font-medium',
-                statusInfo.classes
-              )}
-            >
-              {statusInfo.label}
-            </span>
+            <Badge status={lease.status} />
           </div>
           <p className="mt-1 text-muted-foreground">
             {lease.lessee_name}
@@ -281,18 +274,15 @@ export default function LeaseDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
-            <Pencil className="h-4 w-4" />
+          <Button variant="secondary" icon={Pencil}>
             Edit Lease
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light transition-colors">
-            <Send className="h-4 w-4" />
+          </Button>
+          <Button variant="primary" icon={Send}>
             Send for Signature
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
-            <Download className="h-4 w-4" />
+          </Button>
+          <Button variant="secondary" icon={Download}>
             PDF
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -532,7 +522,7 @@ export default function LeaseDetailPage() {
         </CollapsibleSection>
 
         {/* Rent Escalation Schedule */}
-        <div className="rounded-xl bg-white shadow-sm overflow-hidden">
+        <Card className="overflow-hidden">
           <div className="px-5 py-4 border-b border-border/50">
             <div className="flex items-center gap-3">
               <DollarSign className="h-4.5 w-4.5 text-muted-foreground" />
@@ -543,15 +533,15 @@ export default function LeaseDetailPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  <th className="px-5 py-3 text-left font-medium text-muted-foreground">Year</th>
-                  <th className="px-5 py-3 text-left font-medium text-muted-foreground">
+                  <th scope="col" className="px-5 py-3 text-left font-medium text-muted-foreground">Year</th>
+                  <th scope="col" className="px-5 py-3 text-left font-medium text-muted-foreground">
                     Effective Date
                   </th>
-                  <th className="px-5 py-3 text-right font-medium text-muted-foreground">$/SF</th>
-                  <th className="px-5 py-3 text-right font-medium text-muted-foreground">
+                  <th scope="col" className="px-5 py-3 text-right font-medium text-muted-foreground">$/SF</th>
+                  <th scope="col" className="px-5 py-3 text-right font-medium text-muted-foreground">
                     Monthly Amount
                   </th>
-                  <th className="px-5 py-3 text-left font-medium text-muted-foreground">Notes</th>
+                  <th scope="col" className="px-5 py-3 text-left font-medium text-muted-foreground">Notes</th>
                 </tr>
               </thead>
               <tbody>
@@ -574,32 +564,17 @@ export default function LeaseDetailPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
         {/* DocuSign Status */}
-        <div className="rounded-xl bg-white shadow-sm overflow-hidden">
+        <Card className="overflow-hidden">
           <div className="px-5 py-4 border-b border-border/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <FileText className="h-4.5 w-4.5 text-muted-foreground" />
                 <h3 className="text-sm font-semibold">DocuSign Status</h3>
               </div>
-              <span
-                className={cn(
-                  'inline-block rounded-full px-2.5 py-0.5 text-xs font-medium',
-                  lease.docusign_status === 'completed'
-                    ? 'bg-green-100 text-green-700'
-                    : lease.docusign_status === 'sent'
-                      ? 'bg-amber-100 text-amber-700'
-                      : lease.docusign_status === 'declined'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-gray-100 text-gray-700'
-                )}
-              >
-                {lease.docusign_status
-                  ? lease.docusign_status.charAt(0).toUpperCase() + lease.docusign_status.slice(1)
-                  : 'Not Sent'}
-              </span>
+              <Badge status={lease.docusign_status || 'draft'} />
             </div>
           </div>
           <div className="p-5">
@@ -647,7 +622,7 @@ export default function LeaseDetailPage() {
               })}
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

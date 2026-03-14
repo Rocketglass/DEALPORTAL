@@ -11,8 +11,13 @@ import {
   Upload,
   Check,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from '@/components/ui/toast';
 
-// ─── Profile Section ─────────────────────────────────────────
+// --- Profile Section ---
 function ProfileSection() {
   const [profile, setProfile] = useState({
     firstName: 'Neil',
@@ -21,159 +26,162 @@ function ProfileSection() {
     phone: '(619) 555-0100',
     company: 'Rocket Realty',
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
+  const { toast } = useToast();
+
+  function clearError(field: string) {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
 
   function handleSave() {
+    const newErrors: Record<string, string> = {};
+    if (!profile.email.trim()) {
+      newErrors.email = 'Email address is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email.trim())) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+
     setSaved(true);
+    toast({ title: 'Profile saved', description: 'Your profile has been updated.', variant: 'success' });
     setTimeout(() => setSaved(false), 2000);
   }
 
   return (
-    <div className="rounded-xl bg-white p-6 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--primary)]/10">
-          <User className="h-4 w-4 text-[var(--primary)]" />
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+            <User className="h-4 w-4 text-primary" />
+          </div>
+          <h2 className="text-base font-semibold">Profile</h2>
         </div>
-        <h2 className="text-base font-semibold">Profile</h2>
-      </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-medium text-[var(--muted-foreground)]">First Name</label>
-          <input
-            type="text"
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <Input
+            label="First Name"
             value={profile.firstName}
             onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
-            className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-[var(--muted-foreground)]">Last Name</label>
-          <input
-            type="text"
+          <Input
+            label="Last Name"
             value={profile.lastName}
             onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
-            className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-[var(--muted-foreground)]">Email</label>
-          <input
+          <Input
+            label="Email"
             type="email"
+            required
             value={profile.email}
-            onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-            className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
+            onChange={(e) => { setProfile({ ...profile, email: e.target.value }); clearError('email'); }}
+            error={errors.email}
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-[var(--muted-foreground)]">Phone</label>
-          <input
+          <Input
+            label="Phone"
             type="tel"
             value={profile.phone}
             onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-            className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
           />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="block text-sm font-medium text-[var(--muted-foreground)]">Company</label>
-          <input
-            type="text"
+          <Input
+            label="Company"
+            className="sm:col-span-2"
             value={profile.company}
             onChange={(e) => setProfile({ ...profile, company: e.target.value })}
-            className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
           />
         </div>
-      </div>
 
-      <div className="mt-6 flex justify-end">
-        <button
-          onClick={handleSave}
-          className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--primary-light)]"
-        >
-          {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-          {saved ? 'Saved' : 'Save Changes'}
-        </button>
-      </div>
-    </div>
+        <div className="mt-6 flex justify-end">
+          <Button variant="primary" icon={saved ? Check : Save} onClick={handleSave}>
+            {saved ? 'Saved' : 'Save Changes'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-// ─── Commission Settings ─────────────────────────────────────
+// --- Commission Settings ---
 function CommissionSection() {
   const [rate, setRate] = useState('5');
   const [terms, setTerms] = useState('net_30');
   const [saved, setSaved] = useState(false);
+  const [rateError, setRateError] = useState('');
+  const { toast } = useToast();
 
   function handleSave() {
+    const num = parseFloat(rate);
+    if (isNaN(num) || num <= 0) {
+      setRateError('Commission rate must be a positive number');
+      return;
+    }
+    setRateError('');
     setSaved(true);
+    toast({ title: 'Commission settings saved', description: `Default rate set to ${rate}%.`, variant: 'success' });
     setTimeout(() => setSaved(false), 2000);
   }
 
   return (
-    <div className="rounded-xl bg-white p-6 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--success)]/10">
-          <Percent className="h-4 w-4 text-[var(--success)]" />
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/10">
+            <Percent className="h-4 w-4 text-success" />
+          </div>
+          <h2 className="text-base font-semibold">Commission Settings</h2>
         </div>
-        <h2 className="text-base font-semibold">Commission Settings</h2>
-      </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-medium text-[var(--muted-foreground)]">
-            Default Commission Rate (%)
-          </label>
-          <input
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Default Commission Rate (%)"
             type="number"
-            min="0"
-            max="100"
-            step="0.5"
+            min={0}
+            max={100}
+            step={0.5}
             value={rate}
-            onChange={(e) => setRate(e.target.value)}
-            className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
+            onChange={(e) => { setRate(e.target.value); setRateError(''); }}
+            error={rateError}
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-[var(--muted-foreground)]">
-            Default Payment Terms
-          </label>
-          <select
+          <Select
+            label="Default Payment Terms"
             value={terms}
             onChange={(e) => setTerms(e.target.value)}
-            className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
           >
             <option value="due_on_receipt">Due on Receipt</option>
             <option value="net_15">Net 15</option>
             <option value="net_30">Net 30</option>
             <option value="net_45">Net 45</option>
             <option value="net_60">Net 60</option>
-          </select>
+          </Select>
         </div>
-      </div>
 
-      <div className="mt-6 flex justify-end">
-        <button
-          onClick={handleSave}
-          className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--primary-light)]"
-        >
-          {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-          {saved ? 'Saved' : 'Save Changes'}
-        </button>
-      </div>
-    </div>
+        <div className="mt-6 flex justify-end">
+          <Button variant="primary" icon={saved ? Check : Save} onClick={handleSave}>
+            {saved ? 'Saved' : 'Save Changes'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-// ─── Email Notifications ─────────────────────────────────────
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+// --- Email Notifications ---
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label?: string }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={label}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-        checked ? 'bg-[var(--primary)]' : 'bg-[var(--border)]'
+        checked ? 'bg-primary' : 'bg-border'
       }`}
     >
       <span
@@ -201,33 +209,36 @@ function NotificationsSection() {
   ];
 
   return (
-    <div className="rounded-xl bg-white p-6 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--warning)]/10">
-          <Bell className="h-4 w-4 text-[var(--warning)]" />
-        </div>
-        <h2 className="text-base font-semibold">Email Notifications</h2>
-      </div>
-
-      <div className="mt-6 divide-y divide-[var(--border)]">
-        {items.map((item) => (
-          <div key={item.key} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
-            <div>
-              <p className="text-sm font-medium">{item.label}</p>
-              <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{item.desc}</p>
-            </div>
-            <Toggle
-              checked={prefs[item.key]}
-              onChange={(v) => setPrefs({ ...prefs, [item.key]: v })}
-            />
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-warning/10">
+            <Bell className="h-4 w-4 text-warning" />
           </div>
-        ))}
-      </div>
-    </div>
+          <h2 className="text-base font-semibold">Email Notifications</h2>
+        </div>
+
+        <div className="mt-6 divide-y divide-border">
+          {items.map((item) => (
+            <div key={item.key} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
+              <div>
+                <p className="text-sm font-medium">{item.label}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{item.desc}</p>
+              </div>
+              <Toggle
+                checked={prefs[item.key]}
+                onChange={(v) => setPrefs({ ...prefs, [item.key]: v })}
+                label={item.label}
+              />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-// ─── Portal Branding ─────────────────────────────────────────
+// --- Portal Branding ---
 function BrandingSection() {
   const [companyName, setCompanyName] = useState('Rocket Realty');
   const [primaryColor, setPrimaryColor] = useState('#1e40af');
@@ -239,136 +250,118 @@ function BrandingSection() {
   }
 
   return (
-    <div className="rounded-xl bg-white p-6 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
-          <Palette className="h-4 w-4 text-purple-600" />
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
+            <Palette className="h-4 w-4 text-purple-600" />
+          </div>
+          <h2 className="text-base font-semibold">Portal Branding</h2>
         </div>
-        <h2 className="text-base font-semibold">Portal Branding</h2>
-      </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-medium text-[var(--muted-foreground)]">
-            Company Name (displayed in portal)
-          </label>
-          <input
-            type="text"
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Company Name (displayed in portal)"
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
-            className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-white px-3 text-sm outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-[var(--muted-foreground)]">
-            Primary Color
-          </label>
-          <div className="mt-1 flex items-center gap-2">
-            <div
-              className="h-10 w-10 rounded-lg border border-[var(--border)]"
-              style={{ backgroundColor: primaryColor }}
-            />
-            <input
-              type="text"
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-              placeholder="#1e40af"
-              className="h-10 flex-1 rounded-lg border border-[var(--border)] bg-white px-3 font-mono text-sm outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
-            />
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              Primary Color
+            </label>
+            <div className="flex items-center gap-2">
+              <div
+                className="h-10 w-10 rounded-lg border border-border"
+                style={{ backgroundColor: primaryColor }}
+              />
+              <input
+                type="text"
+                value={primaryColor}
+                onChange={(e) => setPrimaryColor(e.target.value)}
+                placeholder="#1e40af"
+                className="h-10 flex-1 rounded-lg border border-border bg-white px-3 font-mono text-sm focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+              />
+            </div>
           </div>
-        </div>
-        <div className="sm:col-span-2">
-          <label className="block text-sm font-medium text-[var(--muted-foreground)]">Logo</label>
-          <div className="mt-1 flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--muted)]">
-            <div className="text-center">
-              <Upload className="mx-auto h-6 w-6 text-[var(--muted-foreground)]" />
-              <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-                Drag and drop or click to upload
-              </p>
-              <p className="mt-1 text-xs text-[var(--muted-foreground)]">PNG, SVG up to 2MB</p>
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Logo</label>
+            <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted">
+              <div className="text-center">
+                <Upload className="mx-auto h-6 w-6 text-muted-foreground" />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Drag and drop or click to upload
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">PNG, SVG up to 2MB</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="mt-6 flex justify-end">
-        <button
-          onClick={handleSave}
-          className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--primary-light)]"
-        >
-          {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-          {saved ? 'Saved' : 'Save Changes'}
-        </button>
-      </div>
-    </div>
+        <div className="mt-6 flex justify-end">
+          <Button variant="primary" icon={saved ? Check : Save} onClick={handleSave}>
+            {saved ? 'Saved' : 'Save Changes'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-// ─── Integrations ────────────────────────────────────────────
+// --- Integrations ---
 function IntegrationsSection() {
   const integrations = [
-    {
-      name: 'Supabase',
-      description: 'Database, authentication, and file storage',
-      connected: true,
-    },
-    {
-      name: 'DocuSign',
-      description: 'Electronic lease signing and document management',
-      connected: false,
-    },
-    {
-      name: 'Resend',
-      description: 'Transactional email delivery',
-      connected: false,
-    },
+    { name: 'Supabase', description: 'Database, authentication, and file storage', connected: true },
+    { name: 'DocuSign', description: 'Electronic lease signing and document management', connected: false },
+    { name: 'Resend', description: 'Transactional email delivery', connected: false },
   ];
 
   return (
-    <div className="rounded-xl bg-white p-6 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10">
-          <Plug className="h-4 w-4 text-cyan-600" />
-        </div>
-        <h2 className="text-base font-semibold">Integrations</h2>
-      </div>
-
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        {integrations.map((integration) => (
-          <div
-            key={integration.name}
-            className="rounded-lg border border-[var(--border)] p-4"
-          >
-            <div className="flex items-center gap-2">
-              <div
-                className={`h-2.5 w-2.5 rounded-full ${
-                  integration.connected ? 'bg-[var(--success)]' : 'bg-[var(--border)]'
-                }`}
-              />
-              <span className="text-sm font-semibold">{integration.name}</span>
-            </div>
-            <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-              {integration.description}
-            </p>
-            <p className={`mt-3 text-xs font-medium ${
-              integration.connected ? 'text-[var(--success)]' : 'text-[var(--muted-foreground)]'
-            }`}>
-              {integration.connected ? 'Connected' : 'Not configured'}
-            </p>
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10">
+            <Plug className="h-4 w-4 text-cyan-600" />
           </div>
-        ))}
-      </div>
-    </div>
+          <h2 className="text-base font-semibold">Integrations</h2>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          {integrations.map((integration) => (
+            <div
+              key={integration.name}
+              className="rounded-lg border border-border p-4"
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    integration.connected ? 'bg-success' : 'bg-border'
+                  }`}
+                />
+                <span className="text-sm font-semibold">{integration.name}</span>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {integration.description}
+              </p>
+              <p className={`mt-3 text-xs font-medium ${
+                integration.connected ? 'text-success' : 'text-muted-foreground'
+              }`}>
+                {integration.connected ? 'Connected' : 'Not configured'}
+              </p>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-// ─── Main Page ───────────────────────────────────────────────
+// --- Main Page ---
 export default function SettingsPage() {
   return (
     <div className="p-6 lg:p-8">
       <div className="mx-auto max-w-3xl">
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="mt-1 text-[var(--muted-foreground)]">
+        <p className="mt-1 text-muted-foreground">
           Manage your account, preferences, and integrations.
         </p>
 

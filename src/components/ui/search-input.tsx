@@ -33,17 +33,19 @@ export function SearchInput({ value, onChange, placeholder = 'Search...' }: Sear
 
   return (
     <div className="relative">
-      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
       <input
         type="text"
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
         placeholder={placeholder}
+        aria-label={placeholder}
         className="h-9 w-full rounded-lg border border-border bg-white pl-9 pr-8 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/20"
       />
       {localValue && (
         <button
           onClick={() => handleChange('')}
+          aria-label="Clear search"
           className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors duration-150 hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />

@@ -92,15 +92,19 @@ function ToastItem({
 
   const { Icon, iconColor, border } = VARIANT_CONFIG[toast.variant];
 
+  const isError = toast.variant === 'error';
+
   return (
     <div
+      role={isError ? 'alert' : 'status'}
+      aria-live={isError ? 'assertive' : 'polite'}
       className={`pointer-events-auto flex w-80 items-start gap-3 rounded-xl border border-[#e2e8f0] ${border} border-l-4 bg-white px-4 py-3 shadow-lg transition-all duration-200 ${
         visible
           ? 'translate-x-0 opacity-100'
           : 'translate-x-4 opacity-0'
       }`}
     >
-      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${iconColor}`} />
+      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${iconColor}`} aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-[#0f172a]">{toast.title}</p>
         {toast.description && (
@@ -110,7 +114,7 @@ function ToastItem({
       <button
         onClick={handleClose}
         className="shrink-0 rounded p-0.5 text-[#64748b] transition-colors hover:text-[#0f172a]"
-        aria-label="Dismiss"
+        aria-label="Close notification"
       >
         <X className="h-4 w-4" />
       </button>

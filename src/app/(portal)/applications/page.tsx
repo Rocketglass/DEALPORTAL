@@ -3,17 +3,8 @@
 import Link from 'next/link';
 import { FileText, Eye } from 'lucide-react';
 import { DataTable } from '@/components/ui/data-table';
+import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
-
-const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  submitted: 'bg-blue-100 text-blue-700',
-  under_review: 'bg-amber-100 text-amber-700',
-  approved: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  withdrawn: 'bg-gray-100 text-gray-600',
-  info_requested: 'bg-purple-100 text-purple-700',
-};
 
 const mockApplications = [
   {
@@ -130,11 +121,7 @@ const columns = [
     key: 'status',
     label: 'Status',
     render: (row: typeof mockApplications[0]) => (
-      <span
-        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[row.status] || 'bg-gray-100 text-gray-700'}`}
-      >
-        {row.status.replace(/_/g, ' ')}
-      </span>
+      <Badge status={row.status} />
     ),
   },
   {

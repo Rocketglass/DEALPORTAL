@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 import type { CommissionInvoice, InvoiceStatus } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -103,18 +104,12 @@ export default function InvoicePrintPage() {
       <div className="mx-auto max-w-3xl bg-white px-4 py-8 print:max-w-none print:px-0 print:py-0">
         {/* Print button — hidden when printing */}
         <div className="no-print mb-8 flex items-center justify-between">
-          <button
-            onClick={() => window.history.back()}
-            className="text-sm font-medium text-[#64748b] transition-colors hover:text-[#0f172a]"
-          >
+          <Button variant="ghost" onClick={() => window.history.back()}>
             &larr; Back
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#1e40af] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#1e3a8a]"
-          >
+          </Button>
+          <Button variant="primary" onClick={() => window.print()}>
             Print Invoice
-          </button>
+          </Button>
         </div>
 
         {/* Invoice header */}

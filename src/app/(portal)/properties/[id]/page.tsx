@@ -1,9 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import {
-  ArrowLeft,
   Save,
   Plus,
   QrCode,
@@ -16,6 +14,13 @@ import {
 } from 'lucide-react';
 import type { Property, Unit, QrCode as QrCodeType } from '@/types/database';
 import { formatCurrency, formatSqft, cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { BackButton } from '@/components/ui/back-button';
+import { Card, CardContent } from '@/components/ui/card';
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -263,13 +268,42 @@ export default function PropertyDetailPage() {
   const [qrUnitDropdown, setQrUnitDropdown] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [propertyErrors, setPropertyErrors] = useState<Record<string, string>>({});
+  const [shakeKey, setShakeKey] = useState(0);
 
   function handlePropertyChange(field: string, value: string | number | null) {
     setProperty((prev) => ({ ...prev, [field]: value }));
     setSaved(false);
+    // Clear error for this field
+    setPropertyErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function validateProperty(): boolean {
+    const errors: Record<string, string> = {};
+    if (!property.name.trim()) errors.name = 'Property name is required';
+    if (!property.address.trim()) errors.address = 'Street address is required';
+    if (!property.city.trim()) errors.city = 'City is required';
+    if (property.state.trim() && property.state.trim().length !== 2) errors.state = 'State must be a 2-character abbreviation';
+    if (!property.zip.trim()) {
+      errors.zip = 'ZIP code is required';
+    } else if (!/^\d{5}(-\d{4})?$/.test(property.zip.trim())) {
+      errors.zip = 'Enter a valid ZIP code (e.g. 92020)';
+    }
+    setPropertyErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setShakeKey((k) => k + 1);
+      return false;
+    }
+    return true;
   }
 
   function handleSave() {
+    if (!validateProperty()) return;
     // In production this would POST to an API
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -311,13 +345,7 @@ export default function PropertyDetailPage() {
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="mb-6">
-        <Link
-          href="/properties"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Properties
-        </Link>
+        <BackButton href="/properties" label="Back to Properties" />
         <h1 className="mt-2 text-2xl font-bold">{property.name}</h1>
         <p className="mt-0.5 text-muted-foreground">
           {property.address}, {property.city}, {property.state} {property.zip}
@@ -327,47 +355,32 @@ export default function PropertyDetailPage() {
       {/* ================================================================= */}
       {/* Property Info Section                                              */}
       {/* ================================================================= */}
-      <div className="rounded-xl bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Property Information</h2>
-          <button
-            onClick={handleSave}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-light"
-          >
-            {saved ? (
-              <>
-                <Check className="h-4 w-4" />
-                Saved
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                Save Changes
-              </>
-            )}
-          </button>
-        </div>
-
-        <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-          <InputField label="Property Name" value={property.name} onChange={(v) => handlePropertyChange('name', v)} />
-          <InputField label="Address" value={property.address} onChange={(v) => handlePropertyChange('address', v)} />
-          <InputField label="City" value={property.city} onChange={(v) => handlePropertyChange('city', v)} />
-          <InputField label="State" value={property.state} onChange={(v) => handlePropertyChange('state', v)} />
-          <InputField label="ZIP" value={property.zip} onChange={(v) => handlePropertyChange('zip', v)} />
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">Property Type</label>
-            <select
-              value={property.property_type}
-              onChange={(e) => handlePropertyChange('property_type', e.target.value)}
-              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              {propertyTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
-                </option>
-              ))}
-            </select>
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold">Property Information</h2>
+            <Button variant="primary" icon={saved ? Check : Save} onClick={handleSave}>
+              {saved ? 'Saved' : 'Save Changes'}
+            </Button>
           </div>
+
+        <div key={shakeKey} className={cn('grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3', shakeKey > 0 && 'animate-shake')}>
+          <InputField label="Property Name" required value={property.name} onChange={(v) => handlePropertyChange('name', v)} error={propertyErrors.name} />
+          <InputField label="Address" required value={property.address} onChange={(v) => handlePropertyChange('address', v)} error={propertyErrors.address} />
+          <InputField label="City" required value={property.city} onChange={(v) => handlePropertyChange('city', v)} error={propertyErrors.city} />
+          <InputField label="State" value={property.state} onChange={(v) => handlePropertyChange('state', v)} error={propertyErrors.state} />
+          <InputField label="ZIP" required value={property.zip} onChange={(v) => handlePropertyChange('zip', v)} error={propertyErrors.zip} />
+          <Select
+            label="Property Type"
+            value={property.property_type}
+            onChange={(e) => handlePropertyChange('property_type', e.target.value)}
+          >
+            {propertyTypes.map((t) => (
+              <option key={t} value={t}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </option>
+            ))}
+          </Select>
           <InputField
             label="Total SF"
             type="number"
@@ -417,15 +430,13 @@ export default function PropertyDetailPage() {
         </div>
 
         {/* Description */}
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-muted-foreground mb-1">Description</label>
-          <textarea
-            value={property.description ?? ''}
-            onChange={(e) => handlePropertyChange('description', e.target.value || null)}
-            rows={3}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-          />
-        </div>
+        <Textarea
+          label="Description"
+          className="mt-4"
+          value={property.description ?? ''}
+          onChange={(e) => handlePropertyChange('description', e.target.value || null)}
+          rows={3}
+        />
 
         {/* Photo upload placeholder */}
         <div className="mt-6">
@@ -441,31 +452,31 @@ export default function PropertyDetailPage() {
             </div>
           </div>
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* ================================================================= */}
       {/* Units Table                                                        */}
       {/* ================================================================= */}
-      <div className="mt-8 rounded-xl bg-white shadow-sm">
+      <Card className="mt-8">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="text-lg font-semibold">Units</h2>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
-            <Plus className="h-4 w-4" />
+          <Button variant="secondary" icon={Plus}>
             Add Unit
-          </button>
+          </Button>
         </div>
 
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left">
-              <th className="px-6 py-3 font-medium text-muted-foreground">Suite #</th>
-              <th className="px-4 py-3 font-medium text-muted-foreground">SF</th>
-              <th className="px-4 py-3 font-medium text-muted-foreground">Type</th>
-              <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
-              <th className="px-4 py-3 font-medium text-muted-foreground">Monthly Rent</th>
-              <th className="px-4 py-3 font-medium text-muted-foreground">$/SF</th>
-              <th className="px-4 py-3 font-medium text-muted-foreground">Current Tenant</th>
-              <th className="px-4 py-3"></th>
+              <th scope="col" className="px-6 py-3 font-medium text-muted-foreground">Suite #</th>
+              <th scope="col" className="px-4 py-3 font-medium text-muted-foreground">SF</th>
+              <th scope="col" className="px-4 py-3 font-medium text-muted-foreground">Type</th>
+              <th scope="col" className="px-4 py-3 font-medium text-muted-foreground">Status</th>
+              <th scope="col" className="px-4 py-3 font-medium text-muted-foreground">Monthly Rent</th>
+              <th scope="col" className="px-4 py-3 font-medium text-muted-foreground">$/SF</th>
+              <th scope="col" className="px-4 py-3 font-medium text-muted-foreground">Current Tenant</th>
+              <th scope="col" className="px-4 py-3"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -483,13 +494,7 @@ export default function PropertyDetailPage() {
                   <td className="px-4 py-3">{formatSqft(unit.sf)}</td>
                   <td className="px-4 py-3 capitalize text-muted-foreground">{unit.unit_type ?? '--'}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
-                        unitStatusStyles[unit.status] || 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {unit.status}
-                    </span>
+                    <Badge status={unit.status} />
                   </td>
                   <td className="px-4 py-3">
                     {unit.monthly_rent != null ? formatCurrency(unit.monthly_rent) : '--'}
@@ -513,8 +518,9 @@ export default function PropertyDetailPage() {
                     <td colSpan={8} className="px-6 py-4">
                       <div className="grid gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
                         <div>
-                          <label className="block text-xs font-medium text-muted-foreground mb-1">Suite Number</label>
+                          <label htmlFor={`unit-${unit.id}-suite`} className="block text-xs font-medium text-muted-foreground mb-1">Suite Number</label>
                           <input
+                            id={`unit-${unit.id}-suite`}
                             type="text"
                             value={editingUnit[unit.id]?.suite_number ?? ''}
                             onChange={(e) =>
@@ -527,8 +533,9 @@ export default function PropertyDetailPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-muted-foreground mb-1">SF</label>
+                          <label htmlFor={`unit-${unit.id}-sf`} className="block text-xs font-medium text-muted-foreground mb-1">SF</label>
                           <input
+                            id={`unit-${unit.id}-sf`}
                             type="number"
                             value={editingUnit[unit.id]?.sf ?? ''}
                             onChange={(e) =>
@@ -541,8 +548,9 @@ export default function PropertyDetailPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
+                          <label htmlFor={`unit-${unit.id}-type`} className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
                           <input
+                            id={`unit-${unit.id}-type`}
                             type="text"
                             value={editingUnit[unit.id]?.unit_type ?? ''}
                             onChange={(e) =>
@@ -555,8 +563,9 @@ export default function PropertyDetailPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-muted-foreground mb-1">Status</label>
+                          <label htmlFor={`unit-${unit.id}-status`} className="block text-xs font-medium text-muted-foreground mb-1">Status</label>
                           <select
+                            id={`unit-${unit.id}-status`}
                             value={editingUnit[unit.id]?.status ?? 'vacant'}
                             onChange={(e) =>
                               setEditingUnit((prev) => ({
@@ -573,8 +582,9 @@ export default function PropertyDetailPage() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-muted-foreground mb-1">Monthly Rent</label>
+                          <label htmlFor={`unit-${unit.id}-rent`} className="block text-xs font-medium text-muted-foreground mb-1">Monthly Rent</label>
                           <input
+                            id={`unit-${unit.id}-rent`}
                             type="number"
                             value={editingUnit[unit.id]?.monthly_rent ?? ''}
                             onChange={(e) =>
@@ -590,10 +600,11 @@ export default function PropertyDetailPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-muted-foreground mb-1">
+                          <label htmlFor={`unit-${unit.id}-marketing`} className="block text-xs font-medium text-muted-foreground mb-1">
                             Marketing Rate ($/SF)
                           </label>
                           <input
+                            id={`unit-${unit.id}-marketing`}
                             type="number"
                             step="0.01"
                             value={editingUnit[unit.id]?.marketing_rate ?? ''}
@@ -611,18 +622,12 @@ export default function PropertyDetailPage() {
                         </div>
                       </div>
                       <div className="mt-3 flex justify-end gap-2">
-                        <button
-                          onClick={() => setExpandedUnit(null)}
-                          className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
-                        >
+                        <Button variant="secondary" size="sm" onClick={() => setExpandedUnit(null)}>
                           Cancel
-                        </button>
-                        <button
-                          onClick={() => setExpandedUnit(null)}
-                          className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-light"
-                        >
+                        </Button>
+                        <Button variant="primary" size="sm" onClick={() => setExpandedUnit(null)}>
                           Save Unit
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -631,12 +636,13 @@ export default function PropertyDetailPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
 
       {/* ================================================================= */}
       {/* QR Codes Section                                                   */}
       {/* ================================================================= */}
-      <div className="mt-8 rounded-xl bg-white p-6 shadow-sm">
+      <Card className="mt-8">
+        <CardContent className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">QR Codes</h2>
           <div className="flex items-center gap-2">
@@ -669,10 +675,9 @@ export default function PropertyDetailPage() {
               )}
             </div>
 
-            <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-light">
-              <QrCode className="h-4 w-4" />
+            <Button variant="primary" icon={QrCode}>
               Generate QR Code
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -774,13 +779,14 @@ export default function PropertyDetailPage() {
             })}
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Reusable input field
+// Reusable input field (wraps Input component for value/onChange compat)
 // ---------------------------------------------------------------------------
 
 function InputField({
@@ -788,21 +794,24 @@ function InputField({
   value,
   onChange,
   type = 'text',
+  error,
+  required,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  error?: string;
+  required?: boolean;
 }) {
   return (
-    <div>
-      <label className="block text-sm font-medium text-muted-foreground mb-1">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-      />
-    </div>
+    <Input
+      label={label}
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      error={error}
+      required={required}
+    />
   );
 }

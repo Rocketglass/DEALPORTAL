@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { Building2, Plus, MapPin, Settings } from 'lucide-react';
 import type { Property } from '@/types/database';
 import { formatSqft } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 
 interface PropertyWithCounts extends Property {
   totalUnits: number;
@@ -123,14 +126,6 @@ const mockProperties: PropertyWithCounts[] = [
   },
 ];
 
-const typeColors: Record<string, string> = {
-  industrial: 'bg-blue-100 text-blue-700',
-  commercial: 'bg-purple-100 text-purple-700',
-  retail: 'bg-amber-100 text-amber-700',
-  office: 'bg-green-100 text-green-700',
-  mixed: 'bg-gray-100 text-gray-700',
-};
-
 export default function PropertiesPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -141,37 +136,41 @@ export default function PropertiesPage() {
             Manage your property portfolio and units.
           </p>
         </div>
-        <Link
-          href="/properties/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-light"
-        >
-          <Plus className="h-4 w-4" />
-          Add Property
+        <Link href="/properties/new">
+          <Button variant="primary" icon={Plus}>
+            Add Property
+          </Button>
         </Link>
       </div>
 
       {/* Summary cards */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-muted-foreground">Total Properties</p>
-          <p className="mt-1 text-3xl font-bold">{mockProperties.length}</p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-muted-foreground">Total Units</p>
-          <p className="mt-1 text-3xl font-bold">
-            {mockProperties.reduce((sum, p) => sum + p.totalUnits, 0)}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-muted-foreground">Vacant Units</p>
-          <p className="mt-1 text-3xl font-bold text-success">
-            {mockProperties.reduce((sum, p) => sum + p.vacantUnits, 0)}
-          </p>
-        </div>
+        <Card>
+          <div className="p-5">
+            <p className="text-sm text-muted-foreground">Total Properties</p>
+            <p className="mt-1 text-3xl font-bold">{mockProperties.length}</p>
+          </div>
+        </Card>
+        <Card>
+          <div className="p-5">
+            <p className="text-sm text-muted-foreground">Total Units</p>
+            <p className="mt-1 text-3xl font-bold">
+              {mockProperties.reduce((sum, p) => sum + p.totalUnits, 0)}
+            </p>
+          </div>
+        </Card>
+        <Card>
+          <div className="p-5">
+            <p className="text-sm text-muted-foreground">Vacant Units</p>
+            <p className="mt-1 text-3xl font-bold text-success">
+              {mockProperties.reduce((sum, p) => sum + p.vacantUnits, 0)}
+            </p>
+          </div>
+        </Card>
       </div>
 
       {/* Properties table */}
-      <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
+      <Card className="mt-6">
         <div className="overflow-x-auto">
         <table className="w-full min-w-[800px] text-sm">
           <thead>
@@ -203,13 +202,7 @@ export default function PropertiesPage() {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
-                      typeColors[property.property_type] || 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {property.property_type}
-                  </span>
+                  <Badge status={property.property_type} />
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {property.total_sf ? formatSqft(property.total_sf) : '--'}
@@ -240,7 +233,7 @@ export default function PropertiesPage() {
           </tbody>
         </table>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

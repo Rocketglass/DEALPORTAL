@@ -1,9 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import {
-  ArrowLeft,
   DollarSign,
   Calendar,
   Paintbrush,
@@ -19,8 +17,14 @@ import {
   Send,
   Eye,
   Save,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { BackButton } from '@/components/ui/back-button';
 import type { LoiSectionKey } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -104,6 +108,10 @@ export default function CreateLoiPage() {
   const [brokerName, setBrokerName] = useState('');
   const [sections, setSections] = useState<SectionData>(INITIAL_DATA);
   const [expanded, setExpanded] = useState<Set<LoiSectionKey>>(new Set(['base_rent', 'term']));
+  const [headerErrors, setHeaderErrors] = useState<Record<string, string>>({});
+  const [sectionErrors, setSectionErrors] = useState<Set<LoiSectionKey>>(new Set());
+  const [hasAttemptedSend, setHasAttemptedSend] = useState(false);
+  const [shakeKey, setShakeKey] = useState(0);
 
   function toggle(key: LoiSectionKey) {
     setExpanded((prev) => {
@@ -123,19 +131,62 @@ export default function CreateLoiPage() {
       ...prev,
       [key]: { ...prev[key], [field]: value },
     }));
+    // Clear section error when user edits
+    setSectionErrors((prev) => {
+      const next = new Set(prev);
+      next.delete(key as LoiSectionKey);
+      return next;
+    });
   }
 
-  const canSend = property.trim() !== '' && tenantName.trim() !== '' && landlordName.trim() !== '' && requiredSectionsFilled(sections);
+  function clearHeaderError(field: string) {
+    setHeaderErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function validateAndSend() {
+    setHasAttemptedSend(true);
+    const newHeaderErrors: Record<string, string> = {};
+    const newSectionErrors = new Set<LoiSectionKey>();
+
+    // Header validation
+    if (!property.trim()) newHeaderErrors.property = 'Property name is required';
+    if (!suite.trim()) newHeaderErrors.suite = 'Suite is required';
+    if (!tenantName.trim()) newHeaderErrors.tenantName = 'Tenant name is required';
+    if (!landlordName.trim()) newHeaderErrors.landlordName = 'Landlord name is required';
+    if (!brokerName.trim()) newHeaderErrors.brokerName = 'Broker name is required';
+
+    // Required sections
+    if (!isFilled('base_rent', sections)) newSectionErrors.add('base_rent');
+    if (!isFilled('term', sections)) newSectionErrors.add('term');
+
+    setHeaderErrors(newHeaderErrors);
+    setSectionErrors(newSectionErrors);
+
+    const hasErrors = Object.keys(newHeaderErrors).length > 0 || newSectionErrors.size > 0;
+    if (hasErrors) {
+      setShakeKey((k) => k + 1);
+      // Auto-expand errored sections
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        newSectionErrors.forEach((k) => next.add(k));
+        return next;
+      });
+      return;
+    }
+
+    // In production, submit to API
+    alert('LOI sent to landlord successfully!');
+  }
 
   return (
     <div className="p-6 lg:p-8">
       {/* Header */}
-      <Link
-        href="/lois"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to LOIs
-      </Link>
+      <BackButton href="/lois" label="Back to LOIs" className="mb-4" />
 
       <h1 className="text-2xl font-bold">Create Letter of Intent</h1>
       <p className="mt-1 text-muted-foreground">
@@ -146,72 +197,63 @@ export default function CreateLoiPage() {
       {/* Header fields                                                       */}
       {/* ------------------------------------------------------------------ */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">Property</label>
-          <input
-            type="text"
-            value={property}
-            onChange={(e) => setProperty(e.target.value)}
-            placeholder="Search or enter property name"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">Suite</label>
-          <input
-            type="text"
-            value={suite}
-            onChange={(e) => setSuite(e.target.value)}
-            placeholder="e.g. 101"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">Tenant Name</label>
-          <input
-            type="text"
-            value={tenantName}
-            onChange={(e) => setTenantName(e.target.value)}
-            placeholder="Company or individual"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">Landlord Name</label>
-          <input
-            type="text"
-            value={landlordName}
-            onChange={(e) => setLandlordName(e.target.value)}
-            placeholder="Company or individual"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">Broker Name</label>
-          <input
-            type="text"
-            value={brokerName}
-            onChange={(e) => setBrokerName(e.target.value)}
-            placeholder="Your name"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          />
-        </div>
+        <Input
+          label="Property"
+          required
+          value={property}
+          onChange={(e) => { setProperty(e.target.value); clearHeaderError('property'); }}
+          placeholder="Search or enter property name"
+          error={headerErrors.property}
+        />
+        <Input
+          label="Suite"
+          required
+          value={suite}
+          onChange={(e) => { setSuite(e.target.value); clearHeaderError('suite'); }}
+          placeholder="e.g. 101"
+          error={headerErrors.suite}
+        />
+        <Input
+          label="Tenant Name"
+          required
+          value={tenantName}
+          onChange={(e) => { setTenantName(e.target.value); clearHeaderError('tenantName'); }}
+          placeholder="Company or individual"
+          error={headerErrors.tenantName}
+        />
+        <Input
+          label="Landlord Name"
+          required
+          value={landlordName}
+          onChange={(e) => { setLandlordName(e.target.value); clearHeaderError('landlordName'); }}
+          placeholder="Company or individual"
+          error={headerErrors.landlordName}
+        />
+        <Input
+          label="Broker Name"
+          required
+          value={brokerName}
+          onChange={(e) => { setBrokerName(e.target.value); clearHeaderError('brokerName'); }}
+          placeholder="Your name"
+          error={headerErrors.brokerName}
+        />
       </div>
 
       {/* ------------------------------------------------------------------ */}
       {/* Section cards                                                       */}
       {/* ------------------------------------------------------------------ */}
-      <div className="mt-8 space-y-3">
+      <div key={shakeKey} className={cn('mt-8 space-y-3', shakeKey > 0 && 'animate-shake')}>
         {SECTIONS.map((sec) => {
           const isExpanded = expanded.has(sec.key);
           const filled = isFilled(sec.key, sections);
+          const hasError = sectionErrors.has(sec.key);
 
           return (
             <div
               key={sec.key}
               className={cn(
                 'rounded-xl bg-white shadow-sm transition-colors',
-                filled ? 'ring-1 ring-primary/40' : '',
+                hasError ? 'ring-1 ring-red-500' : filled ? 'ring-1 ring-primary/40' : '',
               )}
             >
               {/* Card header */}
@@ -221,21 +263,30 @@ export default function CreateLoiPage() {
                 className="flex w-full items-center justify-between px-5 py-4 text-left"
               >
                 <div className="flex items-center gap-3">
-                  <sec.icon className={cn('h-5 w-5', filled ? 'text-primary' : 'text-muted-foreground')} />
+                  <sec.icon className={cn('h-5 w-5', hasError ? 'text-red-500' : filled ? 'text-primary' : 'text-muted-foreground')} />
                   <span className="text-sm font-semibold">{sec.label}</span>
                   {sec.required && (
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <span className={cn(
+                      'rounded px-1.5 py-0.5 text-[10px] font-medium',
+                      hasError ? 'bg-red-50 text-red-600' : 'bg-muted text-muted-foreground',
+                    )}>
                       Required
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {filled && (
+                  {hasError && (
+                    <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+                      <AlertCircle className="h-3 w-3" />
+                      Incomplete
+                    </span>
+                  )}
+                  {filled && !hasError && (
                     <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                       Filled
                     </span>
                   )}
-                  {!filled && !isExpanded && (
+                  {!filled && !isExpanded && !hasError && (
                     <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-muted-foreground">
                       Draft
                     </span>
@@ -267,33 +318,19 @@ export default function CreateLoiPage() {
       {/* Bottom action bar                                                   */}
       {/* ------------------------------------------------------------------ */}
       <div className="mt-8 flex items-center justify-end gap-3 rounded-xl bg-white px-5 py-4 shadow-sm">
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
-        >
-          <Save className="h-4 w-4" />
+        <Button variant="secondary" icon={Save}>
           Save as Draft
-        </button>
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
-        >
-          <Eye className="h-4 w-4" />
+        </Button>
+        <Button variant="secondary" icon={Eye}>
           Preview LOI
-        </button>
-        <button
-          type="button"
-          disabled={!canSend}
-          className={cn(
-            'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white',
-            canSend
-              ? 'bg-primary hover:bg-primary-light'
-              : 'cursor-not-allowed bg-primary/40',
-          )}
+        </Button>
+        <Button
+          variant="primary"
+          icon={Send}
+          onClick={validateAndSend}
         >
-          <Send className="h-4 w-4" />
           Send to Landlord
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -312,27 +349,14 @@ function SectionFields({
   data: SectionData;
   onChange: <K extends keyof SectionData>(key: K, field: keyof SectionData[K], value: string) => void;
 }) {
-  const inputClass =
-    'w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary';
-  const labelClass = 'mb-1.5 block text-sm font-medium';
-
   switch (sectionKey) {
     case 'base_rent': {
       const d = data.base_rent;
       return (
         <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <label className={labelClass}>Monthly Amount ($)</label>
-            <input type="text" value={d.monthlyAmount} onChange={(e) => onChange('base_rent', 'monthlyAmount', e.target.value)} placeholder="e.g. 5,000" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Per SF Rate ($)</label>
-            <input type="text" value={d.perSfRate} onChange={(e) => onChange('base_rent', 'perSfRate', e.target.value)} placeholder="e.g. 1.25" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Rent Commencement Date</label>
-            <input type="date" value={d.commencementDate} onChange={(e) => onChange('base_rent', 'commencementDate', e.target.value)} className={inputClass} />
-          </div>
+          <Input label="Monthly Amount ($)" type="text" value={d.monthlyAmount} onChange={(e) => onChange('base_rent', 'monthlyAmount', e.target.value)} placeholder="e.g. 5,000" />
+          <Input label="Per SF Rate ($)" type="text" value={d.perSfRate} onChange={(e) => onChange('base_rent', 'perSfRate', e.target.value)} placeholder="e.g. 1.25" />
+          <Input label="Rent Commencement Date" type="date" value={d.commencementDate} onChange={(e) => onChange('base_rent', 'commencementDate', e.target.value)} />
         </div>
       );
     }
@@ -341,22 +365,10 @@ function SectionFields({
       const d = data.term;
       return (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label className={labelClass}>Years</label>
-            <input type="number" min="0" value={d.years} onChange={(e) => onChange('term', 'years', e.target.value)} placeholder="e.g. 5" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Months</label>
-            <input type="number" min="0" max="11" value={d.months} onChange={(e) => onChange('term', 'months', e.target.value)} placeholder="e.g. 0" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Commencement Date</label>
-            <input type="date" value={d.commencementDate} onChange={(e) => onChange('term', 'commencementDate', e.target.value)} className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Expiration Date</label>
-            <input type="date" value={d.expirationDate} onChange={(e) => onChange('term', 'expirationDate', e.target.value)} className={inputClass} />
-          </div>
+          <Input label="Years" type="number" min={0} value={d.years} onChange={(e) => onChange('term', 'years', e.target.value)} placeholder="e.g. 5" />
+          <Input label="Months" type="number" min={0} max={11} value={d.months} onChange={(e) => onChange('term', 'months', e.target.value)} placeholder="e.g. 0" />
+          <Input label="Commencement Date" type="date" value={d.commencementDate} onChange={(e) => onChange('term', 'commencementDate', e.target.value)} />
+          <Input label="Expiration Date" type="date" value={d.expirationDate} onChange={(e) => onChange('term', 'expirationDate', e.target.value)} />
         </div>
       );
     }
@@ -365,22 +377,13 @@ function SectionFields({
       const d = data.tenant_improvements;
       return (
         <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <label className={labelClass}>Dollar Amount ($)</label>
-            <input type="text" value={d.amount} onChange={(e) => onChange('tenant_improvements', 'amount', e.target.value)} placeholder="e.g. 25,000" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Description</label>
-            <input type="text" value={d.description} onChange={(e) => onChange('tenant_improvements', 'description', e.target.value)} placeholder="Describe improvements" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Who Pays</label>
-            <select value={d.whoPays} onChange={(e) => onChange('tenant_improvements', 'whoPays', e.target.value)} className={inputClass}>
-              <option value="landlord">Landlord</option>
-              <option value="tenant">Tenant</option>
-              <option value="shared">Shared</option>
-            </select>
-          </div>
+          <Input label="Dollar Amount ($)" type="text" value={d.amount} onChange={(e) => onChange('tenant_improvements', 'amount', e.target.value)} placeholder="e.g. 25,000" />
+          <Input label="Description" type="text" value={d.description} onChange={(e) => onChange('tenant_improvements', 'description', e.target.value)} placeholder="Describe improvements" />
+          <Select label="Who Pays" value={d.whoPays} onChange={(e) => onChange('tenant_improvements', 'whoPays', e.target.value)}>
+            <option value="landlord">Landlord</option>
+            <option value="tenant">Tenant</option>
+            <option value="shared">Shared</option>
+          </Select>
         </div>
       );
     }
@@ -389,22 +392,13 @@ function SectionFields({
       const d = data.cam;
       return (
         <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <label className={labelClass}>Percentage (%)</label>
-            <input type="text" value={d.percentage} onChange={(e) => onChange('cam', 'percentage', e.target.value)} placeholder="e.g. 15" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Structure</label>
-            <select value={d.structure} onChange={(e) => onChange('cam', 'structure', e.target.value)} className={inputClass}>
-              <option value="nnn">NNN (Triple Net)</option>
-              <option value="modified_gross">Modified Gross</option>
-              <option value="full_service">Full Service</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>Base Year</label>
-            <input type="text" value={d.baseYear} onChange={(e) => onChange('cam', 'baseYear', e.target.value)} placeholder="e.g. 2026" className={inputClass} />
-          </div>
+          <Input label="Percentage (%)" type="text" value={d.percentage} onChange={(e) => onChange('cam', 'percentage', e.target.value)} placeholder="e.g. 15" />
+          <Select label="Structure" value={d.structure} onChange={(e) => onChange('cam', 'structure', e.target.value)}>
+            <option value="nnn">NNN (Triple Net)</option>
+            <option value="modified_gross">Modified Gross</option>
+            <option value="full_service">Full Service</option>
+          </Select>
+          <Input label="Base Year" type="text" value={d.baseYear} onChange={(e) => onChange('cam', 'baseYear', e.target.value)} placeholder="e.g. 2026" />
         </div>
       );
     }
@@ -413,8 +407,7 @@ function SectionFields({
       const d = data.security_deposit;
       return (
         <div className="max-w-xs">
-          <label className={labelClass}>Amount ($)</label>
-          <input type="text" value={d.amount} onChange={(e) => onChange('security_deposit', 'amount', e.target.value)} placeholder="e.g. 10,000" className={inputClass} />
+          <Input label="Amount ($)" type="text" value={d.amount} onChange={(e) => onChange('security_deposit', 'amount', e.target.value)} placeholder="e.g. 10,000" />
         </div>
       );
     }
@@ -422,10 +415,7 @@ function SectionFields({
     case 'agreed_use': {
       const d = data.agreed_use;
       return (
-        <div>
-          <label className={labelClass}>Permitted Use</label>
-          <textarea rows={3} value={d.description} onChange={(e) => onChange('agreed_use', 'description', e.target.value)} placeholder="Describe the permitted use of the premises" className={cn(inputClass, 'resize-none')} />
-        </div>
+        <Textarea label="Permitted Use" rows={3} value={d.description} onChange={(e) => onChange('agreed_use', 'description', e.target.value)} placeholder="Describe the permitted use of the premises" />
       );
     }
 
@@ -433,18 +423,12 @@ function SectionFields({
       const d = data.parking;
       return (
         <div className="grid gap-4 sm:grid-cols-2 max-w-lg">
-          <div>
-            <label className={labelClass}>Number of Spaces</label>
-            <input type="number" min="0" value={d.spaces} onChange={(e) => onChange('parking', 'spaces', e.target.value)} placeholder="e.g. 10" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Type</label>
-            <select value={d.type} onChange={(e) => onChange('parking', 'type', e.target.value)} className={inputClass}>
-              <option value="unreserved">Unreserved</option>
-              <option value="reserved">Reserved</option>
-              <option value="mixed">Mixed</option>
-            </select>
-          </div>
+          <Input label="Number of Spaces" type="number" min={0} value={d.spaces} onChange={(e) => onChange('parking', 'spaces', e.target.value)} placeholder="e.g. 10" />
+          <Select label="Type" value={d.type} onChange={(e) => onChange('parking', 'type', e.target.value)}>
+            <option value="unreserved">Unreserved</option>
+            <option value="reserved">Reserved</option>
+            <option value="mixed">Mixed</option>
+          </Select>
         </div>
       );
     }
@@ -453,18 +437,9 @@ function SectionFields({
       const d = data.options;
       return (
         <div className="space-y-4">
-          <div>
-            <label className={labelClass}>Renewal Options</label>
-            <textarea rows={2} value={d.renewalOptions} onChange={(e) => onChange('options', 'renewalOptions', e.target.value)} placeholder="e.g. Two (2) five-year renewal options at fair market value" className={cn(inputClass, 'resize-none')} />
-          </div>
-          <div>
-            <label className={labelClass}>Expansion Options</label>
-            <textarea rows={2} value={d.expansionOptions} onChange={(e) => onChange('options', 'expansionOptions', e.target.value)} placeholder="e.g. Right to expand into adjacent Suite 102" className={cn(inputClass, 'resize-none')} />
-          </div>
-          <div>
-            <label className={labelClass}>Right of First Refusal</label>
-            <textarea rows={2} value={d.rofr} onChange={(e) => onChange('options', 'rofr', e.target.value)} placeholder="e.g. ROFR on any adjacent space that becomes available" className={cn(inputClass, 'resize-none')} />
-          </div>
+          <Textarea label="Renewal Options" rows={2} value={d.renewalOptions} onChange={(e) => onChange('options', 'renewalOptions', e.target.value)} placeholder="e.g. Two (2) five-year renewal options at fair market value" />
+          <Textarea label="Expansion Options" rows={2} value={d.expansionOptions} onChange={(e) => onChange('options', 'expansionOptions', e.target.value)} placeholder="e.g. Right to expand into adjacent Suite 102" />
+          <Textarea label="Right of First Refusal" rows={2} value={d.rofr} onChange={(e) => onChange('options', 'rofr', e.target.value)} placeholder="e.g. ROFR on any adjacent space that becomes available" />
         </div>
       );
     }
@@ -473,14 +448,8 @@ function SectionFields({
       const d = data.escalations;
       return (
         <div className="grid gap-4 sm:grid-cols-2 max-w-lg">
-          <div>
-            <label className={labelClass}>Annual Increase (%)</label>
-            <input type="text" value={d.annualIncrease} onChange={(e) => onChange('escalations', 'annualIncrease', e.target.value)} placeholder="e.g. 3" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Schedule / Notes</label>
-            <input type="text" value={d.schedule} onChange={(e) => onChange('escalations', 'schedule', e.target.value)} placeholder="e.g. Annual on anniversary" className={inputClass} />
-          </div>
+          <Input label="Annual Increase (%)" type="text" value={d.annualIncrease} onChange={(e) => onChange('escalations', 'annualIncrease', e.target.value)} placeholder="e.g. 3" />
+          <Input label="Schedule / Notes" type="text" value={d.schedule} onChange={(e) => onChange('escalations', 'schedule', e.target.value)} placeholder="e.g. Annual on anniversary" />
         </div>
       );
     }
@@ -489,14 +458,8 @@ function SectionFields({
       const d = data.free_rent;
       return (
         <div className="grid gap-4 sm:grid-cols-2 max-w-lg">
-          <div>
-            <label className={labelClass}>Number of Months</label>
-            <input type="number" min="0" value={d.months} onChange={(e) => onChange('free_rent', 'months', e.target.value)} placeholder="e.g. 2" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Conditions</label>
-            <input type="text" value={d.conditions} onChange={(e) => onChange('free_rent', 'conditions', e.target.value)} placeholder="e.g. First 2 months of term" className={inputClass} />
-          </div>
+          <Input label="Number of Months" type="number" min={0} value={d.months} onChange={(e) => onChange('free_rent', 'months', e.target.value)} placeholder="e.g. 2" />
+          <Input label="Conditions" type="text" value={d.conditions} onChange={(e) => onChange('free_rent', 'conditions', e.target.value)} placeholder="e.g. First 2 months of term" />
         </div>
       );
     }

@@ -3,11 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft,
   Building2,
   User,
-  Phone,
-  Mail,
   ShieldCheck,
   CreditCard,
   FileText,
@@ -20,10 +17,14 @@ import {
   Download,
   Eye,
   X,
-  ChevronLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDate, formatSqft } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { BackButton } from '@/components/ui/back-button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 import type {
   Application,
   ApplicationDocument,
@@ -194,16 +195,6 @@ const mockDocuments: ApplicationDocument[] = [
 // Helpers
 // ============================================================
 
-const statusConfig: Record<ApplicationStatus, { label: string; classes: string }> = {
-  draft: { label: 'Draft', classes: 'bg-gray-100 text-gray-700' },
-  submitted: { label: 'Submitted', classes: 'bg-blue-100 text-blue-700' },
-  under_review: { label: 'Under Review', classes: 'bg-amber-100 text-amber-700' },
-  approved: { label: 'Approved', classes: 'bg-green-100 text-green-700' },
-  rejected: { label: 'Rejected', classes: 'bg-red-100 text-red-700' },
-  withdrawn: { label: 'Withdrawn', classes: 'bg-gray-100 text-gray-600' },
-  info_requested: { label: 'Info Requested', classes: 'bg-purple-100 text-purple-700' },
-};
-
 const creditStatusConfig: Record<CreditCheckStatus, { label: string; classes: string; icon: typeof Clock }> = {
   not_run: { label: 'Not Run', classes: 'text-gray-500', icon: Clock },
   pending: { label: 'Pending', classes: 'text-amber-600', icon: Clock },
@@ -263,9 +254,9 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function Card({
+function SectionCard({
   title,
-  icon: Icon,
+  icon,
   children,
 }: {
   title: string;
@@ -273,15 +264,14 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <Icon className="h-4.5 w-4.5 text-muted-foreground" />
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+    <Card>
+      <CardHeader icon={icon} borderBottom={false}>
+        <CardTitle className="uppercase tracking-wide text-muted-foreground">
           {title}
-        </h3>
-      </div>
-      {children}
-    </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">{children}</CardContent>
+    </Card>
   );
 }
 
@@ -305,13 +295,11 @@ export default function ApplicationReviewPage() {
   const [viewingDoc, setViewingDoc] = useState<ApplicationDocument | null>(null);
   const [appStatus, setAppStatus] = useState<ApplicationStatus>(app.status);
 
-  const statusInfo = statusConfig[appStatus];
   const creditInfo = creditStatusConfig[creditStatus];
   const CreditIcon = creditInfo.icon;
 
   function handleRunCreditCheck() {
     setCreditStatus('pending');
-    // Simulate a credit check completing
     setTimeout(() => {
       setCreditStatus('completed');
       setCreditScore(782);
@@ -325,27 +313,14 @@ export default function ApplicationReviewPage() {
   return (
     <div className="p-6 lg:p-8 max-w-7xl">
       {/* Back navigation */}
-      <Link
-        href="/applications"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        Back to Applications
-      </Link>
+      <BackButton href="/applications" label="Back to Applications" className="mb-6" />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">{app.business_name}</h1>
-            <span
-              className={cn(
-                'inline-block rounded-full px-2.5 py-0.5 text-xs font-medium',
-                statusInfo.classes
-              )}
-            >
-              {statusInfo.label}
-            </span>
+            <Badge status={appStatus} />
           </div>
           <p className="mt-1 text-muted-foreground">
             {property.name} — Suite {unit.suite_number}
@@ -360,7 +335,7 @@ export default function ApplicationReviewPage() {
         {/* Left column — main content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Business Information */}
-          <Card title="Business Information" icon={Building2}>
+          <SectionCard title="Business Information" icon={Building2}>
             <InfoRow label="Business Name" value={app.business_name} />
             <InfoRow
               label="Entity Type"
@@ -383,10 +358,10 @@ export default function ApplicationReviewPage() {
               label="Annual Revenue"
               value={app.annual_revenue != null ? formatCurrency(app.annual_revenue) : null}
             />
-          </Card>
+          </SectionCard>
 
           {/* Space Requirements */}
-          <Card title="Space Requirements" icon={Building2}>
+          <SectionCard title="Space Requirements" icon={Building2}>
             <InfoRow
               label="Requested Square Footage"
               value={app.requested_sf != null ? formatSqft(app.requested_sf) : null}
@@ -409,10 +384,10 @@ export default function ApplicationReviewPage() {
                   : null
               }
             />
-          </Card>
+          </SectionCard>
 
           {/* Contact Information */}
-          <Card title="Contact Information" icon={User}>
+          <SectionCard title="Contact Information" icon={User}>
             <InfoRow
               label="Name"
               value={`${contact.first_name} ${contact.last_name}`}
@@ -439,10 +414,10 @@ export default function ApplicationReviewPage() {
                 </a>
               }
             />
-          </Card>
+          </SectionCard>
 
           {/* Guarantor Information */}
-          <Card title="Guarantor Information" icon={ShieldCheck}>
+          <SectionCard title="Guarantor Information" icon={ShieldCheck}>
             {app.guarantor_name ? (
               <>
                 <InfoRow label="Name" value={app.guarantor_name} />
@@ -478,241 +453,242 @@ export default function ApplicationReviewPage() {
                 No guarantor provided
               </p>
             )}
-          </Card>
+          </SectionCard>
         </div>
 
         {/* Right column — sidebar */}
         <div className="space-y-6">
           {/* Actions */}
-          <div className="rounded-xl bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
-              Actions
-            </h3>
-            <div className="space-y-3">
-              <button
-                onClick={() => setAppStatus('approved')}
-                disabled={appStatus === 'approved'}
-                className={cn(
-                  'w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
-                  appStatus === 'approved'
-                    ? 'bg-green-100 text-green-700 cursor-default'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                )}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  {appStatus === 'approved' ? 'Approved' : 'Approve Application'}
-                </span>
-              </button>
-              <button
-                onClick={() => setAppStatus('rejected')}
-                disabled={appStatus === 'rejected'}
-                className={cn(
-                  'w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
-                  appStatus === 'rejected'
-                    ? 'bg-red-100 text-red-700 cursor-default'
-                    : 'bg-red-600 text-white hover:bg-red-700'
-                )}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <XCircle className="h-4 w-4" />
-                  {appStatus === 'rejected' ? 'Rejected' : 'Reject Application'}
-                </span>
-              </button>
-              <button
-                onClick={() => setAppStatus('info_requested')}
-                disabled={appStatus === 'info_requested'}
-                className={cn(
-                  'w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
-                  appStatus === 'info_requested'
-                    ? 'bg-amber-100 text-amber-700 cursor-default'
-                    : 'bg-amber-500 text-white hover:bg-amber-600'
-                )}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  {appStatus === 'info_requested' ? 'Info Requested' : 'Request More Info'}
-                </span>
-              </button>
-              <div className="border-t border-border/50 pt-3">
+          <Card>
+            <CardContent>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+                Actions
+              </h3>
+              <div className="space-y-3">
                 <button
-                  onClick={handleRunCreditCheck}
-                  disabled={creditStatus === 'pending' || creditStatus === 'completed'}
+                  onClick={() => setAppStatus('approved')}
+                  disabled={appStatus === 'approved'}
                   className={cn(
                     'w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
-                    creditStatus === 'pending'
-                      ? 'bg-gray-100 text-gray-500 cursor-wait'
-                      : creditStatus === 'completed'
-                        ? 'bg-gray-100 text-gray-500 cursor-default'
-                        : 'bg-white text-foreground border border-border hover:bg-muted'
+                    appStatus === 'approved'
+                      ? 'bg-green-100 text-green-700 cursor-default'
+                      : 'bg-green-600 text-white hover:bg-green-700'
                   )}
                 >
                   <span className="flex items-center justify-center gap-2">
-                    <CreditCard className="h-4 w-4" />
+                    <CheckCircle2 className="h-4 w-4" />
+                    {appStatus === 'approved' ? 'Approved' : 'Approve Application'}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setAppStatus('rejected')}
+                  disabled={appStatus === 'rejected'}
+                  className={cn(
+                    'w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
+                    appStatus === 'rejected'
+                      ? 'bg-red-100 text-red-700 cursor-default'
+                      : 'bg-red-600 text-white hover:bg-red-700'
+                  )}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    {appStatus === 'rejected' ? 'Rejected' : 'Reject Application'}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setAppStatus('info_requested')}
+                  disabled={appStatus === 'info_requested'}
+                  className={cn(
+                    'w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
+                    appStatus === 'info_requested'
+                      ? 'bg-amber-100 text-amber-700 cursor-default'
+                      : 'bg-amber-500 text-white hover:bg-amber-600'
+                  )}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    {appStatus === 'info_requested' ? 'Info Requested' : 'Request More Info'}
+                  </span>
+                </button>
+                <div className="border-t border-border/50 pt-3">
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    icon={CreditCard}
+                    onClick={handleRunCreditCheck}
+                    disabled={creditStatus === 'pending' || creditStatus === 'completed'}
+                    loading={creditStatus === 'pending'}
+                    className="w-full"
+                  >
                     {creditStatus === 'pending'
                       ? 'Running Credit Check...'
                       : creditStatus === 'completed'
                         ? 'Credit Check Complete'
                         : 'Run Credit Check'}
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Credit Check */}
-          <div className="rounded-xl bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
-              Credit Check
-            </h3>
-            <div className="flex items-center gap-2 mb-3">
-              <CreditIcon className={cn('h-4 w-4', creditInfo.classes)} />
-              <span className={cn('text-sm font-medium', creditInfo.classes)}>
-                {creditInfo.label}
-              </span>
-            </div>
-            {creditStatus === 'completed' && creditScore !== null && (
-              <div
-                className={cn(
-                  'rounded-lg border p-4 text-center',
-                  getCreditScoreBg(creditScore)
-                )}
-              >
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                  Credit Score
-                </p>
-                <p className={cn('text-4xl font-bold', getCreditScoreColor(creditScore))}>
-                  {creditScore}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {creditScore >= 750
-                    ? 'Excellent'
-                    : creditScore >= 650
-                      ? 'Good'
-                      : 'Below Average'}
-                </p>
-              </div>
-            )}
-            {creditStatus === 'pending' && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
-                <div className="animate-pulse">
-                  <div className="h-8 w-16 bg-amber-200 rounded mx-auto mb-2" />
-                  <p className="text-xs text-amber-600">Processing...</p>
+                  </Button>
                 </div>
               </div>
-            )}
-            {creditStatus === 'not_run' && (
-              <p className="text-sm text-muted-foreground">
-                Run a credit check to see the applicant's score.
-              </p>
-            )}
-          </div>
+            </CardContent>
+          </Card>
+
+          {/* Credit Check */}
+          <Card>
+            <CardContent>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+                Credit Check
+              </h3>
+              <div className="flex items-center gap-2 mb-3">
+                <CreditIcon className={cn('h-4 w-4', creditInfo.classes)} />
+                <span className={cn('text-sm font-medium', creditInfo.classes)}>
+                  {creditInfo.label}
+                </span>
+              </div>
+              {creditStatus === 'completed' && creditScore !== null && (
+                <div
+                  className={cn(
+                    'rounded-lg border p-4 text-center',
+                    getCreditScoreBg(creditScore)
+                  )}
+                >
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                    Credit Score
+                  </p>
+                  <p className={cn('text-4xl font-bold', getCreditScoreColor(creditScore))}>
+                    {creditScore}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {creditScore >= 750
+                      ? 'Excellent'
+                      : creditScore >= 650
+                        ? 'Good'
+                        : 'Below Average'}
+                  </p>
+                </div>
+              )}
+              {creditStatus === 'pending' && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
+                  <div className="animate-pulse">
+                    <div className="h-8 w-16 bg-amber-200 rounded mx-auto mb-2" />
+                    <p className="text-xs text-amber-600">Processing...</p>
+                  </div>
+                </div>
+              )}
+              {creditStatus === 'not_run' && (
+                <p className="text-sm text-muted-foreground">
+                  Run a credit check to see the applicant's score.
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Review Notes */}
-          <div className="rounded-xl bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
-              Review Notes
-            </h3>
-            <textarea
-              value={reviewNotes}
-              onChange={(e) => setReviewNotes(e.target.value)}
-              placeholder="Add notes about this application..."
-              rows={5}
-              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-            />
-            <button className="mt-3 w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light transition-colors">
-              Save Notes
-            </button>
-          </div>
+          <Card>
+            <CardContent>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+                Review Notes
+              </h3>
+              <Textarea
+                value={reviewNotes}
+                onChange={(e) => setReviewNotes(e.target.value)}
+                placeholder="Add notes about this application..."
+                aria-label="Review notes"
+                rows={5}
+              />
+              <Button variant="primary" className="mt-3 w-full">
+                Save Notes
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* Documents Section — full width */}
       <div className="mt-8">
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4.5 w-4.5 text-muted-foreground" />
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Documents
-              </h3>
-            </div>
+        <Card>
+          <CardHeader icon={FileText}>
+            <CardTitle className="uppercase tracking-wide text-muted-foreground flex-1">
+              Documents
+            </CardTitle>
             <p className="text-xs text-muted-foreground">
               {Object.values(docReviewState).filter(Boolean).length} of {documents.length} reviewed
             </p>
-          </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {documents.map((doc) => {
+                const DocIcon = docTypeIcons[doc.document_type];
+                const isReviewed = docReviewState[doc.id];
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {documents.map((doc) => {
-              const DocIcon = docTypeIcons[doc.document_type];
-              const isReviewed = docReviewState[doc.id];
-
-              return (
-                <div
-                  key={doc.id}
-                  className={cn(
-                    'rounded-lg border p-4 transition-colors',
-                    isReviewed ? 'border-green-200 bg-green-50/50' : 'border-border'
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={cn(
-                        'rounded-lg p-2',
-                        isReviewed ? 'bg-green-100' : 'bg-muted'
-                      )}
-                    >
-                      <DocIcon
+                return (
+                  <div
+                    key={doc.id}
+                    className={cn(
+                      'rounded-lg border p-4 transition-colors',
+                      isReviewed ? 'border-green-200 bg-green-50/50' : 'border-border'
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
                         className={cn(
-                          'h-5 w-5',
-                          isReviewed ? 'text-green-600' : 'text-muted-foreground'
+                          'rounded-lg p-2',
+                          isReviewed ? 'bg-green-100' : 'bg-muted'
                         )}
-                      />
+                      >
+                        <DocIcon
+                          className={cn(
+                            'h-5 w-5',
+                            isReviewed ? 'text-green-600' : 'text-muted-foreground'
+                          )}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{doc.file_name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {docTypeLabels[doc.document_type]}
+                          {doc.tax_year && ` · ${doc.tax_year}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatFileSize(doc.file_size_bytes)} · {formatDate(doc.uploaded_at)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{doc.file_name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {docTypeLabels[doc.document_type]}
-                        {doc.tax_year && ` · ${doc.tax_year}`}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(doc.file_size_bytes)} · {formatDate(doc.uploaded_at)}
-                      </p>
+                    <div className="flex items-center gap-2 mt-3">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={Eye}
+                        onClick={() => setViewingDoc(doc)}
+                        className="flex-1"
+                      >
+                        View
+                      </Button>
+                      <button
+                        onClick={() => toggleDocReview(doc.id)}
+                        className={cn(
+                          'flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                          isReviewed
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                            : 'border border-border text-muted-foreground hover:bg-muted'
+                        )}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {isReviewed ? 'Reviewed' : 'Mark Reviewed'}
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-3">
-                    <button
-                      onClick={() => setViewingDoc(doc)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
-                    </button>
-                    <button
-                      onClick={() => toggleDocReview(doc.id)}
-                      className={cn(
-                        'flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                        isReviewed
-                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                          : 'border border-border text-muted-foreground hover:bg-muted'
-                      )}
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      {isReviewed ? 'Reviewed' : 'Mark Reviewed'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Document Viewer Modal */}
       {viewingDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-label={`Document viewer: ${viewingDoc.file_name}`} aria-modal="true">
           <div
             className="absolute inset-0 bg-black/40"
+            aria-hidden="true"
             onClick={() => setViewingDoc(null)}
           />
           <div className="relative w-full max-w-3xl mx-4 rounded-xl bg-white shadow-xl">
@@ -727,12 +703,12 @@ export default function ApplicationReviewPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <button className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors">
-                  <Download className="h-3.5 w-3.5" />
+                <Button variant="secondary" size="sm" icon={Download}>
                   Download
-                </button>
+                </Button>
                 <button
                   onClick={() => setViewingDoc(null)}
+                  aria-label="Close document viewer"
                   className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors"
                 >
                   <X className="h-4 w-4" />

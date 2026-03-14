@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import {
-  ArrowLeft,
   Download,
   Send,
   CheckCircle2,
@@ -12,6 +11,10 @@ import {
   Circle,
 } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { BackButton } from '@/components/ui/back-button';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import type { CommissionInvoice, InvoiceStatus } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -57,62 +60,6 @@ const MOCK_INVOICE: CommissionInvoice & {
   broker_company: 'Rocket Realty',
   broker_license: 'DRE #01234567',
 };
-
-// ---------------------------------------------------------------------------
-// Status helpers
-// ---------------------------------------------------------------------------
-
-const STATUS_CONFIG: Record<
-  InvoiceStatus,
-  { label: string; bg: string; text: string; dot: string }
-> = {
-  draft: {
-    label: 'Draft',
-    bg: 'bg-[#f1f5f9]',
-    text: 'text-[#64748b]',
-    dot: 'bg-[#64748b]',
-  },
-  sent: {
-    label: 'Sent',
-    bg: 'bg-blue-50',
-    text: 'text-[#1e40af]',
-    dot: 'bg-[#1e40af]',
-  },
-  paid: {
-    label: 'Paid',
-    bg: 'bg-green-50',
-    text: 'text-[#16a34a]',
-    dot: 'bg-[#16a34a]',
-  },
-  overdue: {
-    label: 'Overdue',
-    bg: 'bg-red-50',
-    text: 'text-[#dc2626]',
-    dot: 'bg-[#dc2626]',
-  },
-  cancelled: {
-    label: 'Cancelled',
-    bg: 'bg-gray-50',
-    text: 'text-gray-500',
-    dot: 'bg-gray-400',
-  },
-};
-
-function StatusBadge({ status }: { status: InvoiceStatus }) {
-  const cfg = STATUS_CONFIG[status];
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium',
-        cfg.bg,
-        cfg.text,
-      )}
-    >
-      <span className={cn('h-1.5 w-1.5 rounded-full', cfg.dot)} />
-      {cfg.label}
-    </span>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Progress tracker
@@ -225,13 +172,7 @@ export default function InvoiceDetailPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Back link */}
-      <a
-        href="/invoices"
-        className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-[#64748b] transition-colors hover:text-[#0f172a]"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Invoices
-      </a>
+      <BackButton href="/invoices" label="Back to Invoices" className="mb-6" />
 
       {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -247,40 +188,28 @@ export default function InvoiceDetailPage() {
               Created {formatDate(invoice.created_at)}
             </p>
           </div>
-          <StatusBadge status={invoice.status} />
+          <Badge status={invoice.status} dot />
         </div>
 
         <div className="flex items-center gap-2">
           {invoice.status === 'draft' && (
-            <button
-              onClick={handleSendToLandlord}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#1e40af] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#1e3a8a]"
-            >
-              <Send className="h-4 w-4" />
+            <Button variant="primary" icon={Send} onClick={handleSendToLandlord}>
               Send to Landlord
-            </button>
+            </Button>
           )}
-          <button
-            onClick={handleDownloadPdf}
-            className="inline-flex items-center gap-2 rounded-lg border border-[#e2e8f0] bg-white px-4 py-2 text-sm font-medium text-[#0f172a] shadow-sm transition-colors hover:bg-[#f1f5f9]"
-          >
-            <Download className="h-4 w-4" />
+          <Button variant="secondary" icon={Download} onClick={handleDownloadPdf}>
             Download PDF
-          </button>
+          </Button>
           {invoice.status === 'sent' && (
-            <button
-              onClick={handleMarkAsPaid}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#16a34a] bg-white px-4 py-2 text-sm font-medium text-[#16a34a] shadow-sm transition-colors hover:bg-green-50"
-            >
-              <CreditCard className="h-4 w-4" />
+            <Button variant="secondary" icon={CreditCard} onClick={handleMarkAsPaid}>
               Mark as Paid
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Invoice preview card */}
-      <div className="mb-8 overflow-hidden rounded-xl border border-[#e2e8f0] bg-white shadow-sm">
+      <Card border className="mb-8 overflow-hidden">
         {/* Invoice header band */}
         <div className="border-b border-[#e2e8f0] bg-[#f8fafc] px-8 py-6">
           <div className="flex items-start justify-between">
@@ -303,7 +232,7 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
 
-        <div className="px-8 py-6">
+        <CardContent className="px-8 py-6">
           {/* Date row */}
           <div className="mb-8 flex flex-wrap gap-x-12 gap-y-2 text-sm">
             <div>
@@ -353,13 +282,13 @@ export default function InvoiceDetailPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-[#f8fafc]">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#64748b]">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#64748b]">
                     Description
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-[#64748b]">
+                  <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-[#64748b]">
                     Details
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-[#64748b]">
+                  <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-[#64748b]">
                     Amount
                   </th>
                 </tr>
@@ -441,58 +370,60 @@ export default function InvoiceDetailPage() {
               </p>
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Payment tracking section */}
-      <div className="rounded-xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
-        <h3 className="mb-5 text-sm font-semibold text-[#0f172a]">
-          Payment Tracking
-        </h3>
+      <Card border>
+        <CardContent className="p-6">
+          <h3 className="mb-5 text-sm font-semibold text-[#0f172a]">
+            Payment Tracking
+          </h3>
 
-        <div className="mb-6 flex justify-center">
-          <PaymentProgress status={invoice.status} />
-        </div>
-
-        {invoice.status === 'paid' && (
-          <div className="mt-4 grid grid-cols-1 gap-4 rounded-lg bg-green-50 p-4 sm:grid-cols-3">
-            <div>
-              <p className="text-xs font-medium text-[#64748b]">Payment Date</p>
-              <p className="mt-0.5 text-sm font-medium text-[#0f172a]">
-                {invoice.paid_date ? formatDate(invoice.paid_date) : '—'}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-[#64748b]">Method</p>
-              <p className="mt-0.5 text-sm font-medium capitalize text-[#0f172a]">
-                {invoice.payment_method ?? '—'}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-[#64748b]">
-                Reference Number
-              </p>
-              <p className="mt-0.5 text-sm font-medium text-[#0f172a]">
-                {invoice.payment_reference ?? '—'}
-              </p>
-            </div>
+          <div className="mb-6 flex justify-center">
+            <PaymentProgress status={invoice.status} />
           </div>
-        )}
 
-        {invoice.status === 'draft' && (
-          <p className="mt-2 text-center text-sm text-[#64748b]">
-            This invoice has not been sent yet. Click &quot;Send to Landlord&quot; to email it.
-          </p>
-        )}
+          {invoice.status === 'paid' && (
+            <div className="mt-4 grid grid-cols-1 gap-4 rounded-lg bg-green-50 p-4 sm:grid-cols-3">
+              <div>
+                <p className="text-xs font-medium text-[#64748b]">Payment Date</p>
+                <p className="mt-0.5 text-sm font-medium text-[#0f172a]">
+                  {invoice.paid_date ? formatDate(invoice.paid_date) : '\u2014'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-[#64748b]">Method</p>
+                <p className="mt-0.5 text-sm font-medium capitalize text-[#0f172a]">
+                  {invoice.payment_method ?? '\u2014'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-[#64748b]">
+                  Reference Number
+                </p>
+                <p className="mt-0.5 text-sm font-medium text-[#0f172a]">
+                  {invoice.payment_reference ?? '\u2014'}
+                </p>
+              </div>
+            </div>
+          )}
 
-        {invoice.status === 'sent' && (
-          <p className="mt-2 text-center text-sm text-[#64748b]">
-            Invoice sent on{' '}
-            {invoice.sent_date ? formatDate(invoice.sent_date) : '—'}.
-            Awaiting payment.
-          </p>
-        )}
-      </div>
+          {invoice.status === 'draft' && (
+            <p className="mt-2 text-center text-sm text-[#64748b]">
+              This invoice has not been sent yet. Click &quot;Send to Landlord&quot; to email it.
+            </p>
+          )}
+
+          {invoice.status === 'sent' && (
+            <p className="mt-2 text-center text-sm text-[#64748b]">
+              Invoice sent on{' '}
+              {invoice.sent_date ? formatDate(invoice.sent_date) : '\u2014'}.
+              Awaiting payment.
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -3,7 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
+import { BackButton } from '@/components/ui/back-button';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
 
 const propertyTypes = [
   { value: '', label: 'Select type...' },
@@ -67,6 +73,7 @@ export default function NewPropertyPage() {
   const [form, setForm] = useState<FormState>(initialState);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [saving, setSaving] = useState(false);
+  const [shakeKey, setShakeKey] = useState(0);
 
   function handleChange(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -82,10 +89,18 @@ export default function NewPropertyPage() {
   function validate(): boolean {
     const newErrors: Partial<Record<keyof FormState, string>> = {};
     if (!form.name.trim()) newErrors.name = 'Property name is required';
-    if (!form.address.trim()) newErrors.address = 'Address is required';
+    if (!form.address.trim()) newErrors.address = 'Street address is required';
     if (!form.city.trim()) newErrors.city = 'City is required';
-    if (!form.zip.trim()) newErrors.zip = 'ZIP code is required';
+    if (form.state.trim() && form.state.trim().length !== 2) newErrors.state = 'State must be a 2-character abbreviation';
+    if (!form.zip.trim()) {
+      newErrors.zip = 'ZIP code is required';
+    } else if (!/^\d{5}(-\d{4})?$/.test(form.zip.trim())) {
+      newErrors.zip = 'Enter a valid ZIP code (e.g. 92020)';
+    }
     setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      setShakeKey((k) => k + 1);
+    }
     return Object.keys(newErrors).length === 0;
   }
 
@@ -103,251 +118,199 @@ export default function NewPropertyPage() {
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="mb-6">
-        <Link
-          href="/properties"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Properties
-        </Link>
+        <BackButton href="/properties" label="Back to Properties" />
         <h1 className="mt-2 text-2xl font-bold">Add New Property</h1>
         <p className="mt-0.5 text-muted-foreground">
           Enter the property details below. You can add units after creating the property.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form key={shakeKey} onSubmit={handleSubmit} className={shakeKey > 0 ? 'animate-shake' : ''}>
         {/* Basic Information */}
-        <div className="rounded-xl bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
-          <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-            <FormField
-              label="Property Name"
-              required
-              value={form.name}
-              error={errors.name}
-              onChange={(v) => handleChange('name', v)}
-            />
-            <FormField
-              label="Address"
-              required
-              value={form.address}
-              error={errors.address}
-              onChange={(v) => handleChange('address', v)}
-              className="sm:col-span-2"
-            />
-            <FormField
-              label="City"
-              required
-              value={form.city}
-              error={errors.city}
-              onChange={(v) => handleChange('city', v)}
-            />
-            <FormField
-              label="State"
-              value={form.state}
-              onChange={(v) => handleChange('state', v)}
-            />
-            <FormField
-              label="ZIP"
-              required
-              value={form.zip}
-              error={errors.zip}
-              onChange={(v) => handleChange('zip', v)}
-            />
-            <FormField
-              label="County"
-              value={form.county}
-              onChange={(v) => handleChange('county', v)}
-            />
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1">
-                Property Type
-              </label>
-              <select
+        <Card>
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
+            <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Input
+                label="Property Name"
+                required
+                value={form.name}
+                error={errors.name}
+                onChange={(e) => handleChange('name', e.target.value)}
+              />
+              <Input
+                label="Address"
+                required
+                value={form.address}
+                error={errors.address}
+                onChange={(e) => handleChange('address', e.target.value)}
+                className="sm:col-span-2"
+              />
+              <Input
+                label="City"
+                required
+                value={form.city}
+                error={errors.city}
+                onChange={(e) => handleChange('city', e.target.value)}
+              />
+              <Input
+                label="State"
+                value={form.state}
+                error={errors.state}
+                onChange={(e) => handleChange('state', e.target.value)}
+              />
+              <Input
+                label="ZIP"
+                required
+                value={form.zip}
+                error={errors.zip}
+                onChange={(e) => handleChange('zip', e.target.value)}
+              />
+              <Input
+                label="County"
+                value={form.county}
+                onChange={(e) => handleChange('county', e.target.value)}
+              />
+              <Select
+                label="Property Type"
                 value={form.property_type}
                 onChange={(e) => handleChange('property_type', e.target.value)}
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 {propertyTypes.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Building Details */}
-        <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">Building Details</h2>
-          <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-            <FormField
-              label="Total SF"
-              type="number"
-              value={form.total_sf}
-              onChange={(v) => handleChange('total_sf', v)}
-            />
-            <FormField
-              label="Land Area SF"
-              type="number"
-              value={form.land_area_sf}
-              onChange={(v) => handleChange('land_area_sf', v)}
-            />
-            <FormField
-              label="Year Built"
-              type="number"
-              value={form.year_built}
-              onChange={(v) => handleChange('year_built', v)}
-            />
-            <FormField
-              label="Zoning"
-              value={form.zoning}
-              onChange={(v) => handleChange('zoning', v)}
-            />
-            <FormField
-              label="Parcel Number"
-              value={form.parcel_number}
-              onChange={(v) => handleChange('parcel_number', v)}
-            />
-          </div>
-        </div>
+        <Card className="mt-6">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Building Details</h2>
+            <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Input
+                label="Total SF"
+                type="number"
+                value={form.total_sf}
+                onChange={(e) => handleChange('total_sf', e.target.value)}
+              />
+              <Input
+                label="Land Area SF"
+                type="number"
+                value={form.land_area_sf}
+                onChange={(e) => handleChange('land_area_sf', e.target.value)}
+              />
+              <Input
+                label="Year Built"
+                type="number"
+                value={form.year_built}
+                onChange={(e) => handleChange('year_built', e.target.value)}
+              />
+              <Input
+                label="Zoning"
+                value={form.zoning}
+                onChange={(e) => handleChange('zoning', e.target.value)}
+              />
+              <Input
+                label="Parcel Number"
+                value={form.parcel_number}
+                onChange={(e) => handleChange('parcel_number', e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Parking & Infrastructure */}
-        <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">Parking & Infrastructure</h2>
-          <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-            <FormField
-              label="Parking Spaces"
-              type="number"
-              value={form.parking_spaces}
-              onChange={(v) => handleChange('parking_spaces', v)}
-            />
-            <FormField
-              label="Parking Ratio"
-              type="number"
-              value={form.parking_ratio}
-              onChange={(v) => handleChange('parking_ratio', v)}
-              step="0.01"
-            />
-            <FormField
-              label="Power"
-              value={form.power}
-              onChange={(v) => handleChange('power', v)}
-              placeholder="e.g. 400A 3-Phase"
-            />
-            <FormField
-              label="Clear Height (ft)"
-              type="number"
-              value={form.clear_height_ft}
-              onChange={(v) => handleChange('clear_height_ft', v)}
-            />
-            <FormField
-              label="Dock High Doors"
-              type="number"
-              value={form.dock_high_doors}
-              onChange={(v) => handleChange('dock_high_doors', v)}
-            />
-            <FormField
-              label="Grade Level Doors"
-              type="number"
-              value={form.grade_level_doors}
-              onChange={(v) => handleChange('grade_level_doors', v)}
-            />
-            <FormField
-              label="Levelers"
-              type="number"
-              value={form.levelers}
-              onChange={(v) => handleChange('levelers', v)}
-            />
-            <FormField
-              label="Crane Capacity (tons)"
-              type="number"
-              value={form.crane_capacity_tons}
-              onChange={(v) => handleChange('crane_capacity_tons', v)}
-            />
-          </div>
-        </div>
+        <Card className="mt-6">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Parking & Infrastructure</h2>
+            <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Input
+                label="Parking Spaces"
+                type="number"
+                value={form.parking_spaces}
+                onChange={(e) => handleChange('parking_spaces', e.target.value)}
+              />
+              <Input
+                label="Parking Ratio"
+                type="number"
+                step={0.01}
+                value={form.parking_ratio}
+                onChange={(e) => handleChange('parking_ratio', e.target.value)}
+              />
+              <Input
+                label="Power"
+                value={form.power}
+                placeholder="e.g. 400A 3-Phase"
+                onChange={(e) => handleChange('power', e.target.value)}
+              />
+              <Input
+                label="Clear Height (ft)"
+                type="number"
+                value={form.clear_height_ft}
+                onChange={(e) => handleChange('clear_height_ft', e.target.value)}
+              />
+              <Input
+                label="Dock High Doors"
+                type="number"
+                value={form.dock_high_doors}
+                onChange={(e) => handleChange('dock_high_doors', e.target.value)}
+              />
+              <Input
+                label="Grade Level Doors"
+                type="number"
+                value={form.grade_level_doors}
+                onChange={(e) => handleChange('grade_level_doors', e.target.value)}
+              />
+              <Input
+                label="Levelers"
+                type="number"
+                value={form.levelers}
+                onChange={(e) => handleChange('levelers', e.target.value)}
+              />
+              <Input
+                label="Crane Capacity (tons)"
+                type="number"
+                value={form.crane_capacity_tons}
+                onChange={(e) => handleChange('crane_capacity_tons', e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Description */}
-        <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">Description</h2>
-          <textarea
-            value={form.description}
-            onChange={(e) => handleChange('description', e.target.value)}
-            rows={4}
-            placeholder="Property description, notable features, location highlights..."
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-          />
-        </div>
+        <Card className="mt-6">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Description</h2>
+            <Textarea
+              value={form.description}
+              onChange={(e) => handleChange('description', e.target.value)}
+              rows={4}
+              placeholder="Property description, notable features, location highlights..."
+            />
+          </CardContent>
+        </Card>
 
         {/* Actions */}
         <div className="mt-6 flex items-center justify-end gap-3">
-          <Link
-            href="/properties"
-            className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            Cancel
+          <Link href="/properties">
+            <Button variant="secondary" type="button">
+              Cancel
+            </Button>
           </Link>
-          <button
+          <Button
             type="submit"
-            disabled={saving}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-light disabled:opacity-60"
+            variant="primary"
+            icon={Save}
+            loading={saving}
           >
-            <Save className="h-4 w-4" />
             {saving ? 'Saving...' : 'Save Property'}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Reusable form field
-// ---------------------------------------------------------------------------
-
-function FormField({
-  label,
-  value,
-  onChange,
-  error,
-  required,
-  type = 'text',
-  placeholder,
-  className,
-  step,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  required?: boolean;
-  type?: string;
-  placeholder?: string;
-  className?: string;
-  step?: string;
-}) {
-  return (
-    <div className={className}>
-      <label className="block text-sm font-medium text-muted-foreground mb-1">
-        {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        step={step}
-        className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
-          error
-            ? 'border-destructive focus:border-destructive focus:ring-destructive'
-            : 'border-border focus:border-primary focus:ring-primary'
-        }`}
-      />
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   );
 }

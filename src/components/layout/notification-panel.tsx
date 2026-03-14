@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { FileText, Handshake, ScrollText, Receipt } from 'lucide-react';
 import Link from 'next/link';
 
@@ -79,12 +80,64 @@ export function NotificationPanel({
   onMarkAllRead,
   onClose,
 }: NotificationPanelProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  // Focus trap within the panel
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const focusableSelectors = 'a[href], button, [tabindex]:not([tabindex="-1"])';
+    const focusableElements = panel.querySelectorAll<HTMLElement>(focusableSelectors);
+    const firstFocusable = focusableElements[0];
+    const lastFocusable = focusableElements[focusableElements.length - 1];
+
+    // Focus the first element when panel opens
+    firstFocusable?.focus();
+
+    function handleTab(e: KeyboardEvent) {
+      if (e.key !== 'Tab') return;
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstFocusable) {
+          e.preventDefault();
+          lastFocusable?.focus();
+        }
+      } else {
+        if (document.activeElement === lastFocusable) {
+          e.preventDefault();
+          firstFocusable?.focus();
+        }
+      }
+    }
+
+    panel.addEventListener('keydown', handleTab);
+    return () => panel.removeEventListener('keydown', handleTab);
+  }, [notifications]);
+
   return (
     <>
       {/* Backdrop to close panel */}
-      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-40" aria-hidden="true" onClick={onClose} />
 
-      <div className="absolute right-0 top-full z-50 mt-2 w-96 rounded-xl border border-border bg-white shadow-lg">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-label="Notifications"
+        aria-modal="true"
+        className="absolute right-0 top-full z-50 mt-2 w-96 rounded-xl border border-border bg-white shadow-lg"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
@@ -115,7 +168,7 @@ export function NotificationPanel({
                   className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted"
                 >
                   <div className={`mt-0.5 flex-shrink-0 ${iconColor}`}>
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-4 w-4" aria-hidden="true" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">
@@ -129,7 +182,7 @@ export function NotificationPanel({
                     </p>
                   </div>
                   {!notification.read && (
-                    <div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-primary" />
+                    <div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-primary" aria-label="Unread" />
                   )}
                 </Link>
               );

@@ -190,6 +190,7 @@ function Input({
   type = 'text',
   value,
   onChange,
+  onBlur,
   placeholder,
   error,
   disabled,
@@ -202,6 +203,7 @@ function Input({
   type?: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   error?: string;
   disabled?: boolean;
@@ -223,6 +225,7 @@ function Input({
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           placeholder={placeholder}
           disabled={disabled}
           min={min}
@@ -233,15 +236,16 @@ function Input({
           className={cn(
             'block w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-foreground shadow-sm transition-colors',
             'placeholder:text-muted-foreground/60',
-            'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
             'disabled:bg-muted disabled:cursor-not-allowed',
-            error ? 'border-destructive' : 'border-border',
+            error
+              ? 'border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
+              : 'border-border focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
             prefix ? 'pl-7' : '',
           )}
         />
       </div>
       {error && (
-        <p id={`${id}-error`} className="mt-1.5 flex items-center gap-1 text-xs text-destructive" role="alert">
+        <p id={`${id}-error`} className="mt-1.5 flex items-center gap-1 text-xs text-red-600" role="alert">
           <AlertCircle className="h-3 w-3 shrink-0" />
           {error}
         </p>
@@ -254,6 +258,7 @@ function Select({
   id,
   value,
   onChange,
+  onBlur,
   options,
   placeholder,
   error,
@@ -261,6 +266,7 @@ function Select({
   id: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   options: { value: string; label: string }[];
   placeholder?: string;
   error?: string;
@@ -271,12 +277,14 @@ function Select({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
         className={cn(
           'block w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-foreground shadow-sm transition-colors appearance-none',
-          'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
-          error ? 'border-destructive' : 'border-border',
+          error
+            ? 'border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
+            : 'border-border focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
           !value && 'text-muted-foreground/60',
         )}
       >
@@ -292,7 +300,7 @@ function Select({
         ))}
       </select>
       {error && (
-        <p id={`${id}-error`} className="mt-1.5 flex items-center gap-1 text-xs text-destructive" role="alert">
+        <p id={`${id}-error`} className="mt-1.5 flex items-center gap-1 text-xs text-red-600" role="alert">
           <AlertCircle className="h-3 w-3 shrink-0" />
           {error}
         </p>
@@ -305,6 +313,7 @@ function Textarea({
   id,
   value,
   onChange,
+  onBlur,
   placeholder,
   rows = 3,
   error,
@@ -312,6 +321,7 @@ function Textarea({
   id: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   rows?: number;
   error?: string;
@@ -322,18 +332,20 @@ function Textarea({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         placeholder={placeholder}
         rows={rows}
         aria-invalid={!!error}
         className={cn(
           'block w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-foreground shadow-sm transition-colors resize-none',
           'placeholder:text-muted-foreground/60',
-          'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
-          error ? 'border-destructive' : 'border-border',
+          error
+            ? 'border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
+            : 'border-border focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
         )}
       />
       {error && (
-        <p className="mt-1.5 flex items-center gap-1 text-xs text-destructive" role="alert">
+        <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600" role="alert">
           <AlertCircle className="h-3 w-3 shrink-0" />
           {error}
         </p>
@@ -583,6 +595,9 @@ export default function TenantApplicationPage() {
   const [errors, setErrors] = useState<StepErrors>({});
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [hasAttemptedStep, setHasAttemptedStep] = useState<Set<number>>(new Set());
+  const [shakeKey, setShakeKey] = useState(0);
+  const [submitErrorSummary, setSubmitErrorSummary] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<FormData>({
     businessName: '',
@@ -613,7 +628,22 @@ export default function TenantApplicationPage() {
       delete next[key];
       return next;
     });
+    setSubmitErrorSummary([]);
   }, []);
+
+  /** Re-validate a single field on blur, but only after the user has tried to advance */
+  const blurValidateField = useCallback(
+    (field: string) => {
+      if (!hasAttemptedStep.has(currentStep)) return;
+      // Re-run step validation silently for this field
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    },
+    [currentStep, hasAttemptedStep],
+  );
 
   const handlePhoneChange = useCallback(
     (key: 'contactPhone' | 'guarantorPhone', raw: string) => {
@@ -644,44 +674,92 @@ export default function TenantApplicationPage() {
       const stepErrors: StepErrors = {};
 
       if (step === 1) {
-        if (!formData.businessName.trim()) stepErrors.businessName = 'Business name is required';
-        if (!formData.businessType) stepErrors.businessType = 'Business type is required';
+        if (!formData.businessName.trim()) stepErrors.businessName = 'Please enter your business name';
+        if (!formData.businessType) stepErrors.businessType = 'Please select your business type';
       }
 
       if (step === 2) {
-        // No required fields — all optional
+        if (!formData.requestedSf.trim()) {
+          stepErrors.requestedSf = 'Please enter the square footage you need';
+        } else if (Number(formData.requestedSf) <= 0) {
+          stepErrors.requestedSf = 'Square footage must be a positive number';
+        }
+        if (!formData.desiredTermMonths.trim()) {
+          stepErrors.desiredTermMonths = 'Please enter your desired lease term';
+        } else if (Number(formData.desiredTermMonths) <= 0) {
+          stepErrors.desiredTermMonths = 'Lease term must be at least 1 month';
+        }
+        if (!formData.desiredMoveIn.trim()) {
+          stepErrors.desiredMoveIn = 'Please select your desired move-in date';
+        }
+        if (!formData.monthlyRentBudget.trim()) {
+          stepErrors.monthlyRentBudget = 'Please enter your monthly rent budget';
+        } else if (Number(formData.monthlyRentBudget) <= 0) {
+          stepErrors.monthlyRentBudget = 'Budget must be a positive number';
+        }
       }
 
       if (step === 3) {
         if (!formData.contactFirstName.trim()) stepErrors.contactFirstName = 'First name is required';
         if (!formData.contactLastName.trim()) stepErrors.contactLastName = 'Last name is required';
         if (!formData.contactEmail.trim()) {
-          stepErrors.contactEmail = 'Email is required';
+          stepErrors.contactEmail = 'Email address is required';
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail.trim())) {
-          stepErrors.contactEmail = 'Enter a valid email address';
+          stepErrors.contactEmail = 'Please enter a valid email address';
         }
         if (!formData.contactPhone.trim()) {
           stepErrors.contactPhone = 'Phone number is required';
         } else if (formData.contactPhone.replace(/\D/g, '').length < 10) {
-          stepErrors.contactPhone = 'Enter a 10-digit phone number';
+          stepErrors.contactPhone = 'Please enter a complete 10-digit phone number';
         }
         // Optional guarantor email validation
         if (formData.guarantorEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.guarantorEmail.trim())) {
-          stepErrors.guarantorEmail = 'Enter a valid email address';
+          stepErrors.guarantorEmail = 'Please enter a valid email address for the guarantor';
+        }
+      }
+
+      if (step === 4) {
+        if (files.length === 0) {
+          stepErrors.documents = 'Please upload at least one document to continue';
         }
       }
 
       if (step === 5) {
-        if (!formData.termsAccepted) stepErrors.termsAccepted = 'You must accept the terms to submit';
+        if (!formData.termsAccepted) stepErrors.termsAccepted = 'You must accept the terms to submit your application';
+
+        // Full validation across all steps for final submit
+        const summaryErrors: string[] = [];
+        if (!formData.businessName.trim()) summaryErrors.push('Business name is missing (Step 1)');
+        if (!formData.businessType) summaryErrors.push('Business type is missing (Step 1)');
+        if (!formData.requestedSf.trim() || Number(formData.requestedSf) <= 0) summaryErrors.push('Requested square footage is missing (Step 2)');
+        if (!formData.desiredTermMonths.trim() || Number(formData.desiredTermMonths) <= 0) summaryErrors.push('Lease term is missing (Step 2)');
+        if (!formData.desiredMoveIn.trim()) summaryErrors.push('Move-in date is missing (Step 2)');
+        if (!formData.monthlyRentBudget.trim() || Number(formData.monthlyRentBudget) <= 0) summaryErrors.push('Monthly rent budget is missing (Step 2)');
+        if (!formData.contactFirstName.trim()) summaryErrors.push('Contact first name is missing (Step 3)');
+        if (!formData.contactLastName.trim()) summaryErrors.push('Contact last name is missing (Step 3)');
+        if (!formData.contactEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail.trim())) summaryErrors.push('A valid contact email is required (Step 3)');
+        if (!formData.contactPhone.trim() || formData.contactPhone.replace(/\D/g, '').length < 10) summaryErrors.push('A valid phone number is required (Step 3)');
+        if (files.length === 0) summaryErrors.push('At least one document must be uploaded (Step 4)');
+
+        if (summaryErrors.length > 0) {
+          setSubmitErrorSummary(summaryErrors);
+          for (const msg of summaryErrors) stepErrors['_summary'] = 'Please fix the issues listed above';
+        } else {
+          setSubmitErrorSummary([]);
+        }
       }
 
       setErrors(stepErrors);
+      if (Object.keys(stepErrors).length > 0) {
+        setShakeKey((k) => k + 1);
+      }
       return Object.keys(stepErrors).length === 0;
     },
-    [formData],
+    [formData, files],
   );
 
   const goNext = useCallback(() => {
+    setHasAttemptedStep((prev) => new Set(prev).add(currentStep));
     if (!validateStep(currentStep)) return;
     setCompletedSteps((prev) => new Set(prev).add(currentStep));
     setCurrentStep((s) => Math.min(s + 1, 5));
@@ -706,6 +784,7 @@ export default function TenantApplicationPage() {
   );
 
   const handleSubmit = useCallback(() => {
+    setHasAttemptedStep((prev) => new Set(prev).add(5));
     if (!validateStep(5)) return;
     // In the future, this is where we'd submit to Supabase
     setCompletedSteps((prev) => new Set(prev).add(5));
@@ -771,6 +850,7 @@ export default function TenantApplicationPage() {
           id="businessName"
           value={formData.businessName}
           onChange={(v) => updateField('businessName', v)}
+          onBlur={() => blurValidateField('businessName')}
           placeholder="e.g. Acme Distribution LLC"
           error={errors.businessName}
         />
@@ -784,6 +864,7 @@ export default function TenantApplicationPage() {
           id="businessType"
           value={formData.businessType}
           onChange={(v) => updateField('businessType', v)}
+          onBlur={() => blurValidateField('businessType')}
           placeholder="Select business type"
           options={BUSINESS_TYPES.map((t) => ({ value: t, label: t }))}
           error={errors.businessType}
@@ -847,20 +928,22 @@ export default function TenantApplicationPage() {
       </div>
 
       <div>
-        <Label htmlFor="requestedSf">Requested Square Footage</Label>
+        <Label htmlFor="requestedSf" required>Requested Square Footage</Label>
         <Input
           id="requestedSf"
           type="number"
           value={formData.requestedSf}
           onChange={(v) => updateField('requestedSf', v)}
+          onBlur={() => blurValidateField('requestedSf')}
           placeholder="e.g. 5000"
           min="0"
           inputMode="numeric"
+          error={errors.requestedSf}
         />
       </div>
 
       <div>
-        <Label htmlFor="desiredTermMonths">Desired Lease Term (months)</Label>
+        <Label htmlFor="desiredTermMonths" required>Desired Lease Term (months)</Label>
         <div className="flex flex-wrap gap-2 mb-2">
           {TERM_PRESETS.map((months) => (
             <button
@@ -883,35 +966,41 @@ export default function TenantApplicationPage() {
           type="number"
           value={formData.desiredTermMonths}
           onChange={(v) => updateField('desiredTermMonths', v)}
+          onBlur={() => blurValidateField('desiredTermMonths')}
           placeholder="Or enter custom term"
           min="1"
           inputMode="numeric"
+          error={errors.desiredTermMonths}
         />
       </div>
 
       <div>
-        <Label htmlFor="desiredMoveIn">Desired Move-in Date</Label>
+        <Label htmlFor="desiredMoveIn" required>Desired Move-in Date</Label>
         <Input
           id="desiredMoveIn"
           type="date"
           value={formData.desiredMoveIn}
           onChange={(v) => updateField('desiredMoveIn', v)}
+          onBlur={() => blurValidateField('desiredMoveIn')}
           min={today}
+          error={errors.desiredMoveIn}
         />
       </div>
 
       <div>
-        <Label htmlFor="monthlyRentBudget">Monthly Rent Budget</Label>
+        <Label htmlFor="monthlyRentBudget" required>Monthly Rent Budget</Label>
         <Input
           id="monthlyRentBudget"
           type="number"
           value={formData.monthlyRentBudget}
           onChange={(v) => updateField('monthlyRentBudget', v)}
+          onBlur={() => blurValidateField('monthlyRentBudget')}
           placeholder="e.g. 5000"
           min="0"
           step="100"
           inputMode="decimal"
           prefix="$"
+          error={errors.monthlyRentBudget}
         />
       </div>
     </div>
@@ -931,6 +1020,7 @@ export default function TenantApplicationPage() {
                 id="contactFirstName"
                 value={formData.contactFirstName}
                 onChange={(v) => updateField('contactFirstName', v)}
+                onBlur={() => blurValidateField('contactFirstName')}
                 placeholder="First name"
                 error={errors.contactFirstName}
               />
@@ -943,6 +1033,7 @@ export default function TenantApplicationPage() {
                 id="contactLastName"
                 value={formData.contactLastName}
                 onChange={(v) => updateField('contactLastName', v)}
+                onBlur={() => blurValidateField('contactLastName')}
                 placeholder="Last name"
                 error={errors.contactLastName}
               />
@@ -958,6 +1049,7 @@ export default function TenantApplicationPage() {
               type="email"
               value={formData.contactEmail}
               onChange={(v) => updateField('contactEmail', v)}
+              onBlur={() => blurValidateField('contactEmail')}
               placeholder="you@company.com"
               error={errors.contactEmail}
               inputMode="email"
@@ -973,6 +1065,7 @@ export default function TenantApplicationPage() {
               type="tel"
               value={formatPhoneDisplay(formData.contactPhone)}
               onChange={(v) => handlePhoneChange('contactPhone', v)}
+              onBlur={() => blurValidateField('contactPhone')}
               placeholder="(555) 123-4567"
               error={errors.contactPhone}
               inputMode="tel"
@@ -1002,6 +1095,7 @@ export default function TenantApplicationPage() {
               type="email"
               value={formData.guarantorEmail}
               onChange={(v) => updateField('guarantorEmail', v)}
+              onBlur={() => blurValidateField('guarantorEmail')}
               placeholder="guarantor@example.com"
               error={errors.guarantorEmail}
               inputMode="email"
@@ -1037,6 +1131,15 @@ export default function TenantApplicationPage() {
           </div>
         </div>
       </div>
+
+      {errors.documents && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <p className="flex items-center gap-1.5 text-sm text-red-600" role="alert">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {errors.documents}
+          </p>
+        </div>
+      )}
 
       {DOCUMENT_CATEGORIES.map((cat) => (
         <FileUploadZone key={cat.key} category={cat} files={files} onAdd={addFiles} onRemove={removeFile} />
@@ -1106,6 +1209,22 @@ export default function TenantApplicationPage() {
 
     return (
       <div className="space-y-6">
+        {submitErrorSummary.length > 0 && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-4" role="alert">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+              <p className="text-sm font-semibold text-red-700">
+                Please fix the following before submitting:
+              </p>
+            </div>
+            <ul className="ml-6 space-y-1">
+              {submitErrorSummary.map((msg, i) => (
+                <li key={i} className="text-sm text-red-600 list-disc">{msg}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {sections.map((section) => (
           <div key={section.step} className="rounded-xl border border-border bg-white overflow-hidden">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-muted/30">
@@ -1187,7 +1306,7 @@ export default function TenantApplicationPage() {
         <StepIndicator currentStep={currentStep} completedSteps={completedSteps} />
 
         {/* Form card */}
-        <div className="mt-6 sm:mt-8 rounded-xl bg-white border border-border shadow-sm">
+        <div key={shakeKey} className={cn('mt-6 sm:mt-8 rounded-xl bg-white border border-border shadow-sm', shakeKey > 0 && 'animate-shake')}>
           {/* Step header */}
           <div className="border-b border-border px-5 py-5 sm:px-8 sm:py-6">
             <h1 className="text-xl font-bold text-foreground">{stepMeta[currentStep].title}</h1>

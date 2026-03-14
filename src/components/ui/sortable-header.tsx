@@ -31,20 +31,27 @@ export function SortableHeader({
     }
   }
 
+  const sortLabel = isActive && currentDirection === 'asc'
+    ? 'sorted ascending'
+    : isActive && currentDirection === 'desc'
+      ? 'sorted descending'
+      : 'not sorted';
+
   return (
     <button
       onClick={handleClick}
+      aria-label={`Sort by ${label}, ${sortLabel}`}
       className="inline-flex items-center gap-1 font-medium text-muted-foreground transition-colors hover:text-foreground"
     >
       {label}
       {isActive && currentDirection === 'asc' && (
-        <ArrowUp className="h-3.5 w-3.5" />
+        <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
       )}
       {isActive && currentDirection === 'desc' && (
-        <ArrowDown className="h-3.5 w-3.5" />
+        <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
       )}
       {!isActive && (
-        <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+        <ArrowUpDown className="h-3.5 w-3.5 opacity-40" aria-hidden="true" />
       )}
     </button>
   );

@@ -1,12 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
 import {
-  ArrowLeft,
   ChevronDown,
   ChevronUp,
-  Building2,
   Users,
   MapPin,
   Car,
@@ -24,9 +21,13 @@ import {
   Calculator,
   CheckCircle2,
   TrendingUp,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { BackButton } from '@/components/ui/back-button';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { mapLoiToLease, calculateEscalationSchedule, calculateTotalConsideration } from '@/lib/lease/generate';
 import type {
   LoiSection,
@@ -307,11 +308,20 @@ export default function CreateLeasePage() {
   const [importedSections, setImportedSections] = useState<number | null>(null);
   const [escalations, setEscalations] = useState<RentEscalation[]>([]);
   const [showEscalations, setShowEscalations] = useState(false);
+  const [leaseErrors, setLeaseErrors] = useState<Record<string, string>>({});
+  const [shakeKey, setShakeKey] = useState(0);
 
   // ---- Helpers ----
 
   function updateField(key: string, value: string | number | boolean | null) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    // Clear error when field is edited
+    setLeaseErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }
 
   function toggleSection(key: string) {
@@ -389,6 +399,63 @@ export default function CreateLeasePage() {
     setShowEscalations(true);
   }
 
+  // ---- Validation ----
+
+  function validateLease(): boolean {
+    const errors: Record<string, string> = {};
+
+    if (!String(form.lessor_name).trim()) errors.lessor_name = 'Lessor name is required';
+    if (!String(form.lessee_name).trim()) errors.lessee_name = 'Lessee name is required';
+    if (!String(form.premises_address).trim()) errors.premises_address = 'Premises address is required';
+    if (!String(form.premises_city).trim()) errors.premises_city = 'City is required';
+    if (!String(form.premises_state).trim()) errors.premises_state = 'State is required';
+    else if (String(form.premises_state).trim().length !== 2) errors.premises_state = 'State must be a 2-character abbreviation';
+    if (!String(form.premises_zip).trim()) errors.premises_zip = 'ZIP code is required';
+    else if (!/^\d{5}(-\d{4})?$/.test(String(form.premises_zip).trim())) errors.premises_zip = 'Enter a valid ZIP code (e.g. 92020)';
+    if (!String(form.premises_sf).trim() || parseFloat(String(form.premises_sf)) <= 0) errors.premises_sf = 'Square footage must be a positive number';
+    if (!String(form.commencement_date).trim()) errors.commencement_date = 'Commencement date is required';
+    if (!String(form.expiration_date).trim()) errors.expiration_date = 'Expiration date is required';
+
+    // Cross-field: expiration > commencement
+    if (String(form.commencement_date).trim() && String(form.expiration_date).trim()) {
+      if (new Date(String(form.expiration_date)) <= new Date(String(form.commencement_date))) {
+        errors.expiration_date = 'Expiration date must be after commencement date';
+      }
+    }
+
+    if (!String(form.base_rent_monthly).trim() || parseFloat(String(form.base_rent_monthly)) <= 0) {
+      errors.base_rent_monthly = 'Monthly base rent must be a positive number';
+    }
+
+    setLeaseErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setShakeKey((k) => k + 1);
+      // Expand sections with errors
+      const sectionMap: Record<string, string> = {
+        lessor_name: 'parties', lessee_name: 'parties',
+        premises_address: 'premises', premises_city: 'premises',
+        premises_state: 'premises', premises_zip: 'premises', premises_sf: 'premises',
+        commencement_date: 'term', expiration_date: 'term',
+        base_rent_monthly: 'base_rent',
+      };
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        Object.keys(errors).forEach((k) => {
+          if (sectionMap[k]) next.add(sectionMap[k]);
+        });
+        return next;
+      });
+      return false;
+    }
+    return true;
+  }
+
+  function handleSendForSignature() {
+    if (!validateLease()) return;
+    // In production, send to DocuSign
+    alert('Lease sent for signature!');
+  }
+
   // ---- Required fields check ----
 
   const requiredFieldsFilled = useMemo(() => {
@@ -405,6 +472,15 @@ export default function CreateLeasePage() {
 
   // ---- Input helpers ----
 
+  function inputClassFor(field?: string) {
+    const hasErr = field && leaseErrors[field];
+    return cn(
+      'w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none',
+      hasErr
+        ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500/20'
+        : 'border-border focus:border-primary focus:ring-1 focus:ring-primary',
+    );
+  }
   const inputClass =
     'w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary';
   const labelClass = 'mb-1.5 block text-sm font-medium';
@@ -415,12 +491,7 @@ export default function CreateLeasePage() {
   return (
     <div className="p-6 lg:p-8 max-w-5xl">
       {/* Back navigation */}
-      <Link
-        href="/leases"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to Leases
-      </Link>
+      <BackButton href="/leases" label="Back to Leases" className="mb-4" />
 
       <h1 className="text-2xl font-bold">Create Lease</h1>
       <p className="mt-1 text-muted-foreground">
@@ -431,67 +502,53 @@ export default function CreateLeasePage() {
       {/* Mode Toggle                                                         */}
       {/* ------------------------------------------------------------------ */}
       <div className="mt-6 flex gap-2">
-        <button
+        <Button
+          variant={mode === 'loi' ? 'primary' : 'secondary'}
+          icon={Import}
           onClick={() => setMode('loi')}
-          className={cn(
-            'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-            mode === 'loi'
-              ? 'bg-primary text-white'
-              : 'border border-border text-foreground hover:bg-muted',
-          )}
         >
-          <Import className="mr-2 inline h-4 w-4" />
           From LOI
-        </button>
-        <button
+        </Button>
+        <Button
+          variant={mode === 'manual' ? 'primary' : 'secondary'}
+          icon={FileText}
           onClick={() => setMode('manual')}
-          className={cn(
-            'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-            mode === 'manual'
-              ? 'bg-primary text-white'
-              : 'border border-border text-foreground hover:bg-muted',
-          )}
         >
-          <FileText className="mr-2 inline h-4 w-4" />
           Manual Entry
-        </button>
+        </Button>
       </div>
 
       {/* ------------------------------------------------------------------ */}
       {/* LOI Import Section                                                  */}
       {/* ------------------------------------------------------------------ */}
       {mode === 'loi' && (
-        <div className="mt-6 rounded-xl bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold mb-3">Import from Agreed LOI</h2>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <select
-                value={selectedLoiId}
-                onChange={(e) => setSelectedLoiId(e.target.value)}
-                className={selectClass}
+        <Card className="mt-6">
+          <CardContent className="p-5">
+            <h2 className="text-sm font-semibold mb-3">Import from Agreed LOI</h2>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <select
+                  value={selectedLoiId}
+                  onChange={(e) => setSelectedLoiId(e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="">Select an agreed LOI...</option>
+                  {mockAgreedLois.map((loi) => (
+                    <option key={loi.id} value={loi.id}>
+                      {loi.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                variant="primary"
+                icon={Import}
+                onClick={handleImportFromLoi}
+                disabled={!selectedLoiId}
               >
-                <option value="">Select an agreed LOI...</option>
-                {mockAgreedLois.map((loi) => (
-                  <option key={loi.id} value={loi.id}>
-                    {loi.label}
-                  </option>
-                ))}
-              </select>
+                Import from LOI
+              </Button>
             </div>
-            <button
-              onClick={handleImportFromLoi}
-              disabled={!selectedLoiId}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white',
-                selectedLoiId
-                  ? 'bg-primary hover:bg-primary-light'
-                  : 'cursor-not-allowed bg-primary/40',
-              )}
-            >
-              <Import className="h-4 w-4" />
-              Import from LOI
-            </button>
-          </div>
           {importedSections !== null && (
             <div className="mt-4 flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
               <CheckCircle2 className="h-4 w-4" />
@@ -501,19 +558,20 @@ export default function CreateLeasePage() {
               </span>
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* ------------------------------------------------------------------ */}
       {/* AIR Form Sections                                                   */}
       {/* ------------------------------------------------------------------ */}
-      <div className="mt-6 space-y-3">
+      <div key={shakeKey} className={cn('mt-6 space-y-3', shakeKey > 0 && 'animate-shake')}>
         {AIR_SECTIONS.map((sec) => {
           const isOpen = expanded.has(sec.key);
           const Icon = sec.icon;
 
           return (
-            <div key={sec.key} className="rounded-xl bg-white shadow-sm overflow-hidden">
+            <Card key={sec.key} className="overflow-hidden">
               <button
                 onClick={() => toggleSection(sec.key)}
                 className="flex items-center justify-between w-full px-5 py-4 text-left hover:bg-muted/30 transition-colors"
@@ -538,17 +596,19 @@ export default function CreateLeasePage() {
                     form={form}
                     onUpdate={updateField}
                     inputClass={inputClass}
+                    inputClassFor={inputClassFor}
                     labelClass={labelClass}
                     selectClass={selectClass}
+                    errors={leaseErrors}
                   />
                 </div>
               )}
-            </div>
+            </Card>
           );
         })}
 
         {/* ---- Rent Escalation Schedule ---- */}
-        <div className="rounded-xl bg-white shadow-sm overflow-hidden">
+        <Card className="overflow-hidden">
           <div className="px-5 py-4 border-b border-border/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -565,13 +625,9 @@ export default function CreateLeasePage() {
                     className="w-16 rounded-lg border border-border bg-white px-2 py-1 text-sm text-center outline-none focus:border-primary"
                   />
                 </div>
-                <button
-                  onClick={handleGenerateEscalations}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
-                >
-                  <Calculator className="h-3.5 w-3.5" />
+                <Button variant="secondary" size="sm" icon={Calculator} onClick={handleGenerateEscalations}>
                   Generate Schedule
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -616,49 +672,28 @@ export default function CreateLeasePage() {
               </table>
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* ------------------------------------------------------------------ */}
       {/* Bottom Action Bar                                                   */}
       {/* ------------------------------------------------------------------ */}
-      <div className="mt-8 flex items-center justify-end gap-3 rounded-xl bg-white px-5 py-4 shadow-sm">
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-        >
-          <Save className="h-4 w-4" />
-          Save as Draft
-        </button>
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-        >
-          <Eye className="h-4 w-4" />
-          Preview Lease
-        </button>
-        <button
-          type="button"
-          onClick={handleGenerateEscalations}
-          className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-        >
-          <Calculator className="h-4 w-4" />
-          Generate Escalation Schedule
-        </button>
-        <button
-          type="button"
-          disabled={!requiredFieldsFilled}
-          className={cn(
-            'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white',
-            requiredFieldsFilled
-              ? 'bg-primary hover:bg-primary-light'
-              : 'cursor-not-allowed bg-primary/40',
-          )}
-        >
-          <Send className="h-4 w-4" />
-          Send for Signature
-        </button>
-      </div>
+      <Card className="mt-8">
+        <CardContent className="flex items-center justify-end gap-3 px-5 py-4">
+          <Button variant="secondary" icon={Save}>
+            Save as Draft
+          </Button>
+          <Button variant="secondary" icon={Eye}>
+            Preview Lease
+          </Button>
+          <Button variant="secondary" icon={Calculator} onClick={handleGenerateEscalations}>
+            Generate Escalation Schedule
+          </Button>
+          <Button variant="primary" icon={Send} onClick={handleSendForSignature}>
+            Send for Signature
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -667,20 +702,34 @@ export default function CreateLeasePage() {
 // Section Editor
 // ============================================================
 
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="mt-1 flex items-center gap-1 text-xs text-red-600">
+      <AlertCircle className="h-3 w-3 shrink-0" />
+      {message}
+    </p>
+  );
+}
+
 function SectionEditor({
   sectionKey,
   form,
   onUpdate,
   inputClass,
+  inputClassFor,
   labelClass,
   selectClass,
+  errors,
 }: {
   sectionKey: string;
   form: Record<string, string | number | boolean | null>;
   onUpdate: (key: string, value: string | number | boolean | null) => void;
   inputClass: string;
+  inputClassFor: (field?: string) => string;
   labelClass: string;
   selectClass: string;
+  errors: Record<string, string>;
 }) {
   const textareaClass = cn(inputClass, 'resize-none');
 
@@ -694,16 +743,18 @@ function SectionEditor({
           </div>
           <div />
           <div>
-            <label className={labelClass}>Lessor Name</label>
-            <input type="text" value={String(form.lessor_name || '')} onChange={(e) => onUpdate('lessor_name', e.target.value)} placeholder="e.g. ABC Properties LLC" className={inputClass} />
+            <label className={labelClass}>Lessor Name <span className="text-destructive">*</span></label>
+            <input type="text" value={String(form.lessor_name || '')} onChange={(e) => onUpdate('lessor_name', e.target.value)} placeholder="e.g. ABC Properties LLC" className={inputClassFor('lessor_name')} />
+            <FieldError message={errors.lessor_name} />
           </div>
           <div>
             <label className={labelClass}>Lessor Entity Type</label>
             <input type="text" value={String(form.lessor_entity_type || '')} onChange={(e) => onUpdate('lessor_entity_type', e.target.value)} placeholder="e.g. a California limited liability company" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Lessee Name</label>
-            <input type="text" value={String(form.lessee_name || '')} onChange={(e) => onUpdate('lessee_name', e.target.value)} placeholder="e.g. Tenant Co. LLC" className={inputClass} />
+            <label className={labelClass}>Lessee Name <span className="text-destructive">*</span></label>
+            <input type="text" value={String(form.lessee_name || '')} onChange={(e) => onUpdate('lessee_name', e.target.value)} placeholder="e.g. Tenant Co. LLC" className={inputClassFor('lessee_name')} />
+            <FieldError message={errors.lessee_name} />
           </div>
           <div>
             <label className={labelClass}>Lessee Entity Type</label>
@@ -716,28 +767,33 @@ function SectionEditor({
       return (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className={labelClass}>Address</label>
-            <input type="text" value={String(form.premises_address || '')} onChange={(e) => onUpdate('premises_address', e.target.value)} placeholder="e.g. 1234 Commerce Blvd, Suite 101" className={inputClass} />
+            <label className={labelClass}>Address <span className="text-destructive">*</span></label>
+            <input type="text" value={String(form.premises_address || '')} onChange={(e) => onUpdate('premises_address', e.target.value)} placeholder="e.g. 1234 Commerce Blvd, Suite 101" className={inputClassFor('premises_address')} />
+            <FieldError message={errors.premises_address} />
           </div>
           <div>
-            <label className={labelClass}>City</label>
-            <input type="text" value={String(form.premises_city || '')} onChange={(e) => onUpdate('premises_city', e.target.value)} className={inputClass} />
+            <label className={labelClass}>City <span className="text-destructive">*</span></label>
+            <input type="text" value={String(form.premises_city || '')} onChange={(e) => onUpdate('premises_city', e.target.value)} className={inputClassFor('premises_city')} />
+            <FieldError message={errors.premises_city} />
           </div>
           <div>
             <label className={labelClass}>County</label>
             <input type="text" value={String(form.premises_county || '')} onChange={(e) => onUpdate('premises_county', e.target.value)} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>State</label>
-            <input type="text" value={String(form.premises_state || '')} onChange={(e) => onUpdate('premises_state', e.target.value)} className={inputClass} />
+            <label className={labelClass}>State <span className="text-destructive">*</span></label>
+            <input type="text" value={String(form.premises_state || '')} onChange={(e) => onUpdate('premises_state', e.target.value)} className={inputClassFor('premises_state')} />
+            <FieldError message={errors.premises_state} />
           </div>
           <div>
-            <label className={labelClass}>ZIP</label>
-            <input type="text" value={String(form.premises_zip || '')} onChange={(e) => onUpdate('premises_zip', e.target.value)} className={inputClass} />
+            <label className={labelClass}>ZIP <span className="text-destructive">*</span></label>
+            <input type="text" value={String(form.premises_zip || '')} onChange={(e) => onUpdate('premises_zip', e.target.value)} className={inputClassFor('premises_zip')} />
+            <FieldError message={errors.premises_zip} />
           </div>
           <div>
-            <label className={labelClass}>Square Footage</label>
-            <input type="number" value={String(form.premises_sf || '')} onChange={(e) => onUpdate('premises_sf', e.target.value)} placeholder="e.g. 2500" className={inputClass} />
+            <label className={labelClass}>Square Footage <span className="text-destructive">*</span></label>
+            <input type="number" value={String(form.premises_sf || '')} onChange={(e) => onUpdate('premises_sf', e.target.value)} placeholder="e.g. 2500" className={inputClassFor('premises_sf')} />
+            <FieldError message={errors.premises_sf} />
           </div>
           <div className="sm:col-span-2">
             <label className={labelClass}>Description</label>
@@ -776,12 +832,14 @@ function SectionEditor({
             <input type="number" min="0" max="11" value={String(form.term_months || '')} onChange={(e) => onUpdate('term_months', e.target.value)} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Commencement Date</label>
-            <input type="date" value={String(form.commencement_date || '')} onChange={(e) => onUpdate('commencement_date', e.target.value)} className={inputClass} />
+            <label className={labelClass}>Commencement Date <span className="text-destructive">*</span></label>
+            <input type="date" value={String(form.commencement_date || '')} onChange={(e) => onUpdate('commencement_date', e.target.value)} className={inputClassFor('commencement_date')} />
+            <FieldError message={errors.commencement_date} />
           </div>
           <div>
-            <label className={labelClass}>Expiration Date</label>
-            <input type="date" value={String(form.expiration_date || '')} onChange={(e) => onUpdate('expiration_date', e.target.value)} className={inputClass} />
+            <label className={labelClass}>Expiration Date <span className="text-destructive">*</span></label>
+            <input type="date" value={String(form.expiration_date || '')} onChange={(e) => onUpdate('expiration_date', e.target.value)} className={inputClassFor('expiration_date')} />
+            <FieldError message={errors.expiration_date} />
           </div>
         </div>
       );
@@ -798,8 +856,9 @@ function SectionEditor({
       return (
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className={labelClass}>Monthly Base Rent ($)</label>
-            <input type="text" value={String(form.base_rent_monthly || '')} onChange={(e) => onUpdate('base_rent_monthly', e.target.value)} placeholder="e.g. 3,537.30" className={inputClass} />
+            <label className={labelClass}>Monthly Base Rent ($) <span className="text-destructive">*</span></label>
+            <input type="text" value={String(form.base_rent_monthly || '')} onChange={(e) => onUpdate('base_rent_monthly', e.target.value)} placeholder="e.g. 3,537.30" className={inputClassFor('base_rent_monthly')} />
+            <FieldError message={errors.base_rent_monthly} />
           </div>
           <div>
             <label className={labelClass}>Payable Day</label>

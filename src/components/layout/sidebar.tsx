@@ -49,7 +49,7 @@ export function Sidebar() {
         <span className="text-lg font-semibold">Rocket Realty</span>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      <nav aria-label="Main navigation" className="flex-1 space-y-1 p-3">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (

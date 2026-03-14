@@ -3,17 +3,9 @@
 import Link from 'next/link';
 import { Handshake, Eye, Plus } from 'lucide-react';
 import { DataTable } from '@/components/ui/data-table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
-
-const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  sent: 'bg-blue-100 text-blue-700',
-  in_negotiation: 'bg-amber-100 text-amber-700',
-  agreed: 'bg-green-100 text-green-700',
-  expired: 'bg-gray-100 text-gray-600',
-  rejected: 'bg-red-100 text-red-700',
-  withdrawn: 'bg-gray-100 text-gray-600',
-};
 
 const mockLois = [
   {
@@ -90,13 +82,7 @@ const columns = [
   {
     key: 'status',
     label: 'Status',
-    render: (row: typeof mockLois[0]) => (
-      <span
-        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[row.status] || 'bg-gray-100 text-gray-700'}`}
-      >
-        {row.status.replace(/_/g, ' ')}
-      </span>
-    ),
+    render: (row: typeof mockLois[0]) => <Badge status={row.status} />,
   },
   {
     key: 'date',
@@ -130,12 +116,10 @@ export default function LoisPage() {
             Draft, send, and negotiate LOIs with landlords.
           </p>
         </div>
-        <Link
-          href="/lois/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-primary-light"
-        >
-          <Plus className="h-4 w-4" />
-          Create LOI
+        <Link href="/lois/new">
+          <Button variant="primary" icon={Plus}>
+            Create LOI
+          </Button>
         </Link>
       </div>
 

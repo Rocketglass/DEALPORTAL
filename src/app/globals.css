@@ -1,5 +1,33 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Accessibility: Focus visible for keyboard navigation only
+   --------------------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Remove default focus for mouse users */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Accessibility: Reduced motion preference
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #0f172a;
@@ -72,4 +100,14 @@ body {
 
 .animate-fade-in-up-delay-2 {
   animation: fadeInUp 0.5s ease-out 0.2s both;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.3s ease-in-out;
 }

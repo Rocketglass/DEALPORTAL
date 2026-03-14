@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { Bell, ChevronDown, User, Settings, LogOut } from 'lucide-react';
 import Link from 'next/link';
@@ -37,12 +37,26 @@ export function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] =
     useState<Notification[]>(mockNotifications);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleMarkAllRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }, []);
+
+  // Close user menu on Escape
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        if (showUserMenu) setShowUserMenu(false);
+      }
+    }
+    if (showUserMenu) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [showUserMenu]);
 
   async function handleSignOut() {
     if (isSupabaseConfigured()) {
@@ -73,11 +87,17 @@ export function Header() {
               setShowNotifications((prev) => !prev);
               setShowUserMenu(false);
             }}
+            aria-label="Notifications"
+            aria-expanded={showNotifications}
+            aria-haspopup="dialog"
             className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white">
+              <span
+                aria-live="polite"
+                className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white"
+              >
                 {unreadCount}
               </span>
             )}
@@ -93,12 +113,15 @@ export function Header() {
         </div>
 
         {/* User menu */}
-        <div className="relative">
+        <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => {
               setShowUserMenu((prev) => !prev);
               setShowNotifications(false);
             }}
+            aria-label="User menu"
+            aria-expanded={showUserMenu}
+            aria-haspopup="true"
             className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
@@ -111,11 +134,17 @@ export function Header() {
             <>
               <div
                 className="fixed inset-0 z-40"
+                aria-hidden="true"
                 onClick={() => setShowUserMenu(false)}
               />
-              <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-border bg-white py-1 shadow-lg">
+              <div
+                role="menu"
+                aria-label="User menu"
+                className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-border bg-white py-1 shadow-lg"
+              >
                 <Link
                   href="/profile"
+                  role="menuitem"
                   onClick={() => setShowUserMenu(false)}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
                 >
@@ -124,6 +153,7 @@ export function Header() {
                 </Link>
                 <Link
                   href="/settings"
+                  role="menuitem"
                   onClick={() => setShowUserMenu(false)}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
                 >
@@ -133,6 +163,7 @@ export function Header() {
                 <div className="my-1 border-t border-border" />
                 <button
                   onClick={handleSignOut}
+                  role="menuitem"
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
                 >
                   <LogOut className="h-4 w-4 text-muted-foreground" />

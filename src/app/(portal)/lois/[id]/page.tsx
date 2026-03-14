@@ -1,9 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import {
-  ArrowLeft,
   DollarSign,
   Calendar,
   Paintbrush,
@@ -24,6 +22,10 @@ import {
   Copy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { BackButton } from '@/components/ui/back-button';
+import { Card, CardContent } from '@/components/ui/card';
 import type { LoiSectionKey, LoiSectionStatus, LoiStatus } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -53,16 +55,6 @@ const sectionStatusConfig: Record<LoiSectionStatus, { label: string; bg: string;
   accepted: { label: 'Accepted', bg: 'bg-green-50', text: 'text-green-700', icon: CheckCircle2 },
   countered: { label: 'Countered', bg: 'bg-amber-50', text: 'text-amber-700', icon: MessageSquare },
   rejected: { label: 'Rejected', bg: 'bg-red-50', text: 'text-red-700', icon: XCircle },
-};
-
-const loiStatusConfig: Record<LoiStatus, { label: string; bg: string; text: string }> = {
-  draft: { label: 'Draft', bg: 'bg-gray-100', text: 'text-gray-700' },
-  sent: { label: 'Sent', bg: 'bg-blue-100', text: 'text-blue-700' },
-  in_negotiation: { label: 'In Negotiation', bg: 'bg-amber-100', text: 'text-amber-700' },
-  agreed: { label: 'Agreed', bg: 'bg-green-100', text: 'text-green-700' },
-  expired: { label: 'Expired', bg: 'bg-gray-100', text: 'text-gray-600' },
-  rejected: { label: 'Rejected', bg: 'bg-red-100', text: 'text-red-700' },
-  withdrawn: { label: 'Withdrawn', bg: 'bg-gray-100', text: 'text-gray-600' },
 };
 
 // ---------------------------------------------------------------------------
@@ -247,26 +239,17 @@ export default function LoiDetailPage() {
   const total = MOCK_SECTIONS.length;
   const progressPercent = Math.round((agreed / total) * 100);
 
-  const loiStatus = loiStatusConfig[MOCK_LOI.status];
-
   return (
     <div className="p-6 lg:p-8">
       {/* Navigation */}
-      <Link
-        href="/lois"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to LOIs
-      </Link>
+      <BackButton href="/lois" label="Back to LOIs" className="mb-4" />
 
       {/* LOI header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">{MOCK_LOI.property}</h1>
-            <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-medium', loiStatus.bg, loiStatus.text)}>
-              {loiStatus.label}
-            </span>
+            <Badge status={MOCK_LOI.status} />
           </div>
           <p className="mt-1 text-muted-foreground">
             Suite {MOCK_LOI.suite} &middot; Version {MOCK_LOI.version}
@@ -278,20 +261,12 @@ export default function LoiDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
-          >
-            <Copy className="h-4 w-4" />
+          <Button variant="secondary" icon={Copy}>
             Copy Link
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-light"
-          >
-            <Send className="h-4 w-4" />
+          </Button>
+          <Button variant="primary" icon={Send}>
             Resend
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -306,7 +281,7 @@ export default function LoiDetailPage() {
             const historyOpen = expandedHistory.has(section.id);
 
             return (
-              <div key={section.id} className="rounded-xl bg-white shadow-sm">
+              <Card key={section.id}>
                 <div className="px-5 py-4">
                   {/* Section header row */}
                   <div className="flex items-center justify-between">
@@ -314,8 +289,11 @@ export default function LoiDetailPage() {
                       <Icon className="h-5 w-5 text-muted-foreground" />
                       <span className="text-sm font-semibold">{section.label}</span>
                     </div>
-                    <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium', statusCfg.bg, statusCfg.text)}>
-                      <StatusIcon className="h-3 w-3" />
+                    <span
+                      className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium', statusCfg.bg, statusCfg.text)}
+                      aria-label={`Status: ${statusCfg.label}`}
+                    >
+                      <StatusIcon className="h-3 w-3" aria-hidden="true" />
                       {statusCfg.label}
                     </span>
                   </div>
@@ -344,16 +322,18 @@ export default function LoiDetailPage() {
                   <button
                     type="button"
                     onClick={() => toggleHistory(section.id)}
+                    aria-expanded={historyOpen}
+                    aria-controls={`history-${section.id}`}
                     className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
                   >
-                    {historyOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    {historyOpen ? <ChevronUp className="h-3 w-3" aria-hidden="true" /> : <ChevronDown className="h-3 w-3" aria-hidden="true" />}
                     Negotiation History ({section.history.length})
                   </button>
                 </div>
 
                 {/* Expanded history */}
                 {historyOpen && (
-                  <div className="border-t border-border px-5 pb-4 pt-3">
+                  <div id={`history-${section.id}`} className="border-t border-border px-5 pb-4 pt-3">
                     <div className="space-y-2">
                       {section.history.map((entry, i) => (
                         <div key={i} className="flex items-start gap-3 text-sm">
@@ -369,77 +349,81 @@ export default function LoiDetailPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </Card>
             );
           })}
         </div>
 
         {/* Summary sidebar */}
         <div className="space-y-4 lg:sticky lg:top-8 lg:self-start">
-          <div className="rounded-xl bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold">Negotiation Progress</h3>
+          <Card>
+            <CardContent>
+              <h3 className="text-sm font-semibold">Negotiation Progress</h3>
 
-            {/* Progress bar */}
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{agreed} of {total} sections agreed</span>
-                <span>{progressPercent}%</span>
+              {/* Progress bar */}
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{agreed} of {total} sections agreed</span>
+                  <span>{progressPercent}%</span>
+                </div>
+                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-green-500 transition-all"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
               </div>
-              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-green-500 transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
 
-            {/* Breakdown */}
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-green-500" /> Accepted
-                </span>
-                <span className="font-medium">{agreed}</span>
+              {/* Breakdown */}
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-green-500" /> Accepted
+                  </span>
+                  <span className="font-medium">{agreed}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" /> Countered
+                  </span>
+                  <span className="font-medium">{countered}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-blue-500" /> Pending
+                  </span>
+                  <span className="font-medium">{pending}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-red-500" /> Rejected
+                  </span>
+                  <span className="font-medium">{rejected}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Countered
-                </span>
-                <span className="font-medium">{countered}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-blue-500" /> Pending
-                </span>
-                <span className="font-medium">{pending}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-red-500" /> Rejected
-                </span>
-                <span className="font-medium">{rejected}</span>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Key dates */}
-          <div className="rounded-xl bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold">Key Dates</h3>
-            <div className="mt-3 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Created</span>
-                <span>{MOCK_LOI.createdAt}</span>
+          <Card>
+            <CardContent>
+              <h3 className="text-sm font-semibold">Key Dates</h3>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Created</span>
+                  <span>{MOCK_LOI.createdAt}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Sent</span>
+                  <span>{MOCK_LOI.sentAt}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Version</span>
+                  <span>{MOCK_LOI.version}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Sent</span>
-                <span>{MOCK_LOI.sentAt}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Version</span>
-                <span>{MOCK_LOI.version}</span>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

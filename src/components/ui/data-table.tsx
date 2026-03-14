@@ -3,6 +3,7 @@
 import { useState, useMemo, type ReactNode } from 'react';
 import Link from 'next/link';
 import { type LucideIcon } from 'lucide-react';
+import { Button } from './button';
 import { SearchInput } from './search-input';
 import { FilterDropdown } from './filter-dropdown';
 import { SortableHeader, type SortDirection } from './sortable-header';
@@ -185,24 +186,25 @@ export function DataTable<T extends Record<string, unknown>>({
             </p>
           )}
           {hasActiveFilters && (
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-3"
               onClick={() => {
                 setSearch('');
                 setFilterValues({});
                 setCurrentPage(1);
               }}
-              className="mt-3 inline-flex items-center rounded-lg border border-border px-3.5 py-2 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted"
             >
               Clear all filters
-            </button>
+            </Button>
           )}
           {!hasActiveFilters && emptyActionLabel && emptyActionHref && (
             <div className="mt-4">
-              <Link
-                href={emptyActionHref}
-                className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-primary-light"
-              >
-                {emptyActionLabel}
+              <Link href={emptyActionHref}>
+                <Button variant="primary" size="sm">
+                  {emptyActionLabel}
+                </Button>
               </Link>
             </div>
           )}
@@ -214,7 +216,7 @@ export function DataTable<T extends Record<string, unknown>>({
               <thead>
                 <tr className="border-b border-border text-left">
                   {columns.map((col) => (
-                    <th key={col.key} className="px-4 py-3">
+                    <th key={col.key} scope="col" className="px-4 py-3">
                       {col.sortable ? (
                         <SortableHeader
                           label={col.label}

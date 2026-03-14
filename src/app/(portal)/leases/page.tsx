@@ -3,17 +3,8 @@
 import Link from 'next/link';
 import { ScrollText, Eye } from 'lucide-react';
 import { DataTable } from '@/components/ui/data-table';
+import { Badge } from '@/components/ui/badge';
 import { formatDate, formatCurrency } from '@/lib/utils';
-
-const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  review: 'bg-blue-100 text-blue-700',
-  sent_for_signature: 'bg-amber-100 text-amber-700',
-  partially_signed: 'bg-orange-100 text-orange-700',
-  executed: 'bg-green-100 text-green-700',
-  expired: 'bg-gray-100 text-gray-600',
-  terminated: 'bg-red-100 text-red-700',
-};
 
 const mockLeases = [
   {
@@ -117,13 +108,7 @@ const columns = [
   {
     key: 'status',
     label: 'Status',
-    render: (row: typeof mockLeases[0]) => (
-      <span
-        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[row.status] || 'bg-gray-100 text-gray-700'}`}
-      >
-        {row.status.replace(/_/g, ' ')}
-      </span>
-    ),
+    render: (row: typeof mockLeases[0]) => <Badge status={row.status} />,
   },
   {
     key: '_actions',
