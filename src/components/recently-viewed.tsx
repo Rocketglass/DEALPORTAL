@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { Clock, Building2 } from 'lucide-react';
 
@@ -10,25 +10,34 @@ interface RecentItem {
   address: string;
 }
 
+const STORAGE_KEY = 'rr_recently_viewed';
+
+function getSnapshot(): RecentItem[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return (JSON.parse(stored) as RecentItem[]).slice(0, 5);
+  } catch {
+    // localStorage unavailable
+  }
+  return [];
+}
+
+function getServerSnapshot(): RecentItem[] {
+  return [];
+}
+
+function subscribe(callback: () => void) {
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+}
+
 /**
  * Displays the last 5 recently viewed properties as clickable chips.
  * Reads from localStorage key `rr_recently_viewed`.
  * Only renders if there are items to show.
  */
 export function RecentlyViewed() {
-  const [items, setItems] = useState<RecentItem[]>([]);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('rr_recently_viewed');
-      if (stored) {
-        const parsed: RecentItem[] = JSON.parse(stored);
-        setItems(parsed.slice(0, 5));
-      }
-    } catch {
-      // localStorage unavailable — silently ignore
-    }
-  }, []);
+  const items = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   if (items.length === 0) return null;
 

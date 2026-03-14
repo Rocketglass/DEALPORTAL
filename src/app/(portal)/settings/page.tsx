@@ -309,24 +309,23 @@ function SecuritySection() {
 }
 
 // --- Commission Settings ---
+function loadCommissionSettings(): { rate: string; terms: string } {
+  try {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('rr_commission_settings') : null;
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return { rate: parsed.rate ?? '5', terms: parsed.terms ?? 'net_30' };
+    }
+  } catch { /* ignore parse errors */ }
+  return { rate: '5', terms: 'net_30' };
+}
+
 function CommissionSection() {
-  const [rate, setRate] = useState('5');
-  const [terms, setTerms] = useState('net_30');
+  const [rate, setRate] = useState(() => loadCommissionSettings().rate);
+  const [terms, setTerms] = useState(() => loadCommissionSettings().terms);
   const [saved, setSaved] = useState(false);
   const [rateError, setRateError] = useState('');
   const { toast } = useToast();
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('rr_commission_settings');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.rate) setRate(parsed.rate);
-        if (parsed.terms) setTerms(parsed.terms);
-      }
-    } catch { /* ignore parse errors */ }
-  }, []);
 
   function handleSave() {
     const num = parseFloat(rate);
@@ -407,24 +406,17 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   );
 }
 
-function NotificationsSection() {
-  const [prefs, setPrefs] = useState({
-    newApplication: true,
-    loiCountered: true,
-    leaseExecuted: true,
-    invoicePaid: true,
-  });
+function loadNotificationPrefs() {
+  const defaults = { newApplication: true, loiCountered: true, leaseExecuted: true, invoicePaid: true };
+  try {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('rr_notification_prefs') : null;
+    if (stored) return { ...defaults, ...JSON.parse(stored) };
+  } catch { /* ignore parse errors */ }
+  return defaults;
+}
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('rr_notification_prefs');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setPrefs((prev) => ({ ...prev, ...parsed }));
-      }
-    } catch { /* ignore parse errors */ }
-  }, []);
+function NotificationsSection() {
+  const [prefs, setPrefs] = useState(loadNotificationPrefs);
 
   // Save to localStorage on change
   useEffect(() => {
@@ -469,23 +461,22 @@ function NotificationsSection() {
 }
 
 // --- Portal Branding ---
+function loadBrandingSettings(): { companyName: string; primaryColor: string } {
+  try {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('rr_branding_settings') : null;
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return { companyName: parsed.companyName ?? 'Rocket Realty', primaryColor: parsed.primaryColor ?? '#1e40af' };
+    }
+  } catch { /* ignore parse errors */ }
+  return { companyName: 'Rocket Realty', primaryColor: '#1e40af' };
+}
+
 function BrandingSection() {
-  const [companyName, setCompanyName] = useState('Rocket Realty');
-  const [primaryColor, setPrimaryColor] = useState('#1e40af');
+  const [companyName, setCompanyName] = useState(() => loadBrandingSettings().companyName);
+  const [primaryColor, setPrimaryColor] = useState(() => loadBrandingSettings().primaryColor);
   const [saved, setSaved] = useState(false);
   const { toast } = useToast();
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('rr_branding_settings');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.companyName) setCompanyName(parsed.companyName);
-        if (parsed.primaryColor) setPrimaryColor(parsed.primaryColor);
-      }
-    } catch { /* ignore parse errors */ }
-  }, []);
 
   function handleSave() {
     localStorage.setItem('rr_branding_settings', JSON.stringify({ companyName, primaryColor }));

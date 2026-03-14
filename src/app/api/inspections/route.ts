@@ -11,12 +11,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 
-export async function GET(_request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
     await requireBrokerOrAdminForApi();
 
     const supabase = await createClient();
-    const now = new Date().toISOString();
 
     const { data: bookings, error } = await supabase
       .from('inspection_bookings')

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import type { User, Contact } from '@/types/database';
+import type { Contact } from '@/types/database';
 
 export interface UserProfile {
   id: string;

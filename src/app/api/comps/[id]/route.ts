@@ -26,6 +26,7 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     const body = await request.json();
 
     // Strip out fields that must never be overwritten
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _id, created_at: _createdAt, ...updateFields } = body;
 
     const { data: comp, error: updateError } = await supabase
