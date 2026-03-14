@@ -1,20 +1,28 @@
 import Link from 'next/link';
 import { Building2, MapPin, Maximize2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
 import { formatSqft } from '@/lib/utils';
 
 export const metadata = {
   title: 'Available Properties | Rocket Realty',
 };
 
-export default async function PropertiesPage() {
-  const supabase = await createClient();
+async function getProperties() {
+  try {
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('properties')
+      .select('*, units!inner(id, suite_number, sf, status, marketing_rate)')
+      .eq('is_active', true)
+      .order('name');
+    return data;
+  } catch {
+    return null;
+  }
+}
 
-  const { data: properties } = await supabase
-    .from('properties')
-    .select('*, units!inner(id, suite_number, sf, status, marketing_rate)')
-    .eq('is_active', true)
-    .order('name');
+export default async function PropertiesPage() {
+  const properties = await getProperties();
 
   return (
     <div className="min-h-screen bg-muted">

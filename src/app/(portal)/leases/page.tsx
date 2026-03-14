@@ -19,17 +19,22 @@ const statusColors: Record<string, string> = {
 };
 
 export default async function LeasesPage() {
-  const supabase = await createClient();
-
-  const { data: leases } = await supabase
-    .from('leases')
-    .select(`
-      id, status, lessee_name, lessor_name, premises_address,
-      commencement_date, expiration_date, base_rent_monthly, premises_sf,
-      property:properties(name),
-      unit:units(suite_number)
-    `)
-    .order('created_at', { ascending: false });
+  let leases = null;
+  try {
+    const supabase = await createClient();
+    const { data: result } = await supabase
+      .from('leases')
+      .select(`
+        id, status, lessee_name, lessor_name, premises_address,
+        commencement_date, expiration_date, base_rent_monthly, premises_sf,
+        property:properties(name),
+        unit:units(suite_number)
+      `)
+      .order('created_at', { ascending: false });
+    leases = result;
+  } catch {
+    // Supabase not configured
+  }
 
   return (
     <div className="p-6 lg:p-8">

@@ -19,17 +19,22 @@ const statusColors: Record<string, string> = {
 };
 
 export default async function ApplicationsPage() {
-  const supabase = await createClient();
-
-  const { data: applications } = await supabase
-    .from('applications')
-    .select(`
-      id, status, business_name, submitted_at, created_at,
-      property:properties(name),
-      unit:units(suite_number),
-      contact:contacts(first_name, last_name, email)
-    `)
-    .order('created_at', { ascending: false });
+  let applications = null;
+  try {
+    const supabase = await createClient();
+    const { data: result } = await supabase
+      .from('applications')
+      .select(`
+        id, status, business_name, submitted_at, created_at,
+        property:properties(name),
+        unit:units(suite_number),
+        contact:contacts(first_name, last_name, email)
+      `)
+      .order('created_at', { ascending: false });
+    applications = result;
+  } catch {
+    // Supabase not configured
+  }
 
   return (
     <div className="p-6 lg:p-8">

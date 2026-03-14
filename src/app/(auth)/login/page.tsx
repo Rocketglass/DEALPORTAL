@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Building2, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   return (
@@ -28,20 +28,31 @@ function LoginForm() {
     setLoading(true);
     setError('');
 
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (authError) {
-      setError(authError.message);
+    if (!isSupabaseConfigured()) {
+      setError('Authentication is not configured yet. Supabase credentials required.');
       setLoading(false);
       return;
     }
 
-    router.push(redirect);
-    router.refresh();
+    try {
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        setError(authError.message);
+        setLoading(false);
+        return;
+      }
+
+      router.push(redirect);
+      router.refresh();
+    } catch {
+      setError('Authentication service unavailable.');
+      setLoading(false);
+    }
   }
 
   return (

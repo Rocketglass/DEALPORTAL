@@ -1,6 +1,6 @@
 // @ts-nocheck — Remove after running `supabase gen types typescript`
 import Link from 'next/link';
-import { Handshake, Eye } from 'lucide-react';
+import { Handshake, Eye, Plus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { formatDate } from '@/lib/utils';
 
@@ -19,25 +19,41 @@ const statusColors: Record<string, string> = {
 };
 
 export default async function LoisPage() {
-  const supabase = await createClient();
-
-  const { data: lois } = await supabase
-    .from('lois')
-    .select(`
-      id, status, version, sent_at, created_at,
-      property:properties(name),
-      unit:units(suite_number),
-      tenant:contacts!lois_tenant_contact_id_fkey(first_name, last_name, company_name),
-      landlord:contacts!lois_landlord_contact_id_fkey(first_name, last_name, company_name)
-    `)
-    .order('created_at', { ascending: false });
+  let lois = null;
+  try {
+    const supabase = await createClient();
+    const { data: result } = await supabase
+      .from('lois')
+      .select(`
+        id, status, version, sent_at, created_at,
+        property:properties(name),
+        unit:units(suite_number),
+        tenant:contacts!lois_tenant_contact_id_fkey(first_name, last_name, company_name),
+        landlord:contacts!lois_landlord_contact_id_fkey(first_name, last_name, company_name)
+      `)
+      .order('created_at', { ascending: false });
+    lois = result;
+  } catch {
+    // Supabase not configured
+  }
 
   return (
     <div className="p-6 lg:p-8">
-      <h1 className="text-2xl font-bold">Letters of Intent</h1>
-      <p className="mt-1 text-muted-foreground">
-        Draft, send, and negotiate LOIs with landlords.
-      </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Letters of Intent</h1>
+          <p className="mt-1 text-muted-foreground">
+            Draft, send, and negotiate LOIs with landlords.
+          </p>
+        </div>
+        <Link
+          href="/lois/new"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
+        >
+          <Plus className="h-4 w-4" />
+          Create LOI
+        </Link>
+      </div>
 
       {!lois || lois.length === 0 ? (
         <div className="mt-12 text-center text-muted-foreground">

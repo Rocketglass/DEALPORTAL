@@ -6,25 +6,39 @@ export const metadata = {
 };
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
+  let applicationCount = 0;
+  let loiCount = 0;
+  let activeLeaseCount = 0;
+  let invoiceCount = 0;
 
-  const [
-    { count: applicationCount },
-    { count: loiCount },
-    { count: activeLeaseCount },
-    { count: invoiceCount },
-  ] = await Promise.all([
-    supabase.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'submitted'),
-    supabase.from('lois').select('*', { count: 'exact', head: true }).in('status', ['sent', 'in_negotiation']),
-    supabase.from('leases').select('*', { count: 'exact', head: true }).eq('status', 'executed'),
-    supabase.from('commission_invoices').select('*', { count: 'exact', head: true }).eq('status', 'sent'),
-  ]);
+  try {
+    const supabase = await createClient();
+
+    const [
+      { count: appCount },
+      { count: lCount },
+      { count: leaseCount },
+      { count: invCount },
+    ] = await Promise.all([
+      supabase.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'submitted'),
+      supabase.from('lois').select('*', { count: 'exact', head: true }).in('status', ['sent', 'in_negotiation']),
+      supabase.from('leases').select('*', { count: 'exact', head: true }).eq('status', 'executed'),
+      supabase.from('commission_invoices').select('*', { count: 'exact', head: true }).eq('status', 'sent'),
+    ]);
+
+    applicationCount = appCount ?? 0;
+    loiCount = lCount ?? 0;
+    activeLeaseCount = leaseCount ?? 0;
+    invoiceCount = invCount ?? 0;
+  } catch {
+    // Supabase not configured
+  }
 
   const stats = [
-    { label: 'Pending Applications', value: applicationCount ?? 0, icon: FileText, color: 'text-blue-600' },
-    { label: 'Active LOIs', value: loiCount ?? 0, icon: Handshake, color: 'text-amber-600' },
-    { label: 'Executed Leases', value: activeLeaseCount ?? 0, icon: ScrollText, color: 'text-green-600' },
-    { label: 'Outstanding Invoices', value: invoiceCount ?? 0, icon: Receipt, color: 'text-purple-600' },
+    { label: 'Pending Applications', value: applicationCount, icon: FileText, color: 'text-blue-600' },
+    { label: 'Active LOIs', value: loiCount, icon: Handshake, color: 'text-amber-600' },
+    { label: 'Executed Leases', value: activeLeaseCount, icon: ScrollText, color: 'text-green-600' },
+    { label: 'Outstanding Invoices', value: invoiceCount, icon: Receipt, color: 'text-purple-600' },
   ];
 
   return (

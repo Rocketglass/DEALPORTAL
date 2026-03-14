@@ -16,15 +16,20 @@ const statusColors: Record<string, string> = {
 };
 
 export default async function InvoicesPage() {
-  const supabase = await createClient();
-
-  const { data: invoices } = await supabase
-    .from('commission_invoices')
-    .select(`
-      id, invoice_number, status, commission_amount, total_consideration,
-      commission_rate_percent, sent_date, paid_date, payee_name
-    `)
-    .order('created_at', { ascending: false });
+  let invoices = null;
+  try {
+    const supabase = await createClient();
+    const { data: result } = await supabase
+      .from('commission_invoices')
+      .select(`
+        id, invoice_number, status, commission_amount, total_consideration,
+        commission_rate_percent, sent_date, paid_date, payee_name
+      `)
+      .order('created_at', { ascending: false });
+    invoices = result;
+  } catch {
+    // Supabase not configured
+  }
 
   return (
     <div className="p-6 lg:p-8">

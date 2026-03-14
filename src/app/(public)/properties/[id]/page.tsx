@@ -1,20 +1,23 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, MapPin, Maximize2, ArrowLeft, DoorOpen, Car, Zap } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
 import { formatSqft, formatCurrency } from '@/lib/utils';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: property } = await supabase
-    .from('properties')
-    .select('name, address, city')
-    .eq('id', id)
-    .single();
-
-  if (!property) return { title: 'Property Not Found' };
-  return { title: `${property.name} | Rocket Realty` };
+  try {
+    const { id } = await params;
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
+    const { data: property } = await supabase
+      .from('properties')
+      .select('name, address, city')
+      .eq('id', id)
+      .single();
+    if (!property) return { title: 'Property Not Found' };
+    return { title: `${property.name} | Rocket Realty` };
+  } catch {
+    return { title: 'Property | Rocket Realty' };
+  }
 }
 
 export default async function PropertyDetailPage({
@@ -23,24 +26,38 @@ export default async function PropertyDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  const { data: property } = await supabase
-    .from('properties')
-    .select('*')
-    .eq('id', id)
-    .eq('is_active', true)
-    .single();
+  let property = null;
+  let units: Array<{ id: string; suite_number: string; sf: number; status: string; marketing_rate: number | null; unit_type: string | null }> = [];
+
+  try {
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
+
+    const { data: p } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('id', id)
+      .eq('is_active', true)
+      .single();
+
+    property = p;
+
+    if (property) {
+      const { data: u } = await supabase
+        .from('units')
+        .select('*')
+        .eq('property_id', id)
+        .order('suite_number');
+      units = u ?? [];
+    }
+  } catch {
+    // Supabase not configured — show placeholder
+  }
 
   if (!property) notFound();
 
-  const { data: units } = await supabase
-    .from('units')
-    .select('*')
-    .eq('property_id', id)
-    .order('suite_number');
-
-  const vacantUnits = units?.filter((u) => u.status === 'vacant') ?? [];
+  const vacantUnits = units.filter((u) => u.status === 'vacant');
   const photos = property.photos as string[];
 
   return (
@@ -68,7 +85,6 @@ export default async function PropertyDetailPage({
           <ArrowLeft className="h-4 w-4" /> Back to Properties
         </Link>
 
-        {/* Hero */}
         <div className="overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="aspect-[21/9] bg-muted">
             {photos?.[0] ? (
@@ -91,7 +107,6 @@ export default async function PropertyDetailPage({
               {property.address}, {property.city}, {property.state} {property.zip}
             </p>
 
-            {/* Property details */}
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
               {property.total_sf && (
                 <div className="rounded-lg bg-muted p-3">
@@ -119,7 +134,6 @@ export default async function PropertyDetailPage({
               )}
             </div>
 
-            {/* Building features */}
             <div className="mt-6 flex flex-wrap gap-3 text-sm text-muted-foreground">
               {property.parking_spaces && (
                 <span className="flex items-center gap-1">
@@ -149,7 +163,6 @@ export default async function PropertyDetailPage({
           </div>
         </div>
 
-        {/* Available Spaces */}
         <div className="mt-8">
           <h2 className="text-lg font-semibold">
             Available Spaces ({vacantUnits.length})

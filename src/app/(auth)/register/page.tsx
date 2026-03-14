@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building2, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -20,19 +20,31 @@ export default function RegisterPage() {
     setLoading(true);
     setError('');
 
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
+    if (!isSupabaseConfigured()) {
+      setError('Registration is not configured yet. Supabase credentials required.');
+      setLoading(false);
+      return;
+    }
 
-    if (authError) {
-      setError(authError.message);
+    try {
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+
+      if (authError) {
+        setError(authError.message);
+        setLoading(false);
+        return;
+      }
+    } catch {
+      setError('Registration service unavailable.');
       setLoading(false);
       return;
     }
