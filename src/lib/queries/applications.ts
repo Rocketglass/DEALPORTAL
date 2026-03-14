@@ -25,7 +25,7 @@ export async function getApplications(): Promise<{
         *,
         property:properties(*),
         unit:units(*),
-        contact:contacts(*),
+        contact:contacts!applications_contact_id_fkey(*),
         documents:application_documents(*)
       `)
       .order('created_at', { ascending: false });
@@ -54,7 +54,7 @@ export async function getApplication(id: string): Promise<{
         *,
         property:properties(*),
         unit:units(*),
-        contact:contacts(*),
+        contact:contacts!applications_contact_id_fkey(*),
         documents:application_documents(*)
       `)
       .eq('id', id)
