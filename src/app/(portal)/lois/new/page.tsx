@@ -90,7 +90,7 @@ function isFilled(key: LoiSectionKey, data: SectionData): boolean {
   return Object.values(d).some((v) => typeof v === 'string' && v.trim() !== '');
 }
 
-function requiredSectionsFilled(data: SectionData): boolean {
+function _requiredSectionsFilled(data: SectionData): boolean {
   return (
     isFilled('base_rent', data) && isFilled('term', data)
   );
@@ -110,7 +110,7 @@ export default function CreateLoiPage() {
   const [expanded, setExpanded] = useState<Set<LoiSectionKey>>(new Set(['base_rent', 'term']));
   const [headerErrors, setHeaderErrors] = useState<Record<string, string>>({});
   const [sectionErrors, setSectionErrors] = useState<Set<LoiSectionKey>>(new Set());
-  const [hasAttemptedSend, setHasAttemptedSend] = useState(false);
+  const [, setHasAttemptedSend] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
 
   function toggle(key: LoiSectionKey) {

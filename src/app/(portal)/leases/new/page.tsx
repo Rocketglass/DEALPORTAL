@@ -33,7 +33,7 @@ import type {
   LoiSection,
   LoiSectionKey,
   LoiSectionStatus,
-  Lease,
+  // Lease,
   RentEscalation,
 } from '@/types/database';
 
@@ -458,7 +458,7 @@ export default function CreateLeasePage() {
 
   // ---- Required fields check ----
 
-  const requiredFieldsFilled = useMemo(() => {
+  const _requiredFieldsFilled = useMemo(() => {
     return (
       String(form.lessor_name).trim() !== '' &&
       String(form.lessee_name).trim() !== '' &&

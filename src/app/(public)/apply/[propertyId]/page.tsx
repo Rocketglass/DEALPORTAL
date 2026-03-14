@@ -743,7 +743,7 @@ export default function TenantApplicationPage() {
 
         if (summaryErrors.length > 0) {
           setSubmitErrorSummary(summaryErrors);
-          for (const msg of summaryErrors) stepErrors['_summary'] = 'Please fix the issues listed above';
+          for (const _msg of summaryErrors) stepErrors['_summary'] = 'Please fix the issues listed above';
         } else {
           setSubmitErrorSummary([]);
         }

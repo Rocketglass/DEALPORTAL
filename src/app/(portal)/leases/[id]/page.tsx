@@ -248,7 +248,7 @@ export default function LeaseDetailPage() {
   const property = mockProperty;
   const unit = mockUnit;
   const signers = mockDocuSignSigners;
-  const statusInfo = leaseStatusConfig[lease.status];
+  const _statusInfo = leaseStatusConfig[lease.status];
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl">

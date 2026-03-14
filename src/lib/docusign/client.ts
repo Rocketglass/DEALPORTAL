@@ -14,7 +14,7 @@ import type { Lease } from '@/types/database';
 // Configuration
 // ---------------------------------------------------------------------------
 
-const DOCUSIGN_CONFIG = {
+const _DOCUSIGN_CONFIG = {
   /** DocuSign account ID — set via environment variable */
   accountId: process.env.DOCUSIGN_ACCOUNT_ID ?? '',
   /** Base URL for DocuSign REST API (demo or production) */

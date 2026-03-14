@@ -246,7 +246,7 @@ const mockQrCodes: QrCodeType[] = [
 // Status badge styles
 // ---------------------------------------------------------------------------
 
-const unitStatusStyles: Record<string, string> = {
+const _unitStatusStyles: Record<string, string> = {
   vacant: 'border border-green-300 text-green-700 bg-green-50',
   occupied: 'bg-blue-100 text-blue-700',
   pending: 'bg-amber-100 text-amber-700',

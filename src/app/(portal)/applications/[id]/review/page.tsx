@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+// import Link from 'next/link';
 import {
   Building2,
   User,
@@ -575,7 +575,7 @@ export default function ApplicationReviewPage() {
               )}
               {creditStatus === 'not_run' && (
                 <p className="text-sm text-muted-foreground">
-                  Run a credit check to see the applicant's score.
+                  Run a credit check to see the applicant&apos;s score.
                 </p>
               )}
             </CardContent>

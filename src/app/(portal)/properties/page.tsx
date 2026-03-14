@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Building2, Plus, MapPin, Settings } from 'lucide-react';
+import { Plus, MapPin, Settings } from 'lucide-react';
 import type { Property } from '@/types/database';
 import { formatSqft } from '@/lib/utils';
 import { Button } from '@/components/ui/button';

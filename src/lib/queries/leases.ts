@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import type {
   Database,
   Lease,
-  LeaseStatus,
+  // LeaseStatus,
   LeaseWithRelations,
   RentEscalation,
 } from '@/types/database';
