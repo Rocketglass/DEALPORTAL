@@ -1,4 +1,3 @@
-// @ts-nocheck — Remove after running `supabase gen types typescript`
 'use client';
 
 import Link from 'next/link';
@@ -113,7 +112,7 @@ const columns = [
     render: (row: typeof mockLois[0]) => (
       <Link
         href={`/lois/${row.id}`}
-        className="inline-flex items-center gap-1 text-primary hover:underline"
+        className="inline-flex items-center gap-1 text-primary transition-colors duration-150 hover:text-primary-light"
       >
         <Eye className="h-3.5 w-3.5" /> View
       </Link>
@@ -123,7 +122,7 @@ const columns = [
 
 export default function LoisPage() {
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Letters of Intent</h1>
@@ -133,7 +132,7 @@ export default function LoisPage() {
         </div>
         <Link
           href="/lois/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-primary-light"
         >
           <Plus className="h-4 w-4" />
           Create LOI
@@ -147,7 +146,10 @@ export default function LoisPage() {
         filters={[{ key: 'status', label: 'Status', options: statusOptions }]}
         searchPlaceholder="Search by property, tenant, or landlord..."
         emptyIcon={Handshake}
-        emptyMessage="No LOIs yet."
+        emptyMessage="No letters of intent yet"
+        emptyDescription="Create your first LOI to begin negotiating lease terms with a landlord."
+        emptyActionLabel="Create LOI"
+        emptyActionHref="/lois/new"
         pageSize={10}
       />
     </div>

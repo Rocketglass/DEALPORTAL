@@ -60,7 +60,7 @@ export function FilterDropdown({
                 onChange('');
                 setOpen(false);
               }}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-muted/50"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors duration-150 hover:bg-muted/50"
             >
               <Check
                 className={`h-3.5 w-3.5 ${!value ? 'opacity-100' : 'opacity-0'}`}
@@ -75,7 +75,7 @@ export function FilterDropdown({
                 onChange(option.value);
                 setOpen(false);
               }}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-muted/50"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors duration-150 hover:bg-muted/50"
             >
               <Check
                 className={`h-3.5 w-3.5 ${value === option.value ? 'opacity-100' : 'opacity-0'}`}

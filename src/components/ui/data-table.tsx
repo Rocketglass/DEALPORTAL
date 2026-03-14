@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, type ReactNode } from 'react';
+import Link from 'next/link';
 import { type LucideIcon } from 'lucide-react';
 import { SearchInput } from './search-input';
 import { FilterDropdown } from './filter-dropdown';
@@ -28,6 +29,9 @@ interface DataTableProps<T> {
   pageSize?: number;
   emptyIcon?: LucideIcon;
   emptyMessage?: string;
+  emptyDescription?: string;
+  emptyActionLabel?: string;
+  emptyActionHref?: string;
   searchPlaceholder?: string;
 }
 
@@ -48,6 +52,9 @@ export function DataTable<T extends Record<string, unknown>>({
   pageSize = 10,
   emptyIcon: EmptyIcon,
   emptyMessage = 'No results found.',
+  emptyDescription,
+  emptyActionLabel,
+  emptyActionHref,
   searchPlaceholder,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
@@ -163,11 +170,20 @@ export function DataTable<T extends Record<string, unknown>>({
 
       {/* Table */}
       {showEmpty && sorted.length === 0 ? (
-        <div className="py-12 text-center text-muted-foreground">
-          {EmptyIcon && <EmptyIcon className="mx-auto h-12 w-12 opacity-30" />}
-          <p className="mt-4">
-            {hasActiveFilters ? 'No results match your filters.' : emptyMessage}
+        <div className="rounded-xl border border-border bg-white py-16 text-center">
+          {EmptyIcon && (
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+              <EmptyIcon className="h-6 w-6 text-muted-foreground" />
+            </div>
+          )}
+          <p className="mt-4 text-sm font-medium text-foreground">
+            {hasActiveFilters ? 'No results match your filters' : emptyMessage}
           </p>
+          {!hasActiveFilters && emptyDescription && (
+            <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">
+              {emptyDescription}
+            </p>
+          )}
           {hasActiveFilters && (
             <button
               onClick={() => {
@@ -175,16 +191,26 @@ export function DataTable<T extends Record<string, unknown>>({
                 setFilterValues({});
                 setCurrentPage(1);
               }}
-              className="mt-2 text-sm text-primary hover:underline"
+              className="mt-3 inline-flex items-center rounded-lg border border-border px-3.5 py-2 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted"
             >
               Clear all filters
             </button>
+          )}
+          {!hasActiveFilters && emptyActionLabel && emptyActionHref && (
+            <div className="mt-4">
+              <Link
+                href={emptyActionHref}
+                className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-primary-light"
+              >
+                {emptyActionLabel}
+              </Link>
+            </div>
           )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left">
                   {columns.map((col) => (
@@ -210,7 +236,7 @@ export function DataTable<T extends Record<string, unknown>>({
                 {paginated.map((row, idx) => (
                   <tr
                     key={(row.id as string | number) ?? idx}
-                    className="border-b border-border last:border-0 hover:bg-muted/50"
+                    className="border-b border-border last:border-0 transition-colors duration-150 hover:bg-muted/50"
                   >
                     {columns.map((col) => (
                       <td key={col.key} className="px-4 py-3">

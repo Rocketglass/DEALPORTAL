@@ -133,7 +133,7 @@ const typeColors: Record<string, string> = {
 
 export default function PropertiesPage() {
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Properties</h1>
@@ -172,7 +172,8 @@ export default function PropertiesPage() {
 
       {/* Properties table */}
       <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[800px] text-sm">
           <thead>
             <tr className="border-b border-border text-left">
               <th className="px-4 py-3 font-medium text-muted-foreground">Property</th>
@@ -228,7 +229,7 @@ export default function PropertiesPage() {
                 <td className="px-4 py-3">
                   <Link
                     href={`/properties/${property.id}`}
-                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                    className="inline-flex items-center gap-1 text-primary transition-colors duration-150 hover:text-primary-light"
                   >
                     <Settings className="h-3.5 w-3.5" />
                     Manage
@@ -238,6 +239,7 @@ export default function PropertiesPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

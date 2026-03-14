@@ -1,4 +1,3 @@
-// @ts-nocheck — Remove after running `supabase gen types typescript`
 'use client';
 
 import Link from 'next/link';
@@ -152,7 +151,7 @@ const columns = [
     render: (row: typeof mockApplications[0]) => (
       <Link
         href={`/applications/${row.id}/review`}
-        className="inline-flex items-center gap-1 text-primary hover:underline"
+        className="inline-flex items-center gap-1 text-primary transition-colors duration-150 hover:text-primary-light"
       >
         <Eye className="h-3.5 w-3.5" /> Review
       </Link>
@@ -162,7 +161,7 @@ const columns = [
 
 export default function ApplicationsPage() {
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Applications</h1>
@@ -179,7 +178,8 @@ export default function ApplicationsPage() {
         filters={[{ key: 'status', label: 'Status', options: statusOptions }]}
         searchPlaceholder="Search by business or contact name..."
         emptyIcon={FileText}
-        emptyMessage="No applications yet."
+        emptyMessage="No applications yet"
+        emptyDescription="Applications will appear here as prospective tenants submit them through the property listing pages."
         pageSize={10}
       />
     </div>

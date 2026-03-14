@@ -740,13 +740,13 @@ export default function TenantApplicationPage() {
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              href={`/properties/${propertyId}`}
+              href={`/browse/${propertyId}`}
               className="rounded-lg border border-border bg-white px-5 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors"
             >
               Back to Property
             </Link>
             <Link
-              href="/properties"
+              href="/browse"
               className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors"
             >
               Browse Properties
@@ -1174,7 +1174,7 @@ export default function TenantApplicationPage() {
             <span className="text-lg font-semibold">Rocket Realty</span>
           </Link>
           <Link
-            href={`/properties/${propertyId}`}
+            href={`/browse/${propertyId}`}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             View Property

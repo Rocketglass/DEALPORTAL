@@ -1,4 +1,3 @@
-// @ts-nocheck — Remove after running `supabase gen types typescript`
 'use client';
 
 import { Receipt } from 'lucide-react';
@@ -140,7 +139,7 @@ const columns = [
 
 export default function InvoicesPage() {
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-bold">Commission Invoices</h1>
       <p className="mt-1 text-muted-foreground">
         Track commission invoices generated from executed leases.
@@ -153,7 +152,8 @@ export default function InvoicesPage() {
         filters={[{ key: 'status', label: 'Status', options: statusOptions }]}
         searchPlaceholder="Search by invoice number or payee..."
         emptyIcon={Receipt}
-        emptyMessage="No invoices yet."
+        emptyMessage="No invoices yet"
+        emptyDescription="Commission invoices are generated automatically when leases are executed."
         pageSize={10}
       />
     </div>

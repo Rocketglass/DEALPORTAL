@@ -64,7 +64,7 @@ export default async function PropertiesPage() {
               return (
                 <Link
                   key={property.id}
-                  href={`/properties/${property.id}`}
+                  href={`/browse/${property.id}`}
                   className="group overflow-hidden rounded-xl bg-white shadow-sm transition-shadow hover:shadow-md"
                 >
                   <div className="aspect-[16/10] bg-muted">

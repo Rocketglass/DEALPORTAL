@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import QRCode from 'qrcode';
 import { createClient } from '@/lib/supabase/server';
+import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
+import { logAuditEvent, getClientIp } from '@/lib/security/audit';
+import { sanitizeUuid } from '@/lib/security/sanitize';
 
 function generateShortCode(length = 8): string {
   const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -12,26 +15,38 @@ function generateShortCode(length = 8): string {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-
-  // Verify admin/broker role
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  // Require broker or admin authentication
+  let authUser;
+  try {
+    authUser = await requireBrokerOrAdminForApi();
+  } catch {
+    console.error(
+      `[QR Generate] Unauthorized access attempt from IP ${getClientIp(request.headers)}`,
+    );
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const supabase = await createClient();
 
   const body = await request.json();
   const { property_id, unit_id } = body;
 
-  if (!property_id) {
-    return NextResponse.json({ error: 'property_id is required' }, { status: 400 });
+  // Validate and sanitize input
+  const sanitizedPropertyId = sanitizeUuid(property_id);
+  if (!sanitizedPropertyId) {
+    return NextResponse.json(
+      { error: 'property_id is required and must be a valid UUID' },
+      { status: 400 },
+    );
   }
+
+  const sanitizedUnitId = unit_id ? sanitizeUuid(unit_id) : null;
 
   const shortCode = generateShortCode();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const portalUrl = unit_id
-    ? `${appUrl}/properties/${property_id}?unit=${unit_id}`
-    : `${appUrl}/properties/${property_id}`;
+  const portalUrl = sanitizedUnitId
+    ? `${appUrl}/properties/${sanitizedPropertyId}?unit=${sanitizedUnitId}`
+    : `${appUrl}/properties/${sanitizedPropertyId}`;
   const qrTargetUrl = `${appUrl}/p/${shortCode}`;
 
   // Generate QR code as data URL
@@ -45,8 +60,8 @@ export async function POST(request: NextRequest) {
   const { data: qrCode, error } = await supabase
     .from('qr_codes')
     .insert({
-      property_id,
-      unit_id: unit_id || null,
+      property_id: sanitizedPropertyId,
+      unit_id: sanitizedUnitId,
       short_code: shortCode,
       portal_url: portalUrl,
       qr_image_url: qrDataUrl,
@@ -57,6 +72,21 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Audit log: QR code created
+  await logAuditEvent({
+    userId: authUser.id,
+    action: 'create',
+    entityType: 'qr_code',
+    entityId: qrCode.id,
+    newValue: {
+      property_id: sanitizedPropertyId,
+      unit_id: sanitizedUnitId,
+      short_code: shortCode,
+    },
+    ipAddress: getClientIp(request.headers),
+    userAgent: request.headers.get('user-agent') || undefined,
+  });
 
   return NextResponse.json(qrCode);
 }

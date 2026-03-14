@@ -42,18 +42,20 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-bold">Dashboard</h1>
       <p className="mt-1 text-muted-foreground">
         Overview of your deal flow pipeline.
       </p>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-xl bg-white p-5 shadow-sm">
+          <div key={stat.label} className="rounded-xl border border-border bg-white p-5 shadow-sm transition-shadow duration-150 hover:shadow-md">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">{stat.label}</p>
-              <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              </div>
             </div>
             <p className="mt-2 text-3xl font-bold">{stat.value}</p>
           </div>

@@ -9,6 +9,9 @@
  * - `recipient-completed` — An individual signer has completed. Update
  *   signing progress (e.g., lease status to 'partially_signed').
  *
+ * Security: Validates HMAC-SHA256 signature from DocuSign Connect.
+ * This endpoint does NOT use session auth — it uses webhook signature verification.
+ *
  * DocuSign Connect docs:
  * https://developers.docusign.com/platform/webhooks/connect/
  */
@@ -60,16 +63,16 @@ interface DocuSignConnectPayload {
 // ---------------------------------------------------------------------------
 
 /**
- * Verify the DocuSign Connect HMAC signature.
+ * Verify the DocuSign Connect HMAC-SHA256 signature.
  *
- * TODO: Implement HMAC-SHA256 verification using the Connect secret key.
- * DocuSign sends the signature in the `X-DocuSign-Signature-1` header.
+ * DocuSign sends the HMAC signature in the `X-DocuSign-Signature-1` header.
+ * The signature is computed over the raw request body using the shared secret.
  *
  * @see https://developers.docusign.com/platform/webhooks/connect/hmac/
  */
 async function verifyDocuSignSignature(
-  _request: NextRequest,
-  _body: string,
+  request: NextRequest,
+  body: string,
 ): Promise<boolean> {
   const hmacSecret = process.env.DOCUSIGN_CONNECT_HMAC_SECRET;
 
@@ -81,31 +84,65 @@ async function verifyDocuSignSignature(
       );
       return true;
     }
+    console.error(
+      '[DocuSign Webhook] HMAC secret not configured in production — rejecting request',
+    );
     return false;
   }
 
-  // TODO: Implement HMAC verification
-  // const signature = request.headers.get('X-DocuSign-Signature-1');
-  // if (!signature) return false;
-  //
-  // const encoder = new TextEncoder();
-  // const key = await crypto.subtle.importKey(
-  //   'raw',
-  //   encoder.encode(hmacSecret),
-  //   { name: 'HMAC', hash: 'SHA-256' },
-  //   false,
-  //   ['sign'],
-  // );
-  //
-  // const mac = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
-  // const computedSignature = Buffer.from(mac).toString('base64');
-  //
-  // return signature === computedSignature;
+  // Get the signature from the request header
+  const signature = request.headers.get('X-DocuSign-Signature-1');
+  if (!signature) {
+    console.error('[DocuSign Webhook] Missing X-DocuSign-Signature-1 header');
+    return false;
+  }
 
-  void _request;
-  void _body;
+  try {
+    // Import the HMAC secret key
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(hmacSecret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
 
-  return false;
+    // Compute the HMAC over the raw body
+    const mac = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
+
+    // Convert to base64 for comparison
+    const computedSignature = btoa(
+      String.fromCharCode(...new Uint8Array(mac)),
+    );
+
+    // Constant-time comparison to prevent timing attacks
+    if (signature.length !== computedSignature.length) {
+      console.error('[DocuSign Webhook] Signature length mismatch');
+      return false;
+    }
+
+    const sigBytes = encoder.encode(signature);
+    const computedBytes = encoder.encode(computedSignature);
+
+    let mismatch = 0;
+    for (let i = 0; i < sigBytes.length; i++) {
+      mismatch |= sigBytes[i] ^ computedBytes[i];
+    }
+
+    if (mismatch !== 0) {
+      console.error('[DocuSign Webhook] HMAC signature mismatch — request rejected');
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error(
+      '[DocuSign Webhook] Error verifying signature:',
+      error instanceof Error ? error.message : error,
+    );
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -239,10 +276,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.text();
 
-    // Verify webhook signature
+    // Verify webhook HMAC-SHA256 signature
     const isValid = await verifyDocuSignSignature(request, body);
     if (!isValid) {
-      console.error('[DocuSign Webhook] Invalid HMAC signature');
+      const clientIp =
+        request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+        request.headers.get('x-real-ip') ||
+        'unknown';
+      console.error(
+        `[DocuSign Webhook] Invalid HMAC signature from IP ${clientIp}`,
+      );
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 401 },

@@ -1,4 +1,3 @@
-// @ts-nocheck — Remove after running `supabase gen types typescript`
 'use client';
 
 import Link from 'next/link';
@@ -132,7 +131,7 @@ const columns = [
     render: (row: typeof mockLeases[0]) => (
       <Link
         href={`/leases/${row.id}`}
-        className="inline-flex items-center gap-1 text-primary hover:underline"
+        className="inline-flex items-center gap-1 text-primary transition-colors duration-150 hover:text-primary-light"
       >
         <Eye className="h-3.5 w-3.5" /> View
       </Link>
@@ -142,7 +141,7 @@ const columns = [
 
 export default function LeasesPage() {
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-bold">Leases</h1>
       <p className="mt-1 text-muted-foreground">
         View and manage all lease agreements.
@@ -155,7 +154,10 @@ export default function LeasesPage() {
         filters={[{ key: 'status', label: 'Status', options: statusOptions }]}
         searchPlaceholder="Search by tenant or property..."
         emptyIcon={ScrollText}
-        emptyMessage="No leases yet."
+        emptyMessage="No leases yet"
+        emptyDescription="Leases are generated automatically from agreed LOIs, or you can create one manually."
+        emptyActionLabel="Create Lease"
+        emptyActionHref="/leases/new"
         pageSize={10}
       />
     </div>

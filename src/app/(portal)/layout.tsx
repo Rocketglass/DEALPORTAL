@@ -26,7 +26,9 @@ export default function PortalLayout({
         </div>
 
         <main className="flex-1 overflow-auto bg-muted">
-          {children}
+          <div className="animate-fade-in">
+            {children}
+          </div>
         </main>
       </div>
     </div>
