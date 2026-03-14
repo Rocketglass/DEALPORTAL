@@ -30,45 +30,6 @@ const typeColors: Record<NotificationType, string> = {
   invoice: 'text-muted-foreground',
 };
 
-export const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'application',
-    title: 'New Application Received',
-    message: 'Pacific Coast Welding LLC submitted for Suite A',
-    timestamp: '2 hours ago',
-    read: false,
-    link_url: '/applications',
-  },
-  {
-    id: '2',
-    type: 'loi',
-    title: 'LOI Countered',
-    message: 'RSD Holdings countered base rent for Suite C',
-    timestamp: 'Yesterday',
-    read: false,
-    link_url: '/lois',
-  },
-  {
-    id: '3',
-    type: 'lease',
-    title: 'Lease Executed',
-    message: 'All parties signed lease for Suite D',
-    timestamp: '3 days ago',
-    read: true,
-    link_url: '/leases',
-  },
-  {
-    id: '4',
-    type: 'invoice',
-    title: 'Invoice Paid',
-    message: 'RR-06 payment received',
-    timestamp: '1 week ago',
-    read: true,
-    link_url: '/invoices',
-  },
-];
-
 interface NotificationPanelProps {
   notifications: Notification[];
   onMarkAllRead: () => void;

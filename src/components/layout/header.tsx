@@ -8,7 +8,6 @@ import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import {
   NotificationPanel,
-  mockNotifications,
   type Notification,
 } from './notification-panel';
 
@@ -43,13 +42,30 @@ function getPageTitle(pathname: string): string {
   return 'Portal';
 }
 
+/** Format an ISO timestamp into a human-readable relative time string. */
+function formatRelativeTime(iso: string): string {
+  const now = Date.now();
+  const then = new Date(iso).getTime();
+  const diffMs = now - then;
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay === 1) return 'Yesterday';
+  if (diffDay < 7) return `${diffDay}d ago`;
+  const diffWeek = Math.floor(diffDay / 7);
+  if (diffWeek === 1) return '1 week ago';
+  return `${diffWeek} weeks ago`;
+}
+
 export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [notifications, setNotifications] =
-    useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Current authenticated user — fetched client-side so the header is
@@ -72,10 +88,60 @@ export function Header() {
     });
   }, []);
 
+  // Fetch notifications from the API when the panel is opened
+  useEffect(() => {
+    if (!showNotifications) return;
+
+    let cancelled = false;
+
+    async function fetchNotifications() {
+      try {
+        const res = await fetch('/api/user/notifications');
+        if (!res.ok) return;
+        const { notifications: data } = await res.json();
+        if (cancelled) return;
+
+        setNotifications(
+          (data ?? []).map(
+            (n: {
+              id: string;
+              type: string;
+              title: string;
+              message: string;
+              link_url: string | null;
+              read: boolean;
+              created_at: string;
+            }): Notification => ({
+              id: n.id,
+              type: n.type as Notification['type'],
+              title: n.title,
+              message: n.message,
+              link_url: n.link_url ?? '#',
+              read: n.read,
+              timestamp: formatRelativeTime(n.created_at),
+            }),
+          ),
+        );
+      } catch {
+        // Silently ignore — notifications are non-critical
+      }
+    }
+
+    fetchNotifications();
+    return () => {
+      cancelled = true;
+    };
+  }, [showNotifications]);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const handleMarkAllRead = useCallback(() => {
+  const handleMarkAllRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await fetch('/api/user/notifications', { method: 'PATCH' });
+    } catch {
+      // Silently ignore — optimistic update already applied
+    }
   }, []);
 
   // Close user menu on Escape
