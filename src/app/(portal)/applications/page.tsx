@@ -1,12 +1,10 @@
 // @ts-nocheck — Remove after running `supabase gen types typescript`
+'use client';
+
 import Link from 'next/link';
 import { FileText, Eye } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { DataTable } from '@/components/ui/data-table';
 import { formatDate } from '@/lib/utils';
-
-export const metadata = {
-  title: 'Applications | Rocket Realty',
-};
 
 const statusColors: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-700',
@@ -18,24 +16,151 @@ const statusColors: Record<string, string> = {
   info_requested: 'bg-purple-100 text-purple-700',
 };
 
-export default async function ApplicationsPage() {
-  let applications = null;
-  try {
-    const supabase = await createClient();
-    const { data: result } = await supabase
-      .from('applications')
-      .select(`
-        id, status, business_name, submitted_at, created_at,
-        property:properties(name),
-        unit:units(suite_number),
-        contact:contacts(first_name, last_name, email)
-      `)
-      .order('created_at', { ascending: false });
-    applications = result;
-  } catch {
-    // Supabase not configured
-  }
+const mockApplications = [
+  {
+    id: '1',
+    business_name: 'Sunrise Bakery LLC',
+    contact_first: 'Maria',
+    contact_last: 'Santos',
+    contact_email: 'maria@sunrisebakery.com',
+    property_name: 'El Cajon Business Park',
+    unit_suite: '105',
+    status: 'submitted',
+    date: '2026-03-10',
+  },
+  {
+    id: '2',
+    business_name: 'Peak Fitness Studio',
+    contact_first: 'James',
+    contact_last: 'Chen',
+    contact_email: 'james@peakfitness.com',
+    property_name: 'Santee Commerce Center',
+    unit_suite: '210',
+    status: 'under_review',
+    date: '2026-03-08',
+  },
+  {
+    id: '3',
+    business_name: 'Valley Auto Parts',
+    contact_first: 'Robert',
+    contact_last: 'Williams',
+    contact_email: 'rwilliams@valleyauto.com',
+    property_name: 'Lakeside Industrial Plaza',
+    unit_suite: '301',
+    status: 'approved',
+    date: '2026-03-05',
+  },
+  {
+    id: '4',
+    business_name: 'Golden Dragon Restaurant',
+    contact_first: 'Wei',
+    contact_last: 'Liu',
+    contact_email: 'wei@goldendragon.com',
+    property_name: 'El Cajon Business Park',
+    unit_suite: '108',
+    status: 'draft',
+    date: '2026-03-12',
+  },
+  {
+    id: '5',
+    business_name: 'Bright Smiles Dental',
+    contact_first: 'Sarah',
+    contact_last: 'Johnson',
+    contact_email: 'sarah@brightsmiles.com',
+    property_name: 'Santee Commerce Center',
+    unit_suite: '115',
+    status: 'rejected',
+    date: '2026-02-28',
+  },
+  {
+    id: '6',
+    business_name: 'Mountain View Accounting',
+    contact_first: 'David',
+    contact_last: 'Park',
+    contact_email: 'david@mvaccounting.com',
+    property_name: 'Alpine Professional Center',
+    unit_suite: '402',
+    status: 'info_requested',
+    date: '2026-03-06',
+  },
+];
 
+const statusOptions = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'under_review', label: 'Under Review' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'withdrawn', label: 'Withdrawn' },
+  { value: 'info_requested', label: 'Info Requested' },
+];
+
+const columns = [
+  {
+    key: 'business_name',
+    label: 'Business',
+    sortable: true,
+    render: (row: typeof mockApplications[0]) => (
+      <span className="font-medium">{row.business_name}</span>
+    ),
+  },
+  {
+    key: 'contact_last',
+    label: 'Applicant',
+    render: (row: typeof mockApplications[0]) => (
+      <div>
+        {row.contact_first} {row.contact_last}
+        <br />
+        <span className="text-xs text-muted-foreground">{row.contact_email}</span>
+      </div>
+    ),
+  },
+  {
+    key: 'property_name',
+    label: 'Property',
+    render: (row: typeof mockApplications[0]) => (
+      <span>
+        {row.property_name}
+        {row.unit_suite && (
+          <span className="text-muted-foreground"> — Suite {row.unit_suite}</span>
+        )}
+      </span>
+    ),
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    render: (row: typeof mockApplications[0]) => (
+      <span
+        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[row.status] || 'bg-gray-100 text-gray-700'}`}
+      >
+        {row.status.replace(/_/g, ' ')}
+      </span>
+    ),
+  },
+  {
+    key: 'date',
+    label: 'Date',
+    sortable: true,
+    render: (row: typeof mockApplications[0]) => (
+      <span className="text-muted-foreground">{formatDate(row.date)}</span>
+    ),
+  },
+  {
+    key: '_actions',
+    label: '',
+    render: (row: typeof mockApplications[0]) => (
+      <Link
+        href={`/applications/${row.id}/review`}
+        className="inline-flex items-center gap-1 text-primary hover:underline"
+      >
+        <Eye className="h-3.5 w-3.5" /> Review
+      </Link>
+    ),
+  },
+];
+
+export default function ApplicationsPage() {
   return (
     <div className="p-6 lg:p-8">
       <div className="flex items-center justify-between">
@@ -47,60 +172,16 @@ export default async function ApplicationsPage() {
         </div>
       </div>
 
-      {!applications || applications.length === 0 ? (
-        <div className="mt-12 text-center text-muted-foreground">
-          <FileText className="mx-auto h-12 w-12 opacity-30" />
-          <p className="mt-4">No applications yet.</p>
-          <p className="text-sm">Applications will appear here when tenants submit them through the portal.</p>
-        </div>
-      ) : (
-        <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="px-4 py-3 font-medium text-muted-foreground">Business</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Applicant</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Property</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Date</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map((app) => (
-                <tr key={app.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                  <td className="px-4 py-3 font-medium">{app.business_name}</td>
-                  <td className="px-4 py-3">
-                    {app.contact?.first_name} {app.contact?.last_name}
-                    <br />
-                    <span className="text-xs text-muted-foreground">{app.contact?.email}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {app.property?.name}
-                    {app.unit && <span className="text-muted-foreground"> — Suite {app.unit.suite_number}</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[app.status] || 'bg-gray-100 text-gray-700'}`}>
-                      {app.status.replace(/_/g, ' ')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(app.submitted_at || app.created_at)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/applications/${app.id}/review`}
-                      className="inline-flex items-center gap-1 text-primary hover:underline"
-                    >
-                      <Eye className="h-3.5 w-3.5" /> Review
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        data={mockApplications}
+        columns={columns}
+        searchKeys={['business_name', 'contact_first', 'contact_last']}
+        filters={[{ key: 'status', label: 'Status', options: statusOptions }]}
+        searchPlaceholder="Search by business or contact name..."
+        emptyIcon={FileText}
+        emptyMessage="No applications yet."
+        pageSize={10}
+      />
     </div>
   );
 }

@@ -1,12 +1,10 @@
 // @ts-nocheck — Remove after running `supabase gen types typescript`
+'use client';
+
 import Link from 'next/link';
 import { ScrollText, Eye } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { DataTable } from '@/components/ui/data-table';
 import { formatDate, formatCurrency } from '@/lib/utils';
-
-export const metadata = {
-  title: 'Leases | Rocket Realty',
-};
 
 const statusColors: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-700',
@@ -18,24 +16,131 @@ const statusColors: Record<string, string> = {
   terminated: 'bg-red-100 text-red-700',
 };
 
-export default async function LeasesPage() {
-  let leases = null;
-  try {
-    const supabase = await createClient();
-    const { data: result } = await supabase
-      .from('leases')
-      .select(`
-        id, status, lessee_name, lessor_name, premises_address,
-        commencement_date, expiration_date, base_rent_monthly, premises_sf,
-        property:properties(name),
-        unit:units(suite_number)
-      `)
-      .order('created_at', { ascending: false });
-    leases = result;
-  } catch {
-    // Supabase not configured
-  }
+const mockLeases = [
+  {
+    id: '1',
+    property_name: 'El Cajon Business Park',
+    unit_suite: '105',
+    tenant: 'Sunrise Bakery LLC',
+    base_rent_monthly: 3200,
+    commencement_date: '2026-04-01',
+    expiration_date: '2029-03-31',
+    status: 'executed',
+  },
+  {
+    id: '2',
+    property_name: 'Santee Commerce Center',
+    unit_suite: '210',
+    tenant: 'Peak Fitness Studio',
+    base_rent_monthly: 4800,
+    commencement_date: '2026-05-01',
+    expiration_date: '2031-04-30',
+    status: 'sent_for_signature',
+  },
+  {
+    id: '3',
+    property_name: 'Lakeside Industrial Plaza',
+    unit_suite: '301',
+    tenant: 'Valley Auto Parts',
+    base_rent_monthly: 5500,
+    commencement_date: '2026-06-01',
+    expiration_date: '2031-05-31',
+    status: 'review',
+  },
+  {
+    id: '4',
+    property_name: 'Alpine Professional Center',
+    unit_suite: '402',
+    tenant: 'Mountain View Accounting',
+    base_rent_monthly: 2800,
+    commencement_date: '2025-01-01',
+    expiration_date: '2027-12-31',
+    status: 'executed',
+  },
+  {
+    id: '5',
+    property_name: 'El Cajon Business Park',
+    unit_suite: '203',
+    tenant: 'Coastal Coffee Co.',
+    base_rent_monthly: 2400,
+    commencement_date: '2023-06-01',
+    expiration_date: '2026-05-31',
+    status: 'expired',
+  },
+];
 
+const statusOptions = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'review', label: 'Review' },
+  { value: 'sent_for_signature', label: 'Sent for Signature' },
+  { value: 'partially_signed', label: 'Partially Signed' },
+  { value: 'executed', label: 'Executed' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'terminated', label: 'Terminated' },
+];
+
+const columns = [
+  {
+    key: 'property_name',
+    label: 'Property',
+    render: (row: typeof mockLeases[0]) => (
+      <span className="font-medium">
+        {row.property_name}
+        {row.unit_suite && (
+          <span className="text-muted-foreground"> — Suite {row.unit_suite}</span>
+        )}
+      </span>
+    ),
+  },
+  {
+    key: 'tenant',
+    label: 'Tenant',
+    render: (row: typeof mockLeases[0]) => row.tenant,
+  },
+  {
+    key: 'base_rent_monthly',
+    label: 'Rent',
+    sortable: true,
+    render: (row: typeof mockLeases[0]) => (
+      <span>{formatCurrency(row.base_rent_monthly)}/mo</span>
+    ),
+  },
+  {
+    key: 'expiration_date',
+    label: 'Term',
+    sortable: true,
+    render: (row: typeof mockLeases[0]) => (
+      <span className="text-muted-foreground">
+        {formatDate(row.commencement_date)} — {formatDate(row.expiration_date)}
+      </span>
+    ),
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    render: (row: typeof mockLeases[0]) => (
+      <span
+        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[row.status] || 'bg-gray-100 text-gray-700'}`}
+      >
+        {row.status.replace(/_/g, ' ')}
+      </span>
+    ),
+  },
+  {
+    key: '_actions',
+    label: '',
+    render: (row: typeof mockLeases[0]) => (
+      <Link
+        href={`/leases/${row.id}`}
+        className="inline-flex items-center gap-1 text-primary hover:underline"
+      >
+        <Eye className="h-3.5 w-3.5" /> View
+      </Link>
+    ),
+  },
+];
+
+export default function LeasesPage() {
   return (
     <div className="p-6 lg:p-8">
       <h1 className="text-2xl font-bold">Leases</h1>
@@ -43,56 +148,16 @@ export default async function LeasesPage() {
         View and manage all lease agreements.
       </p>
 
-      {!leases || leases.length === 0 ? (
-        <div className="mt-12 text-center text-muted-foreground">
-          <ScrollText className="mx-auto h-12 w-12 opacity-30" />
-          <p className="mt-4">No leases yet.</p>
-          <p className="text-sm">Leases are generated from agreed LOIs.</p>
-        </div>
-      ) : (
-        <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="px-4 py-3 font-medium text-muted-foreground">Property</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Tenant</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Rent</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Term</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {leases.map((lease) => (
-                  <tr key={lease.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                    <td className="px-4 py-3 font-medium">
-                      {lease.property?.name}
-                      {lease.unit && <span className="text-muted-foreground"> — Suite {lease.unit.suite_number}</span>}
-                    </td>
-                    <td className="px-4 py-3">{lease.lessee_name}</td>
-                    <td className="px-4 py-3">{formatCurrency(lease.base_rent_monthly)}/mo</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDate(lease.commencement_date)} — {formatDate(lease.expiration_date)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[lease.status] || 'bg-gray-100 text-gray-700'}`}>
-                        {lease.status.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/leases/${lease.id}`}
-                        className="inline-flex items-center gap-1 text-primary hover:underline"
-                      >
-                        <Eye className="h-3.5 w-3.5" /> View
-                      </Link>
-                    </td>
-                  </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        data={mockLeases}
+        columns={columns}
+        searchKeys={['tenant', 'property_name']}
+        filters={[{ key: 'status', label: 'Status', options: statusOptions }]}
+        searchPlaceholder="Search by tenant or property..."
+        emptyIcon={ScrollText}
+        emptyMessage="No leases yet."
+        pageSize={10}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
   Handshake,
   ScrollText,
   Receipt,
+  Settings,
   LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -108,8 +109,21 @@ export function MobileNav() {
           })}
         </nav>
 
-        {/* Sign out */}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-border p-3">
+        {/* Settings + Sign out */}
+        <div className="absolute bottom-0 left-0 right-0 border-t border-border p-3 space-y-1">
+          <Link
+            href="/settings"
+            onClick={() => setOpen(false)}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              pathname.startsWith('/settings')
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            )}
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </Link>
           <button
             onClick={handleSignOut}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
