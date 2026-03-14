@@ -16,6 +16,7 @@ import { createClient } from '@/lib/supabase/server';
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const code = searchParams.get('code');
+  const type = searchParams.get('type');
   // Optional: honour a ?next= param for deep-link redirects
   const next = searchParams.get('next') ?? '/dashboard';
 
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
           {
             auth_provider_id: user.id,
             email: user.email ?? '',
-            role: 'broker', // All portal self-registrations are broker accounts
+            role: 'pending', // New registrations get 'pending' — admin must promote to 'broker'/'admin'
             is_active: true,
           },
           {
@@ -71,6 +72,11 @@ export async function GET(request: NextRequest) {
         // the dashboard. This will surface in server logs for investigation.
         console.error('[Auth Callback] users upsert error:', upsertError.message);
       }
+    }
+
+    // If this is a password recovery flow, redirect to the reset-password page
+    if (type === 'recovery') {
+      return NextResponse.redirect(`${origin}/reset-password`);
     }
 
     return NextResponse.redirect(`${origin}${next}`);

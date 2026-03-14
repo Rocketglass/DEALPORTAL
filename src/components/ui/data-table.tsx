@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo, type ReactNode } from 'react';
+import { useState, useMemo, useCallback, type ReactNode } from 'react';
 import Link from 'next/link';
-import { type LucideIcon } from 'lucide-react';
+import { type LucideIcon, Download } from 'lucide-react';
 import { Button } from './button';
 import { SearchInput } from './search-input';
 import { FilterDropdown } from './filter-dropdown';
@@ -34,6 +34,7 @@ interface DataTableProps<T extends object> {
   emptyActionLabel?: string;
   emptyActionHref?: string;
   searchPlaceholder?: string;
+  exportFileName?: string;
 }
 
 function getNestedValue(obj: object, path: string): unknown {
@@ -57,6 +58,7 @@ export function DataTable<T extends object>({
   emptyActionLabel,
   emptyActionHref,
   searchPlaceholder,
+  exportFileName,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
@@ -139,12 +141,49 @@ export function DataTable<T extends object>({
     setSortDirection(direction);
   }
 
+  const handleExportCsv = useCallback(() => {
+    if (!exportFileName) return;
+
+    // Use only visible (non-action) columns
+    const exportColumns = columns.filter((col) => col.key !== '_actions');
+
+    const escapeCell = (value: unknown): string => {
+      const str = value == null ? '' : String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const headerRow = exportColumns.map((col) => escapeCell(col.label)).join(',');
+
+    const dataRows = sorted.map((row) =>
+      exportColumns
+        .map((col) => {
+          const raw = getNestedValue(row, col.key);
+          return escapeCell(raw);
+        })
+        .join(','),
+    );
+
+    const csv = [headerRow, ...dataRows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${exportFileName}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [exportFileName, columns, sorted]);
+
   const hasActiveFilters = search || Object.values(filterValues).some(Boolean);
   const showEmpty = data.length === 0 || (sorted.length === 0 && hasActiveFilters);
 
   return (
     <div className="mt-6">
-      {/* Toolbar: search + filters */}
+      {/* Toolbar: search + filters + export */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="w-full sm:max-w-xs">
           <SearchInput
@@ -165,6 +204,13 @@ export function DataTable<T extends object>({
                 allowAll
               />
             ))}
+          </div>
+        )}
+        {exportFileName && sorted.length > 0 && (
+          <div className="sm:ml-auto">
+            <Button variant="secondary" size="sm" icon={Download} onClick={handleExportCsv}>
+              Export
+            </Button>
           </div>
         )}
       </div>

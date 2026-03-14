@@ -10,7 +10,9 @@ import {
   Save,
   Upload,
   Check,
+  Lock,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -178,6 +180,134 @@ function ProfileSection() {
   );
 }
 
+// --- Security Section ---
+function SecuritySection() {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const { toast } = useToast();
+
+  function clearError(field: string) {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
+  async function handleUpdatePassword() {
+    const newErrors: Record<string, string> = {};
+
+    if (!currentPassword.trim()) {
+      newErrors.currentPassword = 'Current password is required';
+    }
+    if (!newPassword.trim()) {
+      newErrors.newPassword = 'New password is required';
+    } else if (newPassword.length < 8) {
+      newErrors.newPassword = 'Password must be at least 8 characters';
+    }
+    if (!confirmPassword.trim()) {
+      newErrors.confirmPassword = 'Please confirm your new password';
+    } else if (newPassword !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+
+    setSaving(true);
+    try {
+      const supabase = createClient();
+
+      // Verify current password by attempting sign-in
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        setErrors({ currentPassword: 'Unable to verify current user' });
+        return;
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        setErrors({ currentPassword: 'Current password is incorrect' });
+        return;
+      }
+
+      // Update to new password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        setErrors({ newPassword: updateError.message });
+        return;
+      }
+
+      setSaved(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      toast({ title: 'Password updated', description: 'Your password has been changed successfully.', variant: 'success' });
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      toast({ title: 'Update failed', description: 'Network error — please try again.', variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
+            <Lock className="h-4 w-4 text-amber-600" />
+          </div>
+          <h2 className="text-base font-semibold">Security</h2>
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Current Password"
+            type="password"
+            className="sm:col-span-2"
+            value={currentPassword}
+            onChange={(e) => { setCurrentPassword(e.target.value); clearError('currentPassword'); }}
+            error={errors.currentPassword}
+          />
+          <Input
+            label="New Password"
+            type="password"
+            value={newPassword}
+            onChange={(e) => { setNewPassword(e.target.value); clearError('newPassword'); }}
+            error={errors.newPassword}
+          />
+          <Input
+            label="Confirm New Password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => { setConfirmPassword(e.target.value); clearError('confirmPassword'); }}
+            error={errors.confirmPassword}
+          />
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <Button variant="primary" icon={saved ? Check : Lock} onClick={handleUpdatePassword} loading={saving}>
+            {saved ? 'Updated' : saving ? 'Updating...' : 'Update Password'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // --- Commission Settings ---
 function CommissionSection() {
   const [rate, setRate] = useState('5');
@@ -186,6 +316,18 @@ function CommissionSection() {
   const [rateError, setRateError] = useState('');
   const { toast } = useToast();
 
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('rr_commission_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.rate) setRate(parsed.rate);
+        if (parsed.terms) setTerms(parsed.terms);
+      }
+    } catch { /* ignore parse errors */ }
+  }, []);
+
   function handleSave() {
     const num = parseFloat(rate);
     if (isNaN(num) || num <= 0) {
@@ -193,6 +335,7 @@ function CommissionSection() {
       return;
     }
     setRateError('');
+    localStorage.setItem('rr_commission_settings', JSON.stringify({ rate, terms }));
     setSaved(true);
     toast({ title: 'Commission settings saved', description: `Default rate set to ${rate}%.`, variant: 'success' });
     setTimeout(() => setSaved(false), 2000);
@@ -272,6 +415,22 @@ function NotificationsSection() {
     invoicePaid: true,
   });
 
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('rr_notification_prefs');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setPrefs((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch { /* ignore parse errors */ }
+  }, []);
+
+  // Save to localStorage on change
+  useEffect(() => {
+    localStorage.setItem('rr_notification_prefs', JSON.stringify(prefs));
+  }, [prefs]);
+
   const items = [
     { key: 'newApplication' as const, label: 'New application received', desc: 'Get notified when a tenant submits a new application.' },
     { key: 'loiCountered' as const, label: 'LOI countered by landlord', desc: 'Get notified when a landlord responds to an LOI.' },
@@ -314,9 +473,24 @@ function BrandingSection() {
   const [companyName, setCompanyName] = useState('Rocket Realty');
   const [primaryColor, setPrimaryColor] = useState('#1e40af');
   const [saved, setSaved] = useState(false);
+  const { toast } = useToast();
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('rr_branding_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.companyName) setCompanyName(parsed.companyName);
+        if (parsed.primaryColor) setPrimaryColor(parsed.primaryColor);
+      }
+    } catch { /* ignore parse errors */ }
+  }, []);
 
   function handleSave() {
+    localStorage.setItem('rr_branding_settings', JSON.stringify({ companyName, primaryColor }));
     setSaved(true);
+    toast({ title: 'Branding saved', description: 'Your portal branding has been updated.', variant: 'success' });
     setTimeout(() => setSaved(false), 2000);
   }
 
@@ -380,10 +554,29 @@ function BrandingSection() {
 
 // --- Integrations ---
 function IntegrationsSection() {
+  const [status, setStatus] = useState<Record<string, boolean>>({
+    supabase: true,
+    docusign: false,
+    resend: false,
+  });
+
+  useEffect(() => {
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/integrations/status');
+        if (res.ok) {
+          const data = await res.json();
+          setStatus(data);
+        }
+      } catch { /* keep defaults */ }
+    }
+    loadStatus();
+  }, []);
+
   const integrations = [
-    { name: 'Supabase', description: 'Database, authentication, and file storage', connected: true },
-    { name: 'DocuSign', description: 'Electronic lease signing and document management', connected: false },
-    { name: 'Resend', description: 'Transactional email delivery', connected: false },
+    { name: 'Supabase', description: 'Database, authentication, and file storage', connected: status.supabase },
+    { name: 'DocuSign', description: 'Electronic lease signing and document management', connected: status.docusign },
+    { name: 'Resend', description: 'Transactional email delivery', connected: status.resend },
   ];
 
   return (
@@ -438,6 +631,7 @@ export default function SettingsPage() {
 
         <div className="mt-8 space-y-6">
           <ProfileSection />
+          <SecuritySection />
           <CommissionSection />
           <NotificationsSection />
           <BrandingSection />

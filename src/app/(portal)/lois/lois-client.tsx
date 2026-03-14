@@ -131,6 +131,7 @@ export function LoisClient({ lois, error }: Props) {
         emptyActionLabel="Create LOI"
         emptyActionHref="/lois/new"
         pageSize={10}
+        exportFileName="lois"
       />
     </div>
   );

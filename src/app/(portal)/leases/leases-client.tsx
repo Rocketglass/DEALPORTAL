@@ -114,6 +114,7 @@ export function LeasesClient({ leases, error }: Props) {
         emptyActionLabel="Create Lease"
         emptyActionHref="/leases/new"
         pageSize={10}
+        exportFileName="leases"
       />
     </div>
   );

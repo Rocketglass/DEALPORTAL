@@ -121,6 +121,7 @@ export function ApplicationsClient({ applications, error }: Props) {
         emptyMessage="No applications yet"
         emptyDescription="Applications will appear here as prospective tenants submit them through the property listing pages."
         pageSize={10}
+        exportFileName="applications"
       />
     </div>
   );

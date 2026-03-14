@@ -113,6 +113,7 @@ export function InvoicesClient({ invoices, error }: Props) {
         emptyMessage="No invoices yet"
         emptyDescription="Commission invoices are generated automatically when leases are executed."
         pageSize={10}
+        exportFileName="invoices"
       />
     </div>
   );

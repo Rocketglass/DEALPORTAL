@@ -30,6 +30,27 @@ export default async function PortalLayout({
     redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
   }
 
+  // Role check — redirect 'pending' users to the approval waiting page.
+  // This is a safety net in addition to the middleware role check.
+  try {
+    const supabase2 = await createClient();
+    const { data: userRow } = await supabase2
+      .from('users')
+      .select('role')
+      .eq('auth_provider_id', user.id)
+      .single();
+
+    if (!userRow?.role || userRow.role === 'pending') {
+      redirect('/pending');
+    }
+  } catch (err) {
+    // If this is a redirect (Next.js throws redirects), re-throw it
+    if (err && typeof err === 'object' && 'digest' in err) {
+      throw err;
+    }
+    console.error('[Portal Layout] Role check failed:', err);
+  }
+
   return (
     <div className="flex min-h-screen">
       {/* Skip navigation link — first focusable element */}

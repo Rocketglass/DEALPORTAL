@@ -31,6 +31,12 @@ const PUBLIC_ROUTES = [
 const AUTH_PAGES = ['/login', '/register'];
 
 /**
+ * Pages accessible to authenticated users regardless of role.
+ * The /pending page must be reachable by 'pending' users.
+ */
+const ROLE_EXEMPT_PAGES = ['/pending'];
+
+/**
  * Check if a pathname matches any protected portal route.
  * Explicitly-listed public routes are never considered protected.
  */
@@ -231,6 +237,38 @@ export async function updateSession(request: NextRequest) {
     applySecurityHeaders(response);
     applyRateLimitHeaders(response, rateLimitInfo.remaining, rateLimitInfo.resetAt);
     return response;
+  }
+
+  // Role-based access control — redirect 'pending' users away from portal routes.
+  // Users with role='pending' have authenticated but have not been approved by an admin.
+  // They can only access role-exempt pages (e.g. /pending) and auth callback routes.
+  if (
+    user &&
+    isProtectedRoute(pathname) &&
+    !ROLE_EXEMPT_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+  ) {
+    // Query the user's role from public.users — the user can read their own row via RLS.
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('role')
+      .eq('auth_provider_id', user.id)
+      .single();
+
+    const role = userRow?.role;
+
+    // If user has no row yet (race condition) or role is 'pending', redirect to /pending
+    if (!role || role === 'pending') {
+      console.warn(
+        `[Auth] Pending user ${user.email} attempted to access ${pathname}`,
+      );
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = '/pending';
+      redirectUrl.search = '';
+      const response = NextResponse.redirect(redirectUrl);
+      applySecurityHeaders(response);
+      applyRateLimitHeaders(response, rateLimitInfo.remaining, rateLimitInfo.resetAt);
+      return response;
+    }
   }
 
   // Public API routes — accessible without authentication.

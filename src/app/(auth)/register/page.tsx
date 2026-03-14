@@ -85,6 +85,12 @@ export default function RegisterPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             Create your account
           </p>
+          <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+            <p className="text-xs text-amber-800">
+              Registration is by invitation only. Your account will require
+              administrator approval before you can access the portal.
+            </p>
+          </div>
         </div>
 
         <form onSubmit={handleRegister} className="rounded-xl bg-white p-6 shadow-sm">
