@@ -319,6 +319,16 @@ export default function NewPropertyPage() {
           </CardContent>
         </Card>
 
+        {/* Photos note */}
+        <Card className="mt-6">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-2">Photos</h2>
+            <p className="text-sm text-muted-foreground">
+              You can upload property photos after saving. Once the property is created, a photo upload section will be available on the property detail page.
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Actions */}
         <div className="mt-6 flex items-center justify-end gap-3">
           <Link href="/properties">

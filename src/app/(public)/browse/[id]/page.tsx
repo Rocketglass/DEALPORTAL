@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Building2, MapPin, Maximize2, ArrowLeft, DoorOpen, Car, Zap } from 'lucide-react';
 import { formatSqft, formatCurrency } from '@/lib/utils';
 import { getProperty, getUnits } from '@/lib/queries/properties';
@@ -71,12 +72,15 @@ export default async function PropertyDetailPage({
         </Link>
 
         <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-          <div className="aspect-[21/9] bg-muted">
+          <div className="relative aspect-[21/9] bg-muted">
             {photos?.[0] ? (
-              <img
+              <Image
                 src={photos[0]}
                 alt={property.name}
-                className="h-full w-full object-cover"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 1280px"
+                unoptimized
               />
             ) : (
               <div className="flex h-full items-center justify-center">

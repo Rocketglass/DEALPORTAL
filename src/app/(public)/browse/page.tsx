@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Building2, MapPin, Maximize2 } from 'lucide-react';
 import { formatSqft } from '@/lib/utils';
 import { getProperties } from '@/lib/queries/properties';
@@ -55,12 +56,15 @@ export default async function PropertiesPage() {
                   href={`/browse/${property.id}`}
                   className="group overflow-hidden rounded-xl bg-white shadow-sm transition-shadow hover:shadow-md"
                 >
-                  <div className="aspect-[16/10] bg-muted">
+                  <div className="relative aspect-[16/10] bg-muted">
                     {coverPhoto ? (
-                      <img
+                      <Image
                         src={coverPhoto}
                         alt={property.name}
-                        className="h-full w-full object-cover"
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        unoptimized
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center">

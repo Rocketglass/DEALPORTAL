@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import {
   Save,
   Plus,
@@ -10,7 +11,6 @@ import {
   Copy,
   ChevronDown,
   ChevronUp,
-  ImagePlus,
   Check,
   Printer,
   CalendarDays,
@@ -20,6 +20,8 @@ import {
   Mail,
   Eye,
   BarChart3,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import type { Property, Unit, QrCode as QrCodeType } from '@/types/database';
 import { formatCurrency, formatSqft, cn } from '@/lib/utils';
@@ -494,22 +496,13 @@ export default function PropertyDetailClient({
           rows={3}
         />
 
-        {/* Photo upload placeholder */}
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-muted-foreground mb-2">Photos</label>
-          <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-border py-10">
-            <div className="text-center">
-              <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground/40" />
-              <p className="mt-2 text-sm text-muted-foreground">
-                Drag and drop photos here, or{' '}
-                <button className="text-primary hover:underline font-medium">browse</button>
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">PNG, JPG up to 10MB</p>
-            </div>
-          </div>
-        </div>
         </CardContent>
       </Card>
+
+      {/* ================================================================= */}
+      {/* Photos Section                                                     */}
+      {/* ================================================================= */}
+      <PropertyPhotos propertyId={property.id} initialUrls={property.photo_urls ?? []} />
 
       {/* ================================================================= */}
       {/* Units Table                                                        */}
@@ -1121,6 +1114,214 @@ export default function PropertyDetailClient({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Property Photos — upload, grid, delete
+// ---------------------------------------------------------------------------
+
+const PHOTO_ACCEPT = '.jpg,.jpeg,.png,.webp';
+const PHOTO_MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const PHOTO_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+function PropertyPhotos({ propertyId, initialUrls }: { propertyId: string; initialUrls: string[] }) {
+  const [photoUrls, setPhotoUrls] = useState<string[]>(initialUrls);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [dragOver, setDragOver] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function validateFiles(files: File[]): string | null {
+    for (const file of files) {
+      if (!PHOTO_ALLOWED_TYPES.includes(file.type)) {
+        return `"${file.name}" is not a supported format. Use JPG, PNG, or WebP.`;
+      }
+      if (file.size > PHOTO_MAX_SIZE) {
+        return `"${file.name}" exceeds the 5MB size limit.`;
+      }
+    }
+    return null;
+  }
+
+  async function uploadFiles(files: File[]) {
+    const validationError = validateFiles(files);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setError(null);
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      for (const file of files) {
+        formData.append('files', file);
+      }
+
+      const res = await fetch(`/api/properties/${propertyId}/photos`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error || 'Upload failed');
+        return;
+      }
+
+      const data = await res.json();
+      setPhotoUrls(data.photo_urls);
+      setUploadProgress(100);
+    } catch {
+      setError('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+      // Reset the file input so the same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  async function deletePhoto(url: string) {
+    setDeletingUrl(url);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/properties/${propertyId}/photos`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error || 'Delete failed');
+        return;
+      }
+
+      const data = await res.json();
+      setPhotoUrls(data.photo_urls);
+    } catch {
+      setError('Delete failed. Please try again.');
+    } finally {
+      setDeletingUrl(null);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) uploadFiles(files);
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (files.length) uploadFiles(files);
+  }
+
+  return (
+    <Card className="mt-8">
+      <CardContent className="p-6">
+        <h2 className="text-lg font-semibold mb-4">Photos</h2>
+
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="ml-2 text-red-400 hover:text-red-600">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Photo grid */}
+        {photoUrls.length > 0 && (
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {photoUrls.map((url) => (
+              <div
+                key={url}
+                className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-border bg-slate-50"
+              >
+                <Image
+                  src={url}
+                  alt="Property photo"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  unoptimized
+                />
+                {/* Delete overlay */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                <button
+                  onClick={() => deletePhoto(url)}
+                  disabled={deletingUrl === url}
+                  className={cn(
+                    'absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full',
+                    'bg-red-500 text-white shadow-sm',
+                    'opacity-0 group-hover:opacity-100 transition-opacity',
+                    'hover:bg-red-600 disabled:opacity-50',
+                  )}
+                  title="Delete photo"
+                >
+                  {deletingUrl === url ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <X className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Upload zone */}
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={cn(
+            'flex cursor-pointer items-center justify-center rounded-xl border-2 border-dashed py-10 transition-colors',
+            dragOver
+              ? 'border-primary bg-blue-50/50'
+              : 'border-border hover:border-primary/40 hover:bg-slate-50',
+          )}
+        >
+          <div className="text-center">
+            {uploading ? (
+              <>
+                <Loader2 className="mx-auto h-8 w-8 text-primary animate-spin" />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Uploading{uploadProgress > 0 ? ` (${uploadProgress}%)` : '...'}
+                </p>
+              </>
+            ) : (
+              <>
+                <Upload className="mx-auto h-8 w-8 text-muted-foreground/40" />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Drag and drop photos here, or{' '}
+                  <span className="text-primary font-medium">browse</span>
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WebP up to 5MB each</p>
+              </>
+            )}
+          </div>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={PHOTO_ACCEPT}
+          multiple
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+      </CardContent>
+    </Card>
   );
 }
 

@@ -123,6 +123,7 @@ export interface Property {
   description: string | null;
   features: Json;
   photos: Json;
+  photo_urls: string[];
   floorplan_url: string | null;
   is_active: boolean;
   created_at: string;

@@ -11,6 +11,7 @@ import { requireBrokerOrAdmin } from '@/lib/security/auth-guard';
 import { getProperty, getUnits } from '@/lib/queries/properties';
 import { getQrCodesByProperty } from '@/lib/queries/qr-codes';
 import { formatSqft, formatCurrency } from '@/lib/utils';
+import Image from 'next/image';
 import { Building2 } from 'lucide-react';
 import { PrintActions } from './print-actions';
 
@@ -136,11 +137,14 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
         {displayPhotos.length > 0 && (
           <div className="mb-6 grid grid-cols-3 gap-3">
             {displayPhotos.map((photo, i) => (
-              <div key={i} className="aspect-[16/10] overflow-hidden rounded-lg bg-muted">
-                <img
+              <div key={i} className="relative aspect-[16/10] overflow-hidden rounded-lg bg-muted">
+                <Image
                   src={photo}
                   alt={`${property.name} photo ${i + 1}`}
-                  className="h-full w-full object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="33vw"
+                  unoptimized
                 />
               </div>
             ))}
@@ -232,10 +236,12 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
           {/* QR Code */}
           <div className="flex-shrink-0 ml-6 text-center">
             {browseQr?.qr_image_url ? (
-              <img
+              <Image
                 src={browseQr.qr_image_url}
                 alt="QR Code"
-                className="h-24 w-24"
+                width={96}
+                height={96}
+                unoptimized
               />
             ) : (
               <div className="flex h-24 w-24 items-center justify-center rounded-lg border-2 border-dashed border-border">
