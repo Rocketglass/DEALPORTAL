@@ -309,23 +309,25 @@ function SecuritySection() {
 }
 
 // --- Commission Settings ---
-function loadCommissionSettings(): { rate: string; terms: string } {
-  try {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('rr_commission_settings') : null;
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return { rate: parsed.rate ?? '5', terms: parsed.terms ?? 'net_30' };
-    }
-  } catch { /* ignore parse errors */ }
-  return { rate: '5', terms: 'net_30' };
-}
-
 function CommissionSection() {
-  const [rate, setRate] = useState(() => loadCommissionSettings().rate);
-  const [terms, setTerms] = useState(() => loadCommissionSettings().terms);
+  const [rate, setRate] = useState('5');
+  const [terms, setTerms] = useState('net_30');
   const [saved, setSaved] = useState(false);
   const [rateError, setRateError] = useState('');
   const { toast } = useToast();
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('rr_commission_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (parsed.rate) setRate(parsed.rate);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (parsed.terms) setTerms(parsed.terms);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   function handleSave() {
     const num = parseFloat(rate);
@@ -406,17 +408,21 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   );
 }
 
-function loadNotificationPrefs() {
-  const defaults = { newApplication: true, loiCountered: true, leaseExecuted: true, invoicePaid: true };
-  try {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('rr_notification_prefs') : null;
-    if (stored) return { ...defaults, ...JSON.parse(stored) };
-  } catch { /* ignore parse errors */ }
-  return defaults;
-}
-
 function NotificationsSection() {
-  const [prefs, setPrefs] = useState(loadNotificationPrefs);
+  const [prefs, setPrefs] = useState({
+    newApplication: true,
+    loiCountered: true,
+    leaseExecuted: true,
+    invoicePaid: true,
+  });
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('rr_notification_prefs');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (stored) setPrefs((prev) => ({ ...prev, ...JSON.parse(stored) }));
+    } catch { /* ignore */ }
+  }, []);
 
   // Save to localStorage on change
   useEffect(() => {
@@ -461,22 +467,24 @@ function NotificationsSection() {
 }
 
 // --- Portal Branding ---
-function loadBrandingSettings(): { companyName: string; primaryColor: string } {
-  try {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('rr_branding_settings') : null;
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return { companyName: parsed.companyName ?? 'Rocket Realty', primaryColor: parsed.primaryColor ?? '#1e40af' };
-    }
-  } catch { /* ignore parse errors */ }
-  return { companyName: 'Rocket Realty', primaryColor: '#1e40af' };
-}
-
 function BrandingSection() {
-  const [companyName, setCompanyName] = useState(() => loadBrandingSettings().companyName);
-  const [primaryColor, setPrimaryColor] = useState(() => loadBrandingSettings().primaryColor);
+  const [companyName, setCompanyName] = useState('Rocket Realty');
+  const [primaryColor, setPrimaryColor] = useState('#1e40af');
   const [saved, setSaved] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('rr_branding_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (parsed.companyName) setCompanyName(parsed.companyName);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (parsed.primaryColor) setPrimaryColor(parsed.primaryColor);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   function handleSave() {
     localStorage.setItem('rr_branding_settings', JSON.stringify({ companyName, primaryColor }));
