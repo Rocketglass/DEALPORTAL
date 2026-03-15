@@ -84,9 +84,16 @@ export default function PropertyDetailClient({
   const [expandedUnit, setExpandedUnit] = useState<string | null>(null);
   const [editingUnit, setEditingUnit] = useState<Record<string, Partial<Unit>>>({});
   const [savingUnit, setSavingUnit] = useState<string | null>(null);
-  const [qrCodes] = useState(initialQrCodes);
+  const [qrCodes, setQrCodes] = useState(initialQrCodes);
   const [qrUnitDropdown, setQrUnitDropdown] = useState(false);
+  const [generatingQr, setGeneratingQr] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Unit creation modal state
+  const [showAddUnit, setShowAddUnit] = useState(false);
+  const [newUnit, setNewUnit] = useState({ suite_number: '', sf: '', unit_type: 'office', monthly_rent: '', rent_per_sqft: '' });
+  const [addingUnit, setAddingUnit] = useState(false);
+  const [addUnitError, setAddUnitError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -348,6 +355,71 @@ export default function PropertyDetailClient({
     setTimeout(() => setCopiedId(null), 2000);
   }
 
+  async function handleGenerateQr(unitId?: string) {
+    setGeneratingQr(true);
+    setQrUnitDropdown(false);
+    try {
+      const res = await fetch('/api/qr/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ property_id: property.id, unit_id: unitId ?? null }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || `Failed (${res.status})`);
+      }
+      const qr = await res.json();
+      setQrCodes((prev) => [qr, ...prev]);
+    } catch (err) {
+      console.error('QR generation failed:', err);
+    } finally {
+      setGeneratingQr(false);
+    }
+  }
+
+  function handleDownloadQrPng(qr: QrCodeType) {
+    if (!qr.qr_image_url) return;
+    const link = document.createElement('a');
+    link.href = qr.qr_image_url;
+    link.download = `qr-${qr.short_code}.png`;
+    link.click();
+  }
+
+  async function handleAddUnit() {
+    if (!newUnit.suite_number.trim() || !newUnit.sf.trim()) {
+      setAddUnitError('Suite number and square footage are required');
+      return;
+    }
+    setAddingUnit(true);
+    setAddUnitError(null);
+    try {
+      const res = await fetch('/api/units', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_id: property.id,
+          suite_number: newUnit.suite_number.trim(),
+          sf: parseFloat(newUnit.sf),
+          unit_type: newUnit.unit_type || null,
+          monthly_rent: newUnit.monthly_rent ? parseFloat(newUnit.monthly_rent) : null,
+          rent_per_sqft: newUnit.rent_per_sqft ? parseFloat(newUnit.rent_per_sqft) : null,
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || `Failed (${res.status})`);
+      }
+      const { unit } = await res.json();
+      setUnits((prev) => [...prev, unit]);
+      setShowAddUnit(false);
+      setNewUnit({ suite_number: '', sf: '', unit_type: 'office', monthly_rent: '', rent_per_sqft: '' });
+    } catch (err) {
+      setAddUnitError(err instanceof Error ? err.message : 'Failed to add unit');
+    } finally {
+      setAddingUnit(false);
+    }
+  }
+
   const vacantUnits = units.filter((u) => u.status === 'vacant');
 
   // Analytics state
@@ -510,10 +582,68 @@ export default function PropertyDetailClient({
       <Card className="mt-8">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="text-lg font-semibold">Units</h2>
-          <Button variant="secondary" icon={Plus}>
+          <Button variant="secondary" icon={Plus} onClick={() => setShowAddUnit(true)}>
             Add Unit
           </Button>
         </div>
+
+        {/* Add Unit Modal */}
+        {showAddUnit && (
+          <div className="border-b border-border bg-muted/30 px-6 py-4">
+            <h3 className="text-sm font-semibold mb-3">New Unit</h3>
+            {addUnitError && (
+              <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{addUnitError}</div>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Input
+                label="Suite Number"
+                required
+                value={newUnit.suite_number}
+                onChange={(e) => setNewUnit((u) => ({ ...u, suite_number: e.target.value }))}
+                placeholder="e.g. A, 101"
+              />
+              <Input
+                label="Square Footage"
+                type="number"
+                required
+                value={newUnit.sf}
+                onChange={(e) => setNewUnit((u) => ({ ...u, sf: e.target.value }))}
+              />
+              <Select
+                label="Type"
+                value={newUnit.unit_type}
+                onChange={(e) => setNewUnit((u) => ({ ...u, unit_type: e.target.value }))}
+              >
+                <option value="office">Office</option>
+                <option value="warehouse">Warehouse</option>
+                <option value="retail">Retail</option>
+                <option value="flex">Flex</option>
+              </Select>
+              <Input
+                label="Monthly Rent"
+                type="number"
+                step="0.01"
+                value={newUnit.monthly_rent}
+                onChange={(e) => setNewUnit((u) => ({ ...u, monthly_rent: e.target.value }))}
+              />
+              <Input
+                label="Rent per SF"
+                type="number"
+                step="0.01"
+                value={newUnit.rent_per_sqft}
+                onChange={(e) => setNewUnit((u) => ({ ...u, rent_per_sqft: e.target.value }))}
+              />
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => { setShowAddUnit(false); setAddUnitError(null); }} disabled={addingUnit}>
+                Cancel
+              </Button>
+              <Button variant="primary" icon={Plus} onClick={handleAddUnit} loading={addingUnit}>
+                {addingUnit ? 'Adding...' : 'Add Unit'}
+              </Button>
+            </div>
+          </div>
+        )}
 
         <table className="w-full text-sm">
           <thead>
@@ -723,8 +853,9 @@ export default function PropertyDetailClient({
                     vacantUnits.map((unit) => (
                       <button
                         key={unit.id}
-                        onClick={() => setQrUnitDropdown(false)}
-                        className="flex w-full items-center px-3 py-2 text-sm hover:bg-muted transition-colors"
+                        onClick={() => handleGenerateQr(unit.id)}
+                        disabled={generatingQr}
+                        className="flex w-full items-center px-3 py-2 text-sm hover:bg-muted transition-colors disabled:opacity-50"
                       >
                         Suite {unit.suite_number} — {formatSqft(unit.sf)}
                       </button>
@@ -734,8 +865,8 @@ export default function PropertyDetailClient({
               )}
             </div>
 
-            <Button variant="primary" icon={QrCode}>
-              Generate QR Code
+            <Button variant="primary" icon={QrCode} onClick={() => handleGenerateQr()} loading={generatingQr} disabled={generatingQr}>
+              {generatingQr ? 'Generating...' : 'Generate QR Code'}
             </Button>
           </div>
         </div>
@@ -754,40 +885,13 @@ export default function PropertyDetailClient({
                   key={qr.id}
                   className="flex items-center gap-4 rounded-lg border border-border p-4"
                 >
-                  {/* QR placeholder */}
-                  <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
-                    <svg
-                      viewBox="0 0 100 100"
-                      className="h-12 w-12"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <rect x="5" y="5" width="30" height="30" rx="2" fill="#0f172a" />
-                      <rect x="10" y="10" width="20" height="20" rx="1" fill="white" />
-                      <rect x="14" y="14" width="12" height="12" rx="1" fill="#0f172a" />
-                      <rect x="65" y="5" width="30" height="30" rx="2" fill="#0f172a" />
-                      <rect x="70" y="10" width="20" height="20" rx="1" fill="white" />
-                      <rect x="74" y="14" width="12" height="12" rx="1" fill="#0f172a" />
-                      <rect x="5" y="65" width="30" height="30" rx="2" fill="#0f172a" />
-                      <rect x="10" y="70" width="20" height="20" rx="1" fill="white" />
-                      <rect x="14" y="74" width="12" height="12" rx="1" fill="#0f172a" />
-                      <rect x="40" y="5" width="8" height="8" fill="#0f172a" />
-                      <rect x="52" y="5" width="8" height="8" fill="#0f172a" />
-                      <rect x="40" y="17" width="8" height="8" fill="#0f172a" />
-                      <rect x="40" y="40" width="8" height="8" fill="#0f172a" />
-                      <rect x="52" y="40" width="8" height="8" fill="#0f172a" />
-                      <rect x="65" y="40" width="8" height="8" fill="#0f172a" />
-                      <rect x="40" y="52" width="8" height="8" fill="#0f172a" />
-                      <rect x="52" y="52" width="8" height="8" fill="#0f172a" />
-                      <rect x="65" y="52" width="8" height="8" fill="#0f172a" />
-                      <rect x="78" y="52" width="8" height="8" fill="#0f172a" />
-                      <rect x="65" y="65" width="8" height="8" fill="#0f172a" />
-                      <rect x="78" y="65" width="8" height="8" fill="#0f172a" />
-                      <rect x="65" y="78" width="8" height="8" fill="#0f172a" />
-                      <rect x="78" y="78" width="8" height="8" fill="#0f172a" />
-                      <rect x="52" y="78" width="8" height="8" fill="#0f172a" />
-                      <rect x="40" y="65" width="8" height="8" fill="#0f172a" />
-                    </svg>
+                  {/* QR code image */}
+                  <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-white border border-border">
+                    {qr.qr_image_url ? (
+                      <img src={qr.qr_image_url} alt="QR Code" className="h-14 w-14" />
+                    ) : (
+                      <QrCode className="h-8 w-8 text-muted-foreground/30" />
+                    )}
                   </div>
 
                   {/* Details */}
@@ -827,7 +931,10 @@ export default function PropertyDetailClient({
                         </>
                       )}
                     </button>
-                    <button className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                    <button
+                      onClick={() => handleDownloadQrPng(qr)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
                       <Download className="h-3.5 w-3.5" />
                       PNG
                     </button>
