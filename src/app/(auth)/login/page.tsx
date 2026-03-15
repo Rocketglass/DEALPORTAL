@@ -8,7 +8,16 @@ import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   return (
-    <Suspense>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-muted px-4">
+          <div className="w-full max-w-sm text-center">
+            <Building2 className="mx-auto h-8 w-8 text-primary" />
+            <p className="mt-4 text-sm text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );
