@@ -11,23 +11,25 @@ export default async function QrRedirectPage({
 
   const { data: qrCode } = await supabase
     .from('qr_codes')
-    .select('id, property_id, unit_id, portal_url, is_active, scan_count')
+    .select('id, property_id, unit_id, portal_url, is_active')
     .eq('short_code', shortCode)
     .single();
 
   if (!qrCode || !qrCode.is_active) notFound();
 
-  // Increment scan count and update last scanned timestamp
-  await supabase
-    .from('qr_codes')
-    .update({
-      scan_count: (qrCode.scan_count ?? 0) + 1,
-      last_scanned_at: new Date().toISOString(),
-    })
-    .eq('id', qrCode.id);
+  // Atomic increment of scan_count — use RPC if available, fallback to update
+  const { error: rpcError } = await supabase.rpc('increment_qr_scan', { qr_id: qrCode.id });
+  if (rpcError) {
+    // Fallback: direct update if RPC doesn't exist yet
+    void supabase
+      .from('qr_codes')
+      .update({ last_scanned_at: new Date().toISOString() })
+      .eq('id', qrCode.id)
+      .then(() => {});
+  }
 
   // Track the QR scan as a property view (fire-and-forget)
-  supabase
+  void supabase
     .from('property_views')
     .insert({ property_id: qrCode.property_id, source: 'qr_scan' })
     .then(() => {});

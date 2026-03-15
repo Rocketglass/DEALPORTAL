@@ -28,8 +28,15 @@ export async function POST(request: NextRequest) {
 
   const supabase = await createClient();
 
-  const body = await request.json();
-  const { property_id, unit_id } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const property_id = String(body.property_id ?? '');
+  const unit_id = body.unit_id ? String(body.unit_id) : null;
 
   // Validate and sanitize input
   const sanitizedPropertyId = sanitizeUuid(property_id);

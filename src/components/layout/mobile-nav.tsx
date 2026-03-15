@@ -12,6 +12,7 @@ import {
   Handshake,
   ScrollText,
   Receipt,
+  BarChart3,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -20,10 +21,12 @@ import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/properties', label: 'Properties', icon: Building2 },
   { href: '/applications', label: 'Applications', icon: FileText },
   { href: '/lois', label: 'LOIs', icon: Handshake },
   { href: '/leases', label: 'Leases', icon: ScrollText },
   { href: '/invoices', label: 'Invoices', icon: Receipt },
+  { href: '/comps', label: 'Comps', icon: BarChart3 },
 ];
 
 export function MobileNav() {

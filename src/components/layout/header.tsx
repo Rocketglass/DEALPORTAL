@@ -26,10 +26,13 @@ function getInitials(nameOrEmail: string): string {
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
+  '/properties': 'Properties',
   '/applications': 'Applications',
   '/lois': 'LOIs',
   '/leases': 'Leases',
   '/invoices': 'Invoices',
+  '/comps': 'Market Comps',
+  '/settings': 'Settings',
 };
 
 function getPageTitle(pathname: string): string {
@@ -253,7 +256,7 @@ export function Header() {
                   </div>
                 )}
                 <Link
-                  href="/profile"
+                  href="/settings"
                   role="menuitem"
                   onClick={() => setShowUserMenu(false)}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
