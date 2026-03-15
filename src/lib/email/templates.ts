@@ -152,10 +152,22 @@ interface ApplicationStatusUpdateData {
   applicationId: string;
 }
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  approved: { label: 'Approved', color: '#16a34a' },
-  rejected: { label: 'Not Approved', color: '#dc2626' },
-  info_requested: { label: 'Additional Information Requested', color: '#d97706' },
+const STATUS_LABELS: Record<string, { label: string; color: string; nextStep: string }> = {
+  approved: {
+    label: 'Approved',
+    color: '#16a34a',
+    nextStep: 'The next step is negotiating lease terms. Our team will contact you within 1-2 business days.',
+  },
+  rejected: {
+    label: 'Not Approved',
+    color: '#dc2626',
+    nextStep: 'Unfortunately, your application was not approved at this time. Please contact us if you have questions.',
+  },
+  info_requested: {
+    label: 'Additional Information Requested',
+    color: '#d97706',
+    nextStep: 'We need additional information to move forward. Please check your portal for details.',
+  },
 };
 
 export function applicationStatusUpdate(
@@ -176,6 +188,7 @@ export function applicationStatusUpdate(
         </tr>
       </table>
       ${data.message ? paragraph(data.message) : ''}
+      ${paragraph(statusCfg.nextStep)}
       ${ctaButton('View Application', `${PORTAL_URL}/applications/${data.applicationId}`)}
     `),
   };
@@ -424,6 +437,7 @@ export function inspectionBooked(data: InspectionBookedData): {
         ${detailRow('Time', data.slotTime)}
       `)}
       ${data.message ? paragraph(`<strong>Message:</strong> ${data.message}`) : ''}
+      ${paragraph('Your tour is confirmed. No further action is needed.')}
       ${paragraph('View all upcoming inspections in the portal.')}
       ${ctaButton('View Property', `${PORTAL_URL}/properties/${data.propertyId}`)}
     `),

@@ -391,7 +391,7 @@ class LeasePdfBuilder {
 
   private drawSection12b(): void {
     this.drawSectionHeader('1.2(b)', 'Parking');
-    this.drawField('Spaces', this.lease.parking_spaces != null ? `${this.lease.parking_spaces}` : 'N/A');
+    this.drawField('Spaces', this.lease.parking_spaces != null ? `${this.lease.parking_spaces}` : '--');
     this.drawField('Type', this.lease.parking_type ? this.lease.parking_type.charAt(0).toUpperCase() + this.lease.parking_type.slice(1) : 'Unreserved');
     this.drawSpacer();
   }
@@ -422,7 +422,7 @@ class LeasePdfBuilder {
     if (this.lease.early_possession_terms) {
       this.drawText(this.lease.early_possession_terms, { size: 10 });
     } else {
-      this.drawText('No early possession terms.', { font: this.fontItalic, size: 9, color: COLOR_GRAY });
+      this.drawText('--', { font: this.fontItalic, size: 9, color: COLOR_GRAY });
     }
     this.drawSpacer();
   }
@@ -490,7 +490,7 @@ class LeasePdfBuilder {
     }
 
     if (items.length === 0) {
-      this.drawText('No monies specified.', { font: this.fontItalic, size: 9, color: COLOR_GRAY });
+      this.drawText('--', { font: this.fontItalic, size: 9, color: COLOR_GRAY });
     } else {
       // Draw a simple table
       const colX = [MARGIN_LEFT + 12, MARGIN_LEFT + 220, MARGIN_LEFT + 360];
@@ -527,7 +527,7 @@ class LeasePdfBuilder {
 
   private drawSection18(): void {
     this.drawSectionHeader('1.8', 'Agreed Use');
-    this.drawText(this.lease.agreed_use || 'Not specified.', {
+    this.drawText(this.lease.agreed_use || '--', {
       font: this.lease.agreed_use ? this.fontRegular : this.fontItalic,
       size: 10,
       color: this.lease.agreed_use ? COLOR_BLACK : COLOR_GRAY,
@@ -579,7 +579,7 @@ class LeasePdfBuilder {
 
   private drawSection111(): void {
     this.drawSectionHeader('1.11', 'Guarantor(s)');
-    this.drawField('Guarantor(s)', this.lease.guarantor_names || 'None');
+    this.drawField('Guarantor(s)', this.lease.guarantor_names || '--');
     this.drawSpacer();
   }
 
@@ -609,7 +609,7 @@ class LeasePdfBuilder {
     }
 
     if (attachments.length === 0) {
-      this.drawText('No attachments.', { font: this.fontItalic, size: 9, color: COLOR_GRAY });
+      this.drawText('--', { font: this.fontItalic, size: 9, color: COLOR_GRAY });
     } else {
       for (const att of attachments) {
         this.ensureSpace(14);
@@ -678,7 +678,7 @@ class LeasePdfBuilder {
         font: this.fontRegular,
         color: COLOR_BLACK,
       });
-      this.page.drawText(`$${esc.rent_per_sqft.toFixed(2)}`, {
+      this.page.drawText(`$${esc.rent_per_sqft.toFixed(2)}/SF`, {
         x: colXs[2],
         y: this.y,
         size: 10,

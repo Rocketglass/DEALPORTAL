@@ -23,6 +23,7 @@ const PROTECTED_PORTAL_ROUTES = [
 const PUBLIC_ROUTES = [
   '/auth/callback',
   '/auth/confirm',
+  '/applications/status',
 ];
 
 /**
@@ -286,7 +287,11 @@ export async function updateSession(request: NextRequest) {
     // Landlord: read LOI sections for public review page
     /^\/api\/lois\/[^/]+\/review-data/.test(pathname) ||
     // Landlord: submit LOI section responses
-    /^\/api\/lois\/[^/]+\/respond/.test(pathname);
+    /^\/api\/lois\/[^/]+\/respond/.test(pathname) ||
+    // Tenant: view available inspection time slots
+    /^\/api\/properties\/[^/]+\/inspection-slots/.test(pathname) ||
+    // Tenant: book an inspection tour
+    /^\/api\/properties\/[^/]+\/book-inspection/.test(pathname);
 
   // Protected API routes — return 401 JSON if not authenticated
   // /auth/callback is a public route; it runs before a session exists

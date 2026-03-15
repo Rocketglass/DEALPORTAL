@@ -109,7 +109,7 @@ export async function generateInvoicePdf(
     color: COLORS.dark,
     align: 'right',
   });
-  drawText(`#${invoice.invoice_number}`, PAGE_WIDTH - MARGIN_RIGHT, y, {
+  drawText(`Invoice #${invoice.invoice_number}`, PAGE_WIDTH - MARGIN_RIGHT, y, {
     size: 10,
     color: COLORS.muted,
     align: 'right',
@@ -155,7 +155,7 @@ export async function generateInvoicePdf(
   });
 
   y -= 16;
-  drawText('Rocket Realty', MARGIN_LEFT, y, { font: helveticaBold, size: 10 });
+  drawText('Rocket Glass, Inc.', MARGIN_LEFT, y, { font: helveticaBold, size: 10 });
   drawText(invoice.payee_name ?? '', MARGIN_LEFT + CONTENT_WIDTH / 2, y, {
     font: helveticaBold,
     size: 10,

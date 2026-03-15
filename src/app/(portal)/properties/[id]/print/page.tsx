@@ -50,7 +50,7 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
   if (property.total_sf) specs.push({ label: 'Total SF', value: formatSqft(property.total_sf) });
   if (property.property_type) specs.push({ label: 'Property Type', value: property.property_type.charAt(0).toUpperCase() + property.property_type.slice(1) });
   if (property.zoning) specs.push({ label: 'Zoning', value: property.zoning });
-  if (property.clear_height_ft) specs.push({ label: 'Clear Height', value: `${property.clear_height_ft} ft` });
+  if (property.clear_height_ft) specs.push({ label: 'Clear Height', value: `${property.clear_height_ft}'` });
   if (property.parking_spaces) specs.push({ label: 'Parking', value: `${property.parking_spaces} spaces` });
   if (property.dock_high_doors > 0) specs.push({ label: 'Dock Doors', value: String(property.dock_high_doors) });
   if (property.grade_level_doors > 0) specs.push({ label: 'Grade Doors', value: String(property.grade_level_doors) });
@@ -181,16 +181,16 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
               <thead>
                 <tr className="border-b-2 border-border text-left">
                   <th className="py-2 pr-4 font-medium text-muted-foreground">Suite</th>
-                  <th className="py-2 pr-4 font-medium text-muted-foreground">SF</th>
+                  <th className="py-2 pr-4 font-medium text-muted-foreground text-right">SF</th>
                   <th className="py-2 pr-4 font-medium text-muted-foreground">Status</th>
-                  <th className="py-2 font-medium text-muted-foreground">Rate</th>
+                  <th className="py-2 font-medium text-muted-foreground text-right">Rate</th>
                 </tr>
               </thead>
               <tbody>
                 {allUnits.map((unit) => (
                   <tr key={unit.id} className="border-b border-border">
                     <td className="py-2 pr-4 font-medium">{unit.suite_number}</td>
-                    <td className="py-2 pr-4">{formatSqft(unit.sf)}</td>
+                    <td className="py-2 pr-4 text-right">{formatSqft(unit.sf)}</td>
                     <td className="py-2 pr-4">
                       <span
                         className={
@@ -204,7 +204,7 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
                         {unit.status.charAt(0).toUpperCase() + unit.status.slice(1)}
                       </span>
                     </td>
-                    <td className="py-2">
+                    <td className="py-2 text-right">
                       {unit.marketing_rate
                         ? `${formatCurrency(unit.marketing_rate)}/SF/mo`
                         : '--'}

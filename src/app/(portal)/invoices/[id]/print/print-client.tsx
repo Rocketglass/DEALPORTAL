@@ -2,26 +2,8 @@
 
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { formatCurrency, formatDocumentDate } from '@/lib/utils';
 import type { EnrichedInvoice } from '../types';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value);
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Print client component
@@ -95,14 +77,14 @@ export default function InvoicePrintClient({ invoice }: InvoicePrintClientProps)
           <div>
             <span className="text-[#64748b]">Invoice Date:</span>{' '}
             <span className="font-medium text-[#0f172a]">
-              {formatDate(invoice.created_at)}
+              {formatDocumentDate(invoice.created_at)}
             </span>
           </div>
           {invoice.due_date && (
             <div>
               <span className="text-[#64748b]">Due Date:</span>{' '}
               <span className="font-medium text-[#0f172a]">
-                {formatDate(invoice.due_date)}
+                {formatDocumentDate(invoice.due_date)}
               </span>
             </div>
           )}
