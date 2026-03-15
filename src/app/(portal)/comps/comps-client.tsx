@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BarChart3, Plus, X } from 'lucide-react';
+import { BarChart3, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { DataTable } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,25 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDate } from '@/lib/utils';
 import type { ComparableTransaction } from '@/types/database';
+
+type FormState = {
+  address: string;
+  city: string;
+  state: string;
+  property_type: string;
+  transaction_type: string;
+  transaction_date: string;
+  tenant_name: string;
+  sf: string;
+  rent_per_sqft: string;
+  monthly_rent: string;
+  lease_term_months: string;
+  sale_price: string;
+  price_per_sqft: string;
+  cap_rate: string;
+  notes: string;
+  source: string;
+};
 
 const typeOptions = [
   { value: 'lease', label: 'Lease' },
@@ -24,76 +43,45 @@ const sourceOptions = [
   { value: 'manual', label: 'Manual' },
 ];
 
-const columns = [
-  {
-    key: 'address',
-    label: 'Address',
-    sortable: true,
-    render: (row: ComparableTransaction) => (
-      <div>
-        <span className="font-medium">{row.address}</span>
-        <br />
-        <span className="text-xs text-muted-foreground">
-          {row.city}, {row.state}
-        </span>
-      </div>
-    ),
-  },
-  {
-    key: 'transaction_type',
-    label: 'Type',
-    render: (row: ComparableTransaction) => (
-      <Badge status={row.transaction_type === 'lease' ? 'lease' : 'sale'} />
-    ),
-  },
-  {
-    key: 'transaction_date',
-    label: 'Date',
-    sortable: true,
-    render: (row: ComparableTransaction) => (
-      <span className="text-muted-foreground">{formatDate(row.transaction_date)}</span>
-    ),
-  },
-  {
-    key: 'tenant_name',
-    label: 'Tenant',
-    render: (row: ComparableTransaction) => (
-      <span>{row.tenant_name || '—'}</span>
-    ),
-  },
-  {
-    key: 'sf',
-    label: 'SF',
-    sortable: true,
-    render: (row: ComparableTransaction) => (
-      <span>{row.sf ? new Intl.NumberFormat('en-US').format(row.sf) : '—'}</span>
-    ),
-  },
-  {
-    key: 'rent_per_sqft',
-    label: 'Rent/SF',
-    sortable: true,
-    render: (row: ComparableTransaction) => (
-      <span>{row.rent_per_sqft ? `$${Number(row.rent_per_sqft).toFixed(2)}` : '—'}</span>
-    ),
-  },
-  {
-    key: 'lease_term_months',
-    label: 'Term',
-    render: (row: ComparableTransaction) => (
-      <span className="text-muted-foreground">
-        {row.lease_term_months ? `${row.lease_term_months} mo` : '—'}
-      </span>
-    ),
-  },
-  {
-    key: 'source',
-    label: 'Source',
-    render: (row: ComparableTransaction) => (
-      <span className="text-xs text-muted-foreground capitalize">{row.source || '—'}</span>
-    ),
-  },
-];
+const emptyForm: FormState = {
+  address: '',
+  city: '',
+  state: 'CA',
+  property_type: '',
+  transaction_type: 'lease',
+  transaction_date: '',
+  tenant_name: '',
+  sf: '',
+  rent_per_sqft: '',
+  monthly_rent: '',
+  lease_term_months: '',
+  sale_price: '',
+  price_per_sqft: '',
+  cap_rate: '',
+  notes: '',
+  source: 'manual',
+};
+
+function compToForm(comp: ComparableTransaction): FormState {
+  return {
+    address: comp.address ?? '',
+    city: comp.city ?? '',
+    state: comp.state ?? 'CA',
+    property_type: comp.property_type ?? '',
+    transaction_type: comp.transaction_type ?? 'lease',
+    transaction_date: comp.transaction_date ?? '',
+    tenant_name: comp.tenant_name ?? '',
+    sf: comp.sf != null ? String(comp.sf) : '',
+    rent_per_sqft: comp.rent_per_sqft != null ? String(comp.rent_per_sqft) : '',
+    monthly_rent: comp.monthly_rent != null ? String(comp.monthly_rent) : '',
+    lease_term_months: comp.lease_term_months != null ? String(comp.lease_term_months) : '',
+    sale_price: comp.sale_price != null ? String(comp.sale_price) : '',
+    price_per_sqft: comp.price_per_sqft != null ? String(comp.price_per_sqft) : '',
+    cap_rate: comp.cap_rate != null ? String(comp.cap_rate) : '',
+    notes: comp.notes ?? '',
+    source: comp.source ?? 'manual',
+  };
+}
 
 interface Props {
   comps: ComparableTransaction[];
@@ -106,46 +94,49 @@ export function CompsClient({ comps, error }: Props) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Delete confirmation state
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Form state
-  const [form, setForm] = useState({
-    address: '',
-    city: '',
-    state: 'CA',
-    property_type: '',
-    transaction_type: 'lease',
-    transaction_date: '',
-    tenant_name: '',
-    sf: '',
-    rent_per_sqft: '',
-    monthly_rent: '',
-    lease_term_months: '',
-    sale_price: '',
-    price_per_sqft: '',
-    cap_rate: '',
-    notes: '',
-    source: 'manual',
-  });
+  const [form, setForm] = useState<FormState>({ ...emptyForm });
 
   function resetForm() {
-    setForm({
-      address: '',
-      city: '',
-      state: 'CA',
-      property_type: '',
-      transaction_type: 'lease',
-      transaction_date: '',
-      tenant_name: '',
-      sf: '',
-      rent_per_sqft: '',
-      monthly_rent: '',
-      lease_term_months: '',
-      sale_price: '',
-      price_per_sqft: '',
-      cap_rate: '',
-      notes: '',
-      source: 'manual',
-    });
+    setForm({ ...emptyForm });
     setSaveError(null);
+    setEditingId(null);
+  }
+
+  function handleEdit(comp: ComparableTransaction) {
+    setForm(compToForm(comp));
+    setEditingId(comp.id);
+    setShowForm(true);
+    setSaveError(null);
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/comps/${id}`, { method: 'DELETE' });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || `Delete failed (${res.status})`);
+      }
+
+      setDeletingId(null);
+      router.refresh();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -154,8 +145,11 @@ export function CompsClient({ comps, error }: Props) {
     setSaveError(null);
 
     try {
-      const res = await fetch('/api/comps', {
-        method: 'POST',
+      const url = editingId ? `/api/comps/${editingId}` : '/api/comps';
+      const method = editingId ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
@@ -174,6 +168,124 @@ export function CompsClient({ comps, error }: Props) {
       setSaving(false);
     }
   }
+
+  const columns = [
+    {
+      key: 'address',
+      label: 'Address',
+      sortable: true,
+      render: (row: ComparableTransaction) => (
+        <div>
+          <span className="font-medium">{row.address}</span>
+          <br />
+          <span className="text-xs text-muted-foreground">
+            {row.city}, {row.state}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'transaction_type',
+      label: 'Type',
+      render: (row: ComparableTransaction) => (
+        <Badge status={row.transaction_type === 'lease' ? 'lease' : 'sale'} />
+      ),
+    },
+    {
+      key: 'transaction_date',
+      label: 'Date',
+      sortable: true,
+      render: (row: ComparableTransaction) => (
+        <span className="text-muted-foreground">{formatDate(row.transaction_date)}</span>
+      ),
+    },
+    {
+      key: 'tenant_name',
+      label: 'Tenant',
+      render: (row: ComparableTransaction) => (
+        <span>{row.tenant_name || '\u2014'}</span>
+      ),
+    },
+    {
+      key: 'sf',
+      label: 'SF',
+      sortable: true,
+      render: (row: ComparableTransaction) => (
+        <span>{row.sf ? new Intl.NumberFormat('en-US').format(row.sf) : '\u2014'}</span>
+      ),
+    },
+    {
+      key: 'rent_per_sqft',
+      label: 'Rent/SF',
+      sortable: true,
+      render: (row: ComparableTransaction) => (
+        <span>{row.rent_per_sqft ? `$${Number(row.rent_per_sqft).toFixed(2)}` : '\u2014'}</span>
+      ),
+    },
+    {
+      key: 'lease_term_months',
+      label: 'Term',
+      render: (row: ComparableTransaction) => (
+        <span className="text-muted-foreground">
+          {row.lease_term_months ? `${row.lease_term_months} mo` : '\u2014'}
+        </span>
+      ),
+    },
+    {
+      key: 'source',
+      label: 'Source',
+      render: (row: ComparableTransaction) => (
+        <span className="text-xs text-muted-foreground capitalize">{row.source || '\u2014'}</span>
+      ),
+    },
+    {
+      key: '_actions',
+      label: '',
+      render: (row: ComparableTransaction) => (
+        <div className="flex items-center justify-end gap-1">
+          {deletingId === row.id ? (
+            <div className="flex items-center gap-2">
+              {deleteError && (
+                <span className="text-xs text-red-600">{deleteError}</span>
+              )}
+              <span className="text-xs text-muted-foreground">Delete?</span>
+              <button
+                onClick={() => { setDeletingId(null); setDeleteError(null); }}
+                disabled={deleting}
+                className="rounded px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(row.id)}
+                disabled={deleting}
+                className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => handleEdit(row)}
+                className="rounded-lg p-1.5 text-muted-foreground/50 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                aria-label="Edit comp"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => { setDeletingId(row.id); setDeleteError(null); }}
+                className="rounded-lg p-1.5 text-muted-foreground/50 hover:text-red-600 hover:bg-red-50 transition-colors"
+                aria-label="Delete comp"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   if (error) {
     return (
@@ -217,9 +329,11 @@ export function CompsClient({ comps, error }: Props) {
         <Card className="mt-6">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold">New Comparable Transaction</h2>
+              <h2 className="text-lg font-semibold">
+                {editingId ? 'Edit Comparable Transaction' : 'New Comparable Transaction'}
+              </h2>
               <button
-                onClick={() => setShowForm(false)}
+                onClick={() => { setShowForm(false); resetForm(); }}
                 className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors"
                 aria-label="Close form"
               >
@@ -352,13 +466,13 @@ export function CompsClient({ comps, error }: Props) {
                 <Button
                   variant="secondary"
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={() => { setShowForm(false); resetForm(); }}
                   disabled={saving}
                 >
                   Cancel
                 </Button>
                 <Button variant="primary" type="submit" loading={saving}>
-                  {saving ? 'Saving...' : 'Save Comp'}
+                  {saving ? 'Saving...' : editingId ? 'Update Comp' : 'Save Comp'}
                 </Button>
               </div>
             </form>
