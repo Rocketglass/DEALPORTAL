@@ -39,6 +39,15 @@ function getServiceClient() {
 
 const ALLOWED_STATUSES: InvoiceStatus[] = ['sent', 'paid', 'cancelled'];
 
+/** Valid status transitions: current → allowed next statuses */
+const VALID_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
+  draft: ['sent', 'cancelled'],
+  sent: ['paid', 'cancelled'],
+  paid: [],           // terminal state
+  overdue: ['paid', 'cancelled'],
+  cancelled: [],      // terminal state
+};
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -132,6 +141,17 @@ export async function PATCH(
 
     if (findError || !existing) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+    }
+
+    // Validate status transition
+    const allowed = VALID_TRANSITIONS[existing.status as InvoiceStatus] ?? [];
+    if (!allowed.includes(status as InvoiceStatus)) {
+      return NextResponse.json(
+        {
+          error: `Cannot transition from '${existing.status}' to '${status}'. Allowed: ${allowed.length ? allowed.join(', ') : 'none (terminal state)'}`,
+        },
+        { status: 422 },
+      );
     }
 
     const { data: updated, error: updateError } = await supabase

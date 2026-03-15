@@ -10,7 +10,7 @@ import { notFound } from 'next/navigation';
 import { requireBrokerOrAdmin } from '@/lib/security/auth-guard';
 import { getInvoiceWithDetail } from '@/lib/queries/invoices';
 import InvoiceDetailClient from './invoice-detail-client';
-import type { EnrichedInvoice } from './types';
+import { enrichInvoice } from './types';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,42 +30,5 @@ export default async function InvoiceDetailPage({
     notFound();
   }
 
-  // ------------------------------------------------------------------
-  // Enrich the raw invoice with display-only fields derived from joins
-  // ------------------------------------------------------------------
-  const lease = data.lease;
-
-  // Property address: prefer the property row, fall back to the lease's
-  // denormalized premises_address field
-  const propertyAddress =
-    lease?.property?.address ?? lease?.premises_address ?? '';
-
-  // Suite number from the unit join
-  const suiteNumber = lease?.unit?.suite_number
-    ? `Suite ${lease.unit.suite_number}`
-    : '';
-
-  // Broker display name
-  const brokerContact = lease?.broker;
-  const brokerName = brokerContact
-    ? [brokerContact.first_name, brokerContact.last_name]
-        .filter(Boolean)
-        .join(' ') || brokerContact.company_name || 'Rocket Glass, CCIM'
-    : 'Rocket Glass, CCIM';
-
-  const brokerCompany = brokerContact?.company_name ?? 'Rocket Realty';
-
-  // License number is not stored in the DB yet — use the known value
-  const brokerLicense = 'DRE #01234567';
-
-  const enrichedInvoice: EnrichedInvoice = {
-    ...data,
-    property_address: propertyAddress,
-    suite_number: suiteNumber,
-    broker_name: brokerName,
-    broker_company: brokerCompany,
-    broker_license: brokerLicense,
-  };
-
-  return <InvoiceDetailClient initialInvoice={enrichedInvoice} />;
+  return <InvoiceDetailClient initialInvoice={enrichInvoice(data)} />;
 }
