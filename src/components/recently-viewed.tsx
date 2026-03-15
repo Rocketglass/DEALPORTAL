@@ -32,6 +32,7 @@ export function RecentlyViewed() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(readItems());
