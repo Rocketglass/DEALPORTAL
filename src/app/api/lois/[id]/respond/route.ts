@@ -23,6 +23,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { LoiSectionStatus } from '@/types/database';
+import { notifyLoiCountered } from '@/lib/email/notifications';
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -96,6 +97,21 @@ export async function POST(
         );
       }
 
+      // Validate that counter/reject responses include text
+      if (action === 'counter' && (!value || !value.trim())) {
+        return NextResponse.json(
+          { error: `Counter-proposal text is required for section ${sectionId}` },
+          { status: 400 },
+        );
+      }
+
+      if (action === 'reject' && (!note || !note.trim())) {
+        return NextResponse.json(
+          { error: `Rejection reason is required for section ${sectionId}` },
+          { status: 400 },
+        );
+      }
+
       const newStatus = ACTION_TO_STATUS[action];
 
       // Update the section status and landlord response
@@ -104,7 +120,7 @@ export async function POST(
         .update({
           status: newStatus,
           landlord_response: action === 'counter' ? (value ?? null) : (note ?? null),
-          agreed_value: action === 'accept' ? undefined : null,
+          agreed_value: null,
           updated_at: now,
         })
         .eq('id', sectionId)
@@ -157,6 +173,77 @@ export async function POST(
       .from('lois')
       .update({ status: newLoiStatus, updated_at: now })
       .eq('id', loiId);
+
+    // Notify the broker about the landlord's response (fire-and-forget)
+    void (async () => {
+      try {
+        const { data: loiFull } = await supabase
+          .from('lois')
+          .select(`
+            id,
+            property:properties(address, city, state),
+            unit:units(suite_number),
+            tenant:contacts!lois_tenant_contact_id_fkey(first_name, last_name, company_name),
+            landlord:contacts!lois_landlord_contact_id_fkey(first_name, last_name, company_name),
+            broker:contacts!lois_broker_contact_id_fkey(email, first_name, last_name, company_name)
+          `)
+          .eq('id', loiId)
+          .single();
+
+        if (!loiFull) return;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const broker = loiFull.broker as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const landlord = loiFull.landlord as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tenant = loiFull.tenant as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const property = loiFull.property as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const unit = loiFull.unit as any;
+
+        if (!broker?.email) return;
+
+        const brokerName =
+          (broker.company_name
+          ?? [broker.first_name, broker.last_name].filter(Boolean).join(' '))
+          || 'Broker';
+
+        const landlordName =
+          (landlord?.company_name
+          ?? [landlord?.first_name, landlord?.last_name].filter(Boolean).join(' '))
+          || 'Landlord';
+
+        const tenantBusinessName =
+          (tenant?.company_name
+          ?? [tenant?.first_name, tenant?.last_name].filter(Boolean).join(' '))
+          || 'Tenant';
+
+        const propertyAddress = property
+          ? `${property.address}, ${property.city}, ${property.state}`
+          : 'Unknown property';
+
+        const sectionsCountered = responses
+          .filter((r) => r.action === 'counter' || r.action === 'reject')
+          .map((r) => r.sectionId);
+
+        await notifyLoiCountered(
+          {
+            id: loiFull.id,
+            tenantBusinessName,
+            propertyAddress,
+            suiteNumber: unit?.suite_number ?? '',
+            brokerName,
+            landlordName,
+            sectionsCountered,
+          },
+          broker.email,
+        );
+      } catch (notifyError) {
+        console.error('[LOI respond] Failed to notify broker:', notifyError);
+      }
+    })();
 
     return NextResponse.json({ success: true, loiStatus: newLoiStatus });
   } catch (error) {

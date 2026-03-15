@@ -16,7 +16,6 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
-  Eye,
   Save,
   AlertCircle,
   Loader2,
@@ -556,10 +555,7 @@ export default function CreateLoiPage() {
         >
           Save as Draft
         </Button>
-        <Button variant="secondary" icon={Eye} disabled={submitting}>
-          Preview LOI
-        </Button>
-        <Button
+<Button
           variant="primary"
           icon={submitting ? Loader2 : Send}
           onClick={() => submit('sent')}

@@ -1,13 +1,13 @@
 import { notFound } from 'next/navigation';
-import { Send, Copy, BarChart3 } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { getLoi } from '@/lib/queries/lois';
 import { createClient } from '@/lib/supabase/server';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BackButton } from '@/components/ui/back-button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LoiSectionsPanel } from './loi-sections-panel';
+import { LoiActionButtons } from './loi-action-buttons';
 import type { Contact, LoiSectionStatus, ComparableTransaction } from '@/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -95,14 +95,7 @@ export default async function LoiDetailPage({ params }: Props) {
             </span>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" icon={Copy}>
-            Copy Link
-          </Button>
-          <Button variant="primary" icon={Send}>
-            Resend
-          </Button>
-        </div>
+        <LoiActionButtons loiId={id} />
       </div>
 
       {/* Main content + sidebar */}
