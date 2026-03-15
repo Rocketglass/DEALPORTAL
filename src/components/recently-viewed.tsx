@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Clock, Building2 } from 'lucide-react';
 
@@ -12,7 +12,7 @@ interface RecentItem {
 
 const STORAGE_KEY = 'rr_recently_viewed';
 
-function getSnapshot(): RecentItem[] {
+function readItems(): RecentItem[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) return (JSON.parse(stored) as RecentItem[]).slice(0, 5);
@@ -22,24 +22,23 @@ function getSnapshot(): RecentItem[] {
   return [];
 }
 
-function getServerSnapshot(): RecentItem[] {
-  return [];
-}
-
-function subscribe(callback: () => void) {
-  window.addEventListener('storage', callback);
-  return () => window.removeEventListener('storage', callback);
-}
-
 /**
  * Displays the last 5 recently viewed properties as clickable chips.
  * Reads from localStorage key `rr_recently_viewed`.
  * Only renders if there are items to show.
  */
 export function RecentlyViewed() {
-  const items = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const [items, setItems] = useState<RecentItem[]>([]);
+  const [mounted, setMounted] = useState(false);
 
-  if (items.length === 0) return null;
+  useEffect(() => {
+    setMounted(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setItems(readItems());
+  }, []);
+
+  // Don't render anything on the server or before hydration
+  if (!mounted || items.length === 0) return null;
 
   return (
     <div className="mb-6">
