@@ -415,6 +415,7 @@ function NotificationsSection() {
     leaseExecuted: true,
     invoicePaid: true,
   });
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     try {
@@ -422,12 +423,16 @@ function NotificationsSection() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (stored) setPrefs((prev) => ({ ...prev, ...JSON.parse(stored) }));
     } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoaded(true);
   }, []);
 
-  // Save to localStorage on change
+  // Save to localStorage on change — skip the initial render to avoid
+  // overwriting stored prefs with defaults before they're loaded.
   useEffect(() => {
+    if (!loaded) return;
     localStorage.setItem('rr_notification_prefs', JSON.stringify(prefs));
-  }, [prefs]);
+  }, [prefs, loaded]);
 
   const items = [
     { key: 'newApplication' as const, label: 'New application received', desc: 'Get notified when a tenant submits a new application.' },
@@ -529,7 +534,10 @@ function BrandingSection() {
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Logo</label>
-            <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted">
+            <label
+              htmlFor="logo-upload"
+              className="flex h-32 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted transition-colors hover:border-primary/30 hover:bg-primary/5"
+            >
               <div className="text-center">
                 <Upload className="mx-auto h-6 w-6 text-muted-foreground" />
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -537,7 +545,19 @@ function BrandingSection() {
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">PNG, SVG up to 2MB</p>
               </div>
-            </div>
+              <input
+                id="logo-upload"
+                type="file"
+                accept="image/png,image/svg+xml"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    toast({ title: 'Logo uploaded', description: `${file.name} selected. Logo storage coming soon.`, variant: 'success' });
+                  }
+                }}
+              />
+            </label>
           </div>
         </div>
 
