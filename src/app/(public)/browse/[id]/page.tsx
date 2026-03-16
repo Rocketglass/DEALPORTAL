@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Building2, MapPin, Maximize2, ArrowLeft, DoorOpen, Car, Zap } from 'lucide-react';
+import { PublicHeader } from '@/components/layout/public-header';
 import { formatSqft, formatCurrency } from '@/lib/utils';
 import { getProperty, getUnits } from '@/lib/queries/properties';
 import ScheduleTour from './schedule-tour';
@@ -48,20 +49,7 @@ export default async function PropertyDetailPage({
 
   return (
     <div className="min-h-screen bg-muted">
-      <header className="border-b border-border bg-white">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">Rocket Realty</span>
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
-          >
-            Sign In
-          </Link>
-        </div>
-      </header>
+      <PublicHeader />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Link

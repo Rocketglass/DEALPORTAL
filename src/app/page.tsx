@@ -1,34 +1,11 @@
 import Link from 'next/link';
-import { Building2, ArrowRight, Shield, Zap, BarChart3 } from 'lucide-react';
+import { ArrowRight, Shield, Zap, BarChart3 } from 'lucide-react';
+import { PublicHeader } from '@/components/layout/public-header';
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--background)]">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-              <Building2 className="h-3.5 w-3.5 text-white" />
-            </div>
-            <span className="text-[15px] font-semibold tracking-tight">Rocket Realty</span>
-          </div>
-          <div className="flex items-center gap-5">
-            <Link
-              href="/browse"
-              className="text-[13px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
-            >
-              Properties
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-lg bg-primary px-3.5 py-1.5 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-primary-light"
-            >
-              Sign In
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       {/* Hero */}
       <main className="flex flex-1 flex-col items-center justify-center px-4">

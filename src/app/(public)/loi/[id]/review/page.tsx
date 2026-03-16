@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import {
-  Building2,
   DollarSign,
   Calendar,
   Paintbrush,
@@ -22,6 +20,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PublicHeader } from '@/components/layout/public-header';
 import type { LoiSectionKey } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -201,12 +200,7 @@ export default function LoiReviewPage() {
   if (submitted) {
     return (
       <div className="min-h-screen bg-muted">
-        <header className="border-b border-border bg-white">
-          <div className="mx-auto flex h-16 max-w-4xl items-center gap-2 px-4 sm:px-6">
-            <Building2 className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">Rocket Realty</span>
-          </div>
-        </header>
+        <PublicHeader minimal />
         <main className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6">
           <div className="mx-auto max-w-md rounded-xl bg-white p-8 shadow-sm">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-50">
@@ -229,14 +223,7 @@ export default function LoiReviewPage() {
   // --- Review form ---
   return (
     <div className="min-h-screen bg-muted">
-      <header className="border-b border-border bg-white">
-        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">Rocket Realty</span>
-          </Link>
-        </div>
-      </header>
+      <PublicHeader minimal />
 
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         {/* LOI header card */}

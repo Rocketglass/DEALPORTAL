@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Building2, MapPin, Maximize2 } from 'lucide-react';
+import { PublicHeader } from '@/components/layout/public-header';
 import { formatSqft } from '@/lib/utils';
 import { getProperties } from '@/lib/queries/properties';
 
@@ -15,23 +16,7 @@ export default async function PropertiesPage() {
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
-      {/* Header */}
-      <header className="border-b border-border bg-[var(--background-raised)]">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-              <Building2 className="h-3.5 w-3.5 text-white" />
-            </div>
-            <span className="text-[15px] font-semibold tracking-tight">Rocket Realty</span>
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-lg bg-primary px-3.5 py-1.5 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-primary-light"
-          >
-            Sign In
-          </Link>
-        </div>
-      </header>
+      <PublicHeader />
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="animate-fade-in-up">

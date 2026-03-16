@@ -4,7 +4,6 @@ import { useState, useCallback, useRef, type DragEvent, type ChangeEvent } from 
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Building2,
   ChevronLeft,
   ChevronRight,
   Check,
@@ -15,6 +14,7 @@ import {
   Pencil,
   Shield,
 } from 'lucide-react';
+import { PublicHeader } from '@/components/layout/public-header';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -888,14 +888,7 @@ export default function TenantApplicationPage() {
   if (isSubmitted) {
     return (
       <div className="min-h-screen bg-muted">
-        <header className="border-b border-border bg-white">
-          <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4 sm:px-6">
-            <Link href="/" className="flex items-center gap-2">
-              <Building2 className="h-6 w-6 text-primary" />
-              <span className="text-lg font-semibold">Rocket Realty</span>
-            </Link>
-          </div>
-        </header>
+        <PublicHeader minimal />
 
         <main className="mx-auto max-w-lg px-4 py-16 sm:px-6 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50">
@@ -1377,21 +1370,7 @@ export default function TenantApplicationPage() {
 
   return (
     <div className="min-h-screen bg-muted">
-      {/* Header */}
-      <header className="border-b border-border bg-white">
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">Rocket Realty</span>
-          </Link>
-          <Link
-            href={`/browse/${propertyId}`}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            View Property
-          </Link>
-        </div>
-      </header>
+      <PublicHeader minimal rightLink={{ href: `/browse/${propertyId}`, label: 'View Property' }} />
 
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
         {/* Step indicator */}
