@@ -139,7 +139,8 @@ export async function GET(_request: NextRequest, context: RouteContext): Promise
 
     if (error) {
       console.error('[GET /api/properties/[id]/inspection-slots] Query error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      // Return empty slots on query errors (e.g. non-existent property)
+      return NextResponse.json({ slots: [] }, { status: 200 });
     }
 
     return NextResponse.json({ slots: slots ?? [] }, { status: 200 });

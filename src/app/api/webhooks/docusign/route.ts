@@ -166,13 +166,11 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
       });
 
     if (!uploadError) {
-      const { data: urlData } = supabase.storage
-        .from('lease-documents')
-        .getPublicUrl(fileName);
-
+      // Store the internal storage path (not a public URL) — the
+      // /api/leases/[id]/pdf endpoint generates signed URLs on demand.
       await supabase
         .from('leases')
-        .update({ executed_pdf_url: urlData.publicUrl })
+        .update({ executed_pdf_url: fileName })
         .eq('id', lease.id);
     } else {
       console.error('[DocuSign Webhook] PDF upload error:', uploadError);

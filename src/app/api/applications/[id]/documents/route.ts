@@ -144,12 +144,10 @@ export async function POST(
       );
     }
 
-    // Get the public URL for the uploaded file
-    const { data: publicUrlData } = supabase.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(storagePath);
-
-    const fileUrl = publicUrlData.publicUrl;
+    // Store the internal storage path (not a public URL) — documents are
+    // accessed via the authenticated /documents/[docId]/view endpoint which
+    // generates time-limited signed URLs on demand.
+    const fileUrl = `${STORAGE_BUCKET}/${storagePath}`;
 
     // ----------------------------------------------------------------
     // Insert application_documents record

@@ -14,6 +14,7 @@ const PROTECTED_PORTAL_ROUTES = [
   '/lois',
   '/leases',
   '/invoices',
+  '/comps',
   '/settings',
 ];
 

@@ -52,12 +52,16 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Extract the storage path from the public URL
-    // Public URLs are typically: {supabaseUrl}/storage/v1/object/public/{bucket}/{path}
+    // Extract the storage path from file_url.
+    // New format: "application-documents/{applicationId}/{fileName}"
+    // Legacy format: "{supabaseUrl}/storage/v1/object/public/{bucket}/{path}"
+    const bucketPrefix = `${STORAGE_BUCKET}/`;
     const publicUrlPrefix = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/`;
     let storagePath: string;
 
-    if (doc.file_url.startsWith(publicUrlPrefix)) {
+    if (doc.file_url.startsWith(bucketPrefix)) {
+      storagePath = doc.file_url.slice(bucketPrefix.length);
+    } else if (doc.file_url.startsWith(publicUrlPrefix)) {
       storagePath = decodeURIComponent(doc.file_url.slice(publicUrlPrefix.length));
     } else {
       // Fallback: reconstruct from application ID and file name
