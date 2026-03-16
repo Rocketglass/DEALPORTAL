@@ -1,70 +1,71 @@
 import { cn } from '@/lib/utils';
 
+/**
+ * Status color palette — uses tinted backgrounds that harmonize with the
+ * design system's blue-tinted neutral palette. Each semantic group maps to
+ * a consistent hue: blue for info/active, amber for pending/warning,
+ * green for success, red for error/destructive, neutral for inactive.
+ */
 export const STATUS_COLORS: Record<string, { bg: string; text: string; dot?: string }> = {
-  // Application statuses
-  draft: { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-500' },
-  submitted: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
-  under_review: { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
-  approved: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
-  rejected: { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
-  withdrawn: { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' },
-  info_requested: { bg: 'bg-purple-100', text: 'text-purple-700', dot: 'bg-purple-500' },
+  // --- Semantic groups -------------------------------------------------------
+  // Info / in-progress (primary blue tint)
+  submitted: { bg: 'bg-primary-subtle', text: 'text-primary', dot: 'bg-primary' },
+  sent: { bg: 'bg-primary-subtle', text: 'text-primary', dot: 'bg-primary' },
+  review: { bg: 'bg-primary-subtle', text: 'text-primary', dot: 'bg-primary' },
+  occupied: { bg: 'bg-primary-subtle', text: 'text-primary', dot: 'bg-primary' },
+  leased: { bg: 'bg-primary-subtle', text: 'text-primary', dot: 'bg-primary' },
+  completed: { bg: 'bg-primary-subtle', text: 'text-primary', dot: 'bg-primary' },
+  proposed: { bg: 'bg-primary-subtle', text: 'text-primary', dot: 'bg-primary' },
+  lease: { bg: 'bg-primary-subtle', text: 'text-primary' },
+  industrial: { bg: 'bg-primary-subtle', text: 'text-primary' },
 
-  // LOI statuses
-  sent: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
-  in_negotiation: { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
-  agreed: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
-  expired: { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' },
-
-  // Lease statuses
-  review: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
-  sent_for_signature: { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
-  partially_signed: { bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
-  executed: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
-  terminated: { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
-
-  // Invoice statuses
-  paid: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
-  overdue: { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
-  cancelled: { bg: 'bg-gray-100', text: 'text-gray-500', dot: 'bg-gray-400' },
-  void: { bg: 'bg-gray-100', text: 'text-gray-500', dot: 'bg-gray-400' },
-
-  // LOI Section statuses
-  pending: { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
-  proposed: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
-  accepted: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
+  // Pending / warning (amber)
+  under_review: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+  in_negotiation: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+  sent_for_signature: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+  partially_signed: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+  pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
   countered: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+  info_requested: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+  retail: { bg: 'bg-amber-50', text: 'text-amber-700' },
 
-  // Inspection booking statuses
-  confirmed: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
-  completed: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
-  no_show: { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
+  // Success (green)
+  approved: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  agreed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  executed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  paid: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  active: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  confirmed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  vacant: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  accepted: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  sale: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  office: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
 
-  // General / unit statuses
-  active: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
-  inactive: { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' },
-  vacant: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
-  occupied: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
-  leased: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
-  maintenance: { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-500' },
+  // Destructive (red)
+  rejected: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-600' },
+  overdue: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-600' },
+  terminated: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-600' },
+  no_show: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-600' },
 
-  // Comp transaction types
-  lease: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
-  sale: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
+  // Neutral (muted)
+  draft: { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
+  withdrawn: { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
+  expired: { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
+  cancelled: { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
+  void: { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
+  inactive: { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
+  maintenance: { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
+  mixed: { bg: 'bg-muted', text: 'text-muted-foreground' },
 
-  // Property types (reuse for type badges)
-  industrial: { bg: 'bg-blue-100', text: 'text-blue-700' },
-  commercial: { bg: 'bg-purple-100', text: 'text-purple-700' },
-  retail: { bg: 'bg-amber-100', text: 'text-amber-700' },
-  office: { bg: 'bg-green-100', text: 'text-green-700' },
-  mixed: { bg: 'bg-gray-100', text: 'text-gray-700' },
+  // Accent (purple — rare, attention-getting)
+  commercial: { bg: 'bg-violet-50', text: 'text-violet-700' },
 };
 
-const DEFAULT_COLORS = { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-500' };
+const DEFAULT_COLORS = { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' };
 
 const sizeStyles = {
   sm: 'px-2 py-0.5 text-[11px]',
-  md: 'px-2.5 py-0.5 text-xs',
+  md: 'px-2.5 py-0.5 text-[11px]',
 } as const;
 
 export interface BadgeProps {

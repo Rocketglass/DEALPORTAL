@@ -34,21 +34,11 @@ import { Badge } from '@/components/ui/badge';
 import { BackButton } from '@/components/ui/back-button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
-import type { LeaseWithRelations, RentEscalation, LeaseStatus } from '@/types/database';
+import type { LeaseWithRelations, RentEscalation } from '@/types/database';
 
 // ============================================================
 // Helpers
 // ============================================================
-
-const leaseStatusConfig: Record<LeaseStatus, { label: string; classes: string }> = {
-  draft: { label: 'Draft', classes: 'bg-gray-100 text-gray-700' },
-  review: { label: 'In Review', classes: 'bg-blue-100 text-blue-700' },
-  sent_for_signature: { label: 'Sent for Signature', classes: 'bg-amber-100 text-amber-700' },
-  partially_signed: { label: 'Partially Signed', classes: 'bg-orange-100 text-orange-700' },
-  executed: { label: 'Executed', classes: 'bg-green-100 text-green-700' },
-  expired: { label: 'Expired', classes: 'bg-gray-100 text-gray-600' },
-  terminated: { label: 'Terminated', classes: 'bg-red-100 text-red-700' },
-};
 
 const signerStatusConfig: Record<string, { icon: typeof CheckCircle2; classes: string }> = {
   completed: { icon: CheckCircle2, classes: 'text-green-600' },
@@ -191,7 +181,6 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
   const { toast } = useToast();
   const property = lease.property;
   const unit = lease.unit;
-  const _statusInfo = leaseStatusConfig[lease.status];
 
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);

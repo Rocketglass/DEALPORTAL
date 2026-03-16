@@ -44,7 +44,7 @@ export default async function PropertiesPage() {
                 <Link
                   key={property.id}
                   href={`/browse/${property.id}`}
-                  className="group overflow-hidden rounded-xl border border-border-subtle bg-[var(--background-raised)] transition-all duration-200 hover:border-border hover:shadow-md"
+                  className="group overflow-hidden rounded-xl border border-border-subtle bg-[var(--background-raised)] transition-all duration-200 hover:border-border hover:shadow-sm"
                 >
                   <div className="relative aspect-[16/10] bg-muted">
                     {coverPhoto ? (

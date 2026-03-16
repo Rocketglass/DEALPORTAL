@@ -1,5 +1,6 @@
 import { FileText, Handshake, ScrollText, Receipt, DollarSign, TrendingUp, Clock, CheckCircle2, BarChart3 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
   getDashboardStats,
@@ -29,23 +30,6 @@ const ENTITY_LABELS: Record<string, string> = {
   invoice: 'Invoice',
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  submitted: 'bg-blue-100 text-blue-700',
-  under_review: 'bg-amber-100 text-amber-700',
-  approved: 'bg-green-100 text-green-700',
-  draft: 'bg-slate-100 text-slate-600',
-  sent: 'bg-blue-100 text-blue-700',
-  in_negotiation: 'bg-amber-100 text-amber-700',
-  agreed: 'bg-green-100 text-green-700',
-  sent_for_signature: 'bg-blue-100 text-blue-700',
-  executed: 'bg-green-100 text-green-700',
-  paid: 'bg-green-100 text-green-700',
-  overdue: 'bg-red-100 text-red-700',
-};
-
-function formatStatus(status: string): string {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 function formatRelativeDate(isoDate: string): string {
   const date = new Date(isoDate);
@@ -159,8 +143,8 @@ export default async function DashboardPage() {
       label: 'Pending Applications',
       value: stats?.applications.submitted ?? 0,
       icon: FileText,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      color: 'text-primary',
+      bgColor: 'bg-primary-subtle',
     },
     {
       label: 'Active LOIs',
@@ -180,8 +164,8 @@ export default async function DashboardPage() {
       label: 'Outstanding Invoices',
       value: stats?.invoices.sent ?? 0,
       icon: Receipt,
-      color: 'text-violet-600',
-      bgColor: 'bg-violet-50',
+      color: 'text-muted-foreground',
+      bgColor: 'bg-muted',
     },
   ];
 
@@ -198,7 +182,7 @@ export default async function DashboardPage() {
       {/* Stat cards — pipeline KPIs */}
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 stagger-children">
         {statCards.map((stat) => (
-          <Card key={stat.label} className="group border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-md">
+          <Card key={stat.label} className="group border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', stat.bgColor)}>
@@ -206,7 +190,7 @@ export default async function DashboardPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-[12px] font-medium text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-semibold tracking-tight tabular-nums">{stat.value}</p>
+                  <p className="text-xl font-semibold tracking-tight tabular-nums">{stat.value}</p>
                 </div>
               </div>
             </CardContent>
@@ -217,11 +201,11 @@ export default async function DashboardPage() {
       {/* Commission Summary */}
       {commission && (
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 stagger-children">
-          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-md">
+          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
-                  <CheckCircle2 className="h-[18px] w-[18px] text-emerald-600" />
+                  <CheckCircle2 className="h-[18px] w-[18px] text-success" />
                 </div>
                 <div>
                   <p className="text-[12px] font-medium text-muted-foreground">Earned</p>
@@ -233,11 +217,11 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-md">
+          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50">
-                  <Clock className="h-[18px] w-[18px] text-blue-600" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-subtle">
+                  <Clock className="h-[18px] w-[18px] text-primary" />
                 </div>
                 <div>
                   <p className="text-[12px] font-medium text-muted-foreground">Outstanding</p>
@@ -249,11 +233,11 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-md">
+          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50">
-                  <DollarSign className="h-[18px] w-[18px] text-slate-500" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <DollarSign className="h-[18px] w-[18px] text-muted-foreground" />
                 </div>
                 <div>
                   <p className="text-[12px] font-medium text-muted-foreground">Pending</p>
@@ -265,7 +249,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-md">
+          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-subtle">
@@ -361,13 +345,7 @@ export default async function DashboardPage() {
                       {formatRelativeDate(item.created_at)}
                     </p>
                   </div>
-                  <span
-                    className={`ml-4 shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium ${
-                      STATUS_COLORS[item.status] ?? 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {formatStatus(item.status)}
-                  </span>
+                  <Badge status={item.status} size="sm" className="ml-4 shrink-0" />
                 </li>
               ))}
             </ul>

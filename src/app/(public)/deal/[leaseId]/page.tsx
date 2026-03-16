@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
 import { formatCurrency, formatDate, formatPerSqft } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 // ============================================================
@@ -118,25 +119,6 @@ function formatNumber(n: number): string {
   return new Intl.NumberFormat('en-US').format(n);
 }
 
-const statusLabels: Record<string, string> = {
-  draft: 'Draft',
-  review: 'In Review',
-  sent_for_signature: 'Sent for Signature',
-  partially_signed: 'Partially Signed',
-  executed: 'Executed',
-  expired: 'Expired',
-  terminated: 'Terminated',
-};
-
-const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  review: 'bg-blue-100 text-blue-700',
-  sent_for_signature: 'bg-amber-100 text-amber-700',
-  partially_signed: 'bg-orange-100 text-orange-700',
-  executed: 'bg-green-100 text-green-700',
-  expired: 'bg-gray-100 text-gray-600',
-  terminated: 'bg-red-100 text-red-700',
-};
 
 // ============================================================
 // OG Metadata
@@ -336,11 +318,7 @@ export default async function DealSummaryPage({ params }: Props) {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-500">Status</span>
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusColors[lease.status] || 'bg-gray-100 text-gray-700'}`}
-                >
-                  {statusLabels[lease.status] || lease.status.replace(/_/g, ' ')}
-                </span>
+                <Badge status={lease.status} />
               </div>
               <DetailRow
                 label="Broker"
