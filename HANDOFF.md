@@ -85,22 +85,16 @@ When a lease is fully executed (all DocuSign signatures complete), the system **
 
 **Current status:** The Resend API key is configured and emails are sending. However, without DNS verification on your domain, emails may land in spam.
 
-**Action required:** Add the following DNS records to the `rocketrealty.com` domain (or whichever domain you want emails to come from):
-
-| Record Type | Purpose |
-|------------|---------|
-| **TXT (SPF)** | Authorizes Resend to send email on behalf of your domain |
-| **CNAME (DKIM)** | Cryptographic signature proving emails are authentic |
-| **TXT (DMARC)** | Policy for handling unauthenticated email |
+**Action required:** You need a custom domain for email delivery. Without one, emails will come from a generic address and may land in spam.
 
 **Steps:**
-1. Log into the Resend dashboard at https://resend.com/domains
-2. Click **Add Domain** and enter your domain (e.g., `rocketrealty.com`)
-3. Resend will display the exact DNS records to add
-4. Log into your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.) and add those records
-5. Return to Resend and click **Verify** — it may take up to 48 hours to propagate
-
-**Current from address:** `notifications@rocketrealty.com` (configured via the `RESEND_FROM_EMAIL` environment variable)
+1. **Buy a domain** at https://www.namecheap.com (e.g., `rocketrealty.com`, `rocketglass.com`, or similar — typically ~$10-15/year)
+2. Log into the Resend dashboard at https://resend.com/domains
+3. Click **Add Domain** and enter your new domain
+4. Resend will display DNS records to add (SPF, DKIM, DMARC)
+5. In Namecheap, go to **Domain List > Manage > Advanced DNS** and add those records
+6. Return to Resend and click **Verify** — may take up to 48 hours to propagate
+7. Update the `RESEND_FROM_EMAIL` environment variable in Vercel to use your new domain (e.g., `notifications@rocketrealty.com`)
 
 ### 2. DocuSign Integration
 
@@ -139,15 +133,16 @@ The following placeholder values need to be replaced with your real information:
   - Routing number
   - Account number
 
-### 4. Custom Domain (Optional)
+### 4. Custom Domain (Recommended)
 
-The portal currently runs at `rocket-realty-portal.vercel.app`. To use a custom domain (e.g., `portal.rocketrealty.com`):
+The portal currently runs at `rocket-realty-portal.vercel.app`. You should connect your custom domain (purchased in step 1 above) so the portal has a professional URL.
 
+**Steps:**
 1. In the **Vercel dashboard**, go to your project **Settings > Domains**
-2. Add your custom domain (e.g., `portal.rocketrealty.com`)
-3. At your domain registrar, add one of the following:
-   - **CNAME record:** `portal` pointing to `cname.vercel-dns.com`
-   - Or **A record** pointing to `76.76.21.21` (for apex domains)
+2. Add your domain (e.g., `portal.rocketrealty.com` or `rocketrealty.com`)
+3. In **Namecheap > Domain List > Manage > Advanced DNS**, add:
+   - **CNAME record:** `portal` pointing to `cname.vercel-dns.com` (for subdomains like `portal.rocketrealty.com`)
+   - Or **A record** pointing to `76.76.21.21` (for apex domain like `rocketrealty.com`)
 4. In Vercel, update the following environment variables:
    - `NEXT_PUBLIC_APP_URL` = `https://portal.rocketrealty.com`
    - `NEXT_PUBLIC_PORTAL_URL` = `https://portal.rocketrealty.com`
