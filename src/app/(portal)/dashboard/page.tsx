@@ -1,5 +1,6 @@
 import { FileText, Handshake, ScrollText, Receipt, DollarSign, TrendingUp, Clock, CheckCircle2, BarChart3 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import {
   getDashboardStats,
   getRecentActivity,
@@ -77,22 +78,21 @@ function PipelineRow({ stage }: { stage: PipelineStage }) {
   const activeTotal = activeStatuses.reduce((sum, s) => sum + s.count, 0);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-[#0f172a]">{stage.label}</h4>
-        <span className="text-sm tabular-nums text-[#64748b]">
+        <h4 className="text-[13px] font-semibold text-foreground">{stage.label}</h4>
+        <span className="text-[12px] tabular-nums text-muted-foreground">
           {stage.total} total
         </span>
       </div>
 
-      {/* Horizontal bar */}
-      <div className="flex h-8 w-full overflow-hidden rounded-lg bg-[#f1f5f9]">
+      <div className="flex h-7 w-full overflow-hidden rounded-md bg-muted">
         {activeStatuses.map((s) => {
           const pct = activeTotal > 0 ? (s.count / activeTotal) * 100 : 0;
           return (
             <div
               key={s.key}
-              className="flex items-center justify-center text-xs font-medium text-white transition-all"
+              className="flex items-center justify-center text-[11px] font-medium text-white transition-all duration-300"
               style={{
                 width: `${pct}%`,
                 backgroundColor: s.color,
@@ -105,23 +105,22 @@ function PipelineRow({ stage }: { stage: PipelineStage }) {
           );
         })}
         {activeTotal === 0 && (
-          <div className="flex flex-1 items-center justify-center text-xs text-[#94a3b8]">
+          <div className="flex flex-1 items-center justify-center text-[11px] text-muted-foreground">
             No active deals
           </div>
         )}
       </div>
 
-      {/* Legend */}
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         {stage.statuses.map((s) => (
           <div key={s.key} className="flex items-center gap-1.5">
             <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
+              className="inline-block h-2 w-2 rounded-full"
               style={{ backgroundColor: s.color }}
             />
-            <span className="text-xs text-[#64748b]">
+            <span className="text-[11px] text-muted-foreground">
               {s.label}{' '}
-              <span className="font-medium text-[#0f172a]">{s.count}</span>
+              <span className="font-medium text-foreground">{s.count}</span>
             </span>
           </div>
         ))}
@@ -161,46 +160,55 @@ export default async function DashboardPage() {
       value: stats?.applications.submitted ?? 0,
       icon: FileText,
       color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
     },
     {
       label: 'Active LOIs',
       value: (stats?.lois.draft ?? 0) + (stats?.lois.in_negotiation ?? 0),
       icon: Handshake,
       color: 'text-amber-600',
+      bgColor: 'bg-amber-50',
     },
     {
       label: 'Executed Leases',
       value: stats?.leases.executed ?? 0,
       icon: ScrollText,
-      color: 'text-green-600',
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-50',
     },
     {
       label: 'Outstanding Invoices',
       value: stats?.invoices.sent ?? 0,
       icon: Receipt,
-      color: 'text-purple-600',
+      color: 'text-violet-600',
+      bgColor: 'bg-violet-50',
     },
   ];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
-      <p className="mt-1 text-muted-foreground">
-        Overview of your deal flow pipeline.
-      </p>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+      {/* Page header */}
+      <div className="animate-fade-in-up">
+        <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">
+          Overview of your deal flow pipeline
+        </p>
+      </div>
 
-      {/* Stat cards */}
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Stat cards — pipeline KPIs */}
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 stagger-children">
         {statCards.map((stat) => (
-          <Card key={stat.label} className="transition-shadow duration-150 hover:shadow-md">
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
+          <Card key={stat.label} className="group border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-md">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', stat.bgColor)}>
+                  <stat.icon className={cn('h-[18px] w-[18px]', stat.color)} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[12px] font-medium text-muted-foreground">{stat.label}</p>
+                  <p className="text-2xl font-semibold tracking-tight tabular-nums">{stat.value}</p>
                 </div>
               </div>
-              <p className="mt-2 text-3xl font-bold">{stat.value}</p>
             </CardContent>
           </Card>
         ))}
@@ -208,66 +216,68 @@ export default async function DashboardPage() {
 
       {/* Commission Summary */}
       {commission && (
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="transition-shadow duration-150 hover:shadow-md">
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Commissions Earned</p>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 stagger-children">
+          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-md">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
+                  <CheckCircle2 className="h-[18px] w-[18px] text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-[12px] font-medium text-muted-foreground">Earned</p>
+                  <p className="text-xl font-semibold tracking-tight tabular-nums">
+                    {formatCurrency(commission.earned)}
+                  </p>
                 </div>
               </div>
-              <p className="mt-2 text-2xl font-bold text-[#0f172a]">
-                {formatCurrency(commission.earned)}
-              </p>
-              <p className="mt-0.5 text-xs text-[#64748b]">All time paid</p>
             </CardContent>
           </Card>
 
-          <Card className="transition-shadow duration-150 hover:shadow-md">
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Outstanding</p>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
-                  <Clock className="h-4 w-4 text-blue-600" />
+          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-md">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+                  <Clock className="h-[18px] w-[18px] text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-[12px] font-medium text-muted-foreground">Outstanding</p>
+                  <p className="text-xl font-semibold tracking-tight tabular-nums">
+                    {formatCurrency(commission.outstanding)}
+                  </p>
                 </div>
               </div>
-              <p className="mt-2 text-2xl font-bold text-[#0f172a]">
-                {formatCurrency(commission.outstanding)}
-              </p>
-              <p className="mt-0.5 text-xs text-[#64748b]">Sent or overdue</p>
             </CardContent>
           </Card>
 
-          <Card className="transition-shadow duration-150 hover:shadow-md">
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Pending</p>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50">
-                  <DollarSign className="h-4 w-4 text-slate-500" />
+          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-md">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50">
+                  <DollarSign className="h-[18px] w-[18px] text-slate-500" />
+                </div>
+                <div>
+                  <p className="text-[12px] font-medium text-muted-foreground">Pending</p>
+                  <p className="text-xl font-semibold tracking-tight tabular-nums">
+                    {formatCurrency(commission.pending)}
+                  </p>
                 </div>
               </div>
-              <p className="mt-2 text-2xl font-bold text-[#0f172a]">
-                {formatCurrency(commission.pending)}
-              </p>
-              <p className="mt-0.5 text-xs text-[#64748b]">Draft invoices</p>
             </CardContent>
           </Card>
 
-          <Card className="transition-shadow duration-150 hover:shadow-md">
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">YTD Revenue</p>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eff6ff]">
-                  <TrendingUp className="h-4 w-4 text-[#1e40af]" />
+          <Card className="border border-border-subtle transition-all duration-200 hover:border-border hover:shadow-md">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-subtle">
+                  <TrendingUp className="h-[18px] w-[18px] text-primary" />
+                </div>
+                <div>
+                  <p className="text-[12px] font-medium text-muted-foreground">YTD Revenue</p>
+                  <p className="text-xl font-semibold tracking-tight tabular-nums text-primary">
+                    {formatCurrency(commission.ytd)}
+                  </p>
                 </div>
               </div>
-              <p className="mt-2 text-2xl font-bold text-[#1e40af]">
-                {formatCurrency(commission.ytd)}
-              </p>
-              <p className="mt-0.5 text-xs text-[#64748b]">
-                {new Date().getFullYear()} paid commissions
-              </p>
             </CardContent>
           </Card>
         </div>
@@ -285,18 +295,18 @@ export default async function DashboardPage() {
 
       {/* Deal Pipeline */}
       {pipeline && (
-        <Card className="mt-8">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold">Deal Pipeline</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Active deals by stage and status.
+        <Card className="mt-8 border border-border-subtle">
+          <CardContent className="p-5 sm:p-6">
+            <h2 className="text-[15px] font-semibold tracking-tight">Deal Pipeline</h2>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              Active deals by stage and status
             </p>
 
-            <div className="mt-6 space-y-6">
+            <div className="mt-5 space-y-5">
               <PipelineRow stage={pipeline.applications} />
-              <div className="border-t border-[#e2e8f0]" />
+              <div className="border-t border-border-subtle" />
               <PipelineRow stage={pipeline.lois} />
-              <div className="border-t border-[#e2e8f0]" />
+              <div className="border-t border-border-subtle" />
               <PipelineRow stage={pipeline.leases} />
             </div>
           </CardContent>
@@ -312,16 +322,16 @@ export default async function DashboardPage() {
 
       {/* Property Performance */}
       {propertyAnalytics && propertyAnalytics.length > 0 && (
-        <Card className="mt-8">
-          <CardContent className="p-6">
+        <Card className="mt-8 border border-border-subtle">
+          <CardContent className="p-5 sm:p-6">
             <div className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-muted-foreground" />
-              <h2 className="text-lg font-semibold">Property Performance</h2>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-[15px] font-semibold tracking-tight">Property Performance</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Analytics across all properties, sorted by activity.
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              Analytics across all properties, sorted by activity
             </p>
-            <div className="mt-6">
+            <div className="mt-5">
               <PropertyPerformance analytics={propertyAnalytics} />
             </div>
           </CardContent>
@@ -329,30 +339,30 @@ export default async function DashboardPage() {
       )}
 
       {/* Recent Activity */}
-      <Card className="mt-8">
-        <CardContent className="p-6">
-          <h2 className="text-lg font-semibold">Recent Activity</h2>
+      <Card className="mt-8 border border-border-subtle">
+        <CardContent className="p-5 sm:p-6">
+          <h2 className="text-[15px] font-semibold tracking-tight">Recent Activity</h2>
 
           {!activity || activity.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-3 text-[13px] text-muted-foreground">
               Activity feed will appear here as applications and deals come in.
             </p>
           ) : (
-            <ul className="mt-4 divide-y divide-border">
+            <ul className="mt-4 divide-y divide-border-subtle">
               {activity.map((item) => (
-                <li key={`${item.entity_type}-${item.id}`} className="flex items-center justify-between py-3">
+                <li key={`${item.entity_type}-${item.id}`} className="flex items-center justify-between py-3 first:pt-0">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">
+                    <p className="truncate text-[13px] font-medium text-foreground">
                       {item.title}
                     </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
                       {ENTITY_LABELS[item.entity_type] ?? item.entity_type}
                       {' · '}
                       {formatRelativeDate(item.created_at)}
                     </p>
                   </div>
                   <span
-                    className={`ml-4 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    className={`ml-4 shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium ${
                       STATUS_COLORS[item.status] ?? 'bg-slate-100 text-slate-600'
                     }`}
                   >

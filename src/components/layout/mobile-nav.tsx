@@ -137,15 +137,17 @@ export function MobileNav() {
         aria-label="Navigation menu"
         aria-modal={open}
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-64 transform bg-white shadow-xl transition-transform duration-200 ease-in-out lg:hidden',
+          'fixed inset-y-0 left-0 z-50 w-64 transform bg-[var(--background-raised)] shadow-xl transition-transform duration-200 ease-in-out lg:hidden',
           open ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         {/* Drawer header */}
-        <div className="flex h-16 items-center justify-between border-b border-border px-4">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" aria-hidden="true" />
-            <span className="text-lg font-semibold">Rocket Realty</span>
+        <div className="flex h-14 items-center justify-between border-b border-border px-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
+              <Building2 className="h-3.5 w-3.5 text-white" aria-hidden="true" />
+            </div>
+            <span className="text-[15px] font-semibold tracking-tight">Rocket Realty</span>
           </div>
           <button
             onClick={closeDrawer}

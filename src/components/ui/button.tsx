@@ -4,13 +4,13 @@ import { cn } from '@/lib/utils';
 
 const variantStyles = {
   primary:
-    'bg-primary text-white hover:bg-primary-light focus-visible:outline-primary',
+    'bg-primary text-white hover:bg-primary-light shadow-sm shadow-primary/15 hover:shadow-md hover:shadow-primary/20 focus-visible:outline-primary',
   secondary:
-    'border border-border bg-white text-foreground hover:bg-muted focus-visible:outline-primary',
+    'border border-border bg-[var(--background-raised)] text-foreground hover:bg-muted focus-visible:outline-primary',
   ghost:
     'text-foreground hover:bg-muted focus-visible:outline-primary',
   destructive:
-    'bg-destructive text-white hover:bg-red-700 focus-visible:outline-destructive',
+    'bg-destructive text-white hover:bg-red-700 shadow-sm shadow-destructive/15 focus-visible:outline-destructive',
 } as const;
 
 const sizeStyles = {
@@ -62,7 +62,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={isDisabled}
         className={cn(
-          'inline-flex items-center justify-center font-medium transition-colors duration-150',
+          'inline-flex items-center justify-center font-medium transition-all duration-150',
           'focus-visible:outline-2 focus-visible:outline-offset-2',
           variantStyles[variant],
           isIconOnly ? iconOnlySizes[size] : sizeStyles[size],

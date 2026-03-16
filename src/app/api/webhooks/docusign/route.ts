@@ -372,5 +372,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 export async function GET(): Promise<NextResponse> {
-  return NextResponse.json({ status: 'ok', service: 'docusign-webhook' });
+  return NextResponse.json({ error: 'Not found' }, { status: 404 });
 }

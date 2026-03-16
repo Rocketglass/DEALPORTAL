@@ -174,14 +174,14 @@ export function Header() {
   }
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-white px-6">
+    <header className="flex h-14 items-center justify-between border-b border-border bg-[var(--background-raised)] px-6">
       {/* Page title */}
-      <h1 className="text-lg font-semibold text-foreground">
+      <h1 className="text-[15px] font-semibold tracking-tight text-foreground">
         {getPageTitle(pathname)}
       </h1>
 
       {/* Right side actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         {/* Notification bell */}
         <div className="relative">
           <button
@@ -192,9 +192,9 @@ export function Header() {
             aria-label="Notifications"
             aria-expanded={showNotifications}
             aria-haspopup="dialog"
-            className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="relative flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground"
           >
-            <Bell className="h-5 w-5" />
+            <Bell className="h-[18px] w-[18px]" />
             {unreadCount > 0 && (
               <span
                 aria-live="polite"
@@ -224,15 +224,15 @@ export function Header() {
             aria-label="User menu"
             aria-expanded={showUserMenu}
             aria-haspopup="true"
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground"
           >
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white"
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-semibold text-primary"
               title={userDisplay.label}
             >
               {userDisplay.initials}
             </div>
-            <ChevronDown className="h-3.5 w-3.5" />
+            <ChevronDown className="h-3 w-3" />
           </button>
 
           {showUserMenu && (
@@ -245,12 +245,11 @@ export function Header() {
               <div
                 role="menu"
                 aria-label="User menu"
-                className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-border bg-white py-1 shadow-lg"
+                className="absolute right-0 top-full z-50 mt-1.5 w-52 rounded-xl border border-border bg-[var(--background-raised)] py-1 shadow-lg shadow-black/[0.08]"
               >
-                {/* User identity — read-only header row */}
                 {userDisplay.label && (
-                  <div className="border-b border-border px-3 pb-2 pt-1.5">
-                    <p className="max-w-full truncate text-xs font-medium text-foreground">
+                  <div className="border-b border-border-subtle px-3 pb-2 pt-2">
+                    <p className="max-w-full truncate text-[12px] font-medium text-muted-foreground">
                       {userDisplay.label}
                     </p>
                   </div>
@@ -259,7 +258,7 @@ export function Header() {
                   href="/settings"
                   role="menuitem"
                   onClick={() => setShowUserMenu(false)}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                  className="flex items-center gap-2.5 px-3 py-2 text-[13px] text-foreground transition-colors duration-150 hover:bg-muted"
                 >
                   <User className="h-4 w-4 text-muted-foreground" />
                   Profile
@@ -268,16 +267,16 @@ export function Header() {
                   href="/settings"
                   role="menuitem"
                   onClick={() => setShowUserMenu(false)}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                  className="flex items-center gap-2.5 px-3 py-2 text-[13px] text-foreground transition-colors duration-150 hover:bg-muted"
                 >
                   <Settings className="h-4 w-4 text-muted-foreground" />
                   Settings
                 </Link>
-                <div className="my-1 border-t border-border" />
+                <div className="my-1 border-t border-border-subtle" />
                 <button
                   onClick={handleSignOut}
                   role="menuitem"
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground transition-colors duration-150 hover:bg-muted"
                 >
                   <LogOut className="h-4 w-4 text-muted-foreground" />
                   Sign Out

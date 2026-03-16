@@ -24,6 +24,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { LoiSectionStatus } from '@/types/database';
 import { notifyLoiCountered, notifyLoiAgreed } from '@/lib/email/notifications';
+import { sanitizeHtml, sanitizeUuid } from '@/lib/security/sanitize';
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -102,11 +103,14 @@ export async function POST(
 
     // Process each section response
     for (const resp of responses) {
-      const { sectionId, action, value, note } = resp;
+      const { sectionId, action } = resp;
+      // Sanitize user-provided text to prevent stored XSS
+      const value = resp.value ? sanitizeHtml(resp.value) : resp.value;
+      const note = resp.note ? sanitizeHtml(resp.note) : resp.note;
 
-      if (!sectionId || !action || !ACTION_TO_STATUS[action]) {
+      if (!sectionId || !sanitizeUuid(sectionId) || !action || !ACTION_TO_STATUS[action]) {
         return NextResponse.json(
-          { error: `Invalid response for section ${sectionId}: action must be accept, counter, or reject` },
+          { error: 'Invalid section response: sectionId must be a valid UUID and action must be accept, counter, or reject' },
           { status: 400 },
         );
       }
@@ -286,7 +290,7 @@ export async function POST(
     return NextResponse.json({ success: true, loiStatus: newLoiStatus });
   } catch (error) {
     console.error('[LOI respond] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[LOI respond] Error details:', error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
   }
 }

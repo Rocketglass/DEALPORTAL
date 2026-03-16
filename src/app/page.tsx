@@ -1,25 +1,28 @@
 import Link from 'next/link';
-import { Building2, ArrowRight } from 'lucide-react';
+import { Building2, ArrowRight, Shield, Zap, BarChart3 } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-[var(--background)]">
+      {/* Header */}
       <header className="border-b border-border">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">Rocket Realty</span>
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
+              <Building2 className="h-3.5 w-3.5 text-white" />
+            </div>
+            <span className="text-[15px] font-semibold tracking-tight">Rocket Realty</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-5">
             <Link
               href="/browse"
-              className="text-sm text-muted-foreground transition-colors duration-150 hover:text-foreground"
+              className="text-[13px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
             >
               Properties
             </Link>
             <Link
               href="/login"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-primary-light"
+              className="rounded-lg bg-primary px-3.5 py-1.5 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-primary-light"
             >
               Sign In
             </Link>
@@ -27,27 +30,66 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="flex flex-1 flex-col items-center justify-center px-4 text-center">
-        <h1 className="animate-fade-in-up max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
-          Commercial Leasing,{' '}
-          <span className="text-primary">Simplified</span>
-        </h1>
-        <p className="animate-fade-in-up-delay-1 mt-4 max-w-lg text-lg text-muted-foreground">
-          Browse available spaces, submit applications, and manage your lease —
-          all in one place.
-        </p>
-        <div className="animate-fade-in-up-delay-2 mt-8 flex gap-4">
-          <Link
-            href="/browse"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-primary-light"
-          >
-            View Properties
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+      {/* Hero */}
+      <main className="flex flex-1 flex-col items-center justify-center px-4">
+        <div className="w-full max-w-2xl text-center">
+          <h1 className="animate-fade-in-up text-3xl font-semibold tracking-tight sm:text-4xl lg:text-[44px] lg:leading-tight">
+            Commercial Leasing,{' '}
+            <span className="text-primary">Simplified</span>
+          </h1>
+          <p className="animate-fade-in-up-delay-1 mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+            Browse available spaces, submit applications, and manage your entire lease
+            lifecycle — all in one place.
+          </p>
+          <div className="animate-fade-in-up-delay-2 mt-8 flex justify-center gap-3">
+            <Link
+              href="/browse"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-medium text-white transition-all duration-150 hover:bg-primary-light hover:shadow-md hover:shadow-primary/20"
+            >
+              View Properties
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center rounded-lg border border-border px-5 py-2.5 text-[13px] font-medium text-foreground transition-all duration-150 hover:bg-muted"
+            >
+              Broker Login
+            </Link>
+          </div>
+        </div>
+
+        {/* Value props */}
+        <div className="animate-fade-in-up-delay-3 mx-auto mt-20 grid w-full max-w-2xl grid-cols-1 gap-6 sm:grid-cols-3">
+          {[
+            {
+              icon: Zap,
+              title: 'Fast Applications',
+              desc: 'Scan a QR code and apply in minutes from your phone.',
+            },
+            {
+              icon: Shield,
+              title: 'Secure Documents',
+              desc: 'Bank-grade encryption for leases and financial docs.',
+            },
+            {
+              icon: BarChart3,
+              title: 'Deal Analytics',
+              desc: 'Real-time pipeline tracking from LOI to lease execution.',
+            },
+          ].map((item) => (
+            <div key={item.title} className="text-center sm:text-left">
+              <item.icon className="mx-auto h-5 w-5 text-primary sm:mx-0" />
+              <h3 className="mt-3 text-[13px] font-semibold text-foreground">{item.title}</h3>
+              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                {item.desc}
+              </p>
+            </div>
+          ))}
         </div>
       </main>
 
-      <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground">
+      {/* Footer */}
+      <footer className="border-t border-border py-5 text-center text-[12px] text-muted-foreground">
         &copy; {new Date().getFullYear()} Rocket Realty. All rights reserved.
       </footer>
     </div>

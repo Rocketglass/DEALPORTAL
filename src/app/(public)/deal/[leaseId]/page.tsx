@@ -66,10 +66,12 @@ interface CommissionRow {
 async function fetchLease(leaseId: string) {
   const supabase = getServiceClient();
 
+  // Only expose executed leases publicly — restrict select to needed fields
   const { data: lease, error } = await supabase
     .from('leases')
     .select(
-      `*,
+      `id, status, premises_sf, base_rent_monthly, term_months, term_years,
+      commencement_date, expiration_date, lessee_name, lessor_name,
       property:properties(name, address, city, state, property_type),
       unit:units(suite_number, sf),
       tenant:contacts!leases_tenant_contact_id_fkey(company_name, first_name, last_name),
@@ -77,10 +79,11 @@ async function fetchLease(leaseId: string) {
       broker:contacts!leases_broker_contact_id_fkey(company_name, first_name, last_name)`
     )
     .eq('id', leaseId)
+    .eq('status', 'executed')
     .single();
 
   if (error || !lease) return null;
-  return lease as LeaseRow;
+  return lease as unknown as LeaseRow;
 }
 
 async function fetchCommission(leaseId: string) {

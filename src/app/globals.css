@@ -1,7 +1,56 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Accessibility: Focus visible for keyboard navigation only
+   Design tokens — tinted neutrals toward brand blue for subconscious cohesion
+   --------------------------------------------------------------------------- */
+
+:root {
+  --background: #fafbfd;
+  --background-raised: #ffffff;
+  --foreground: #111827;
+  --foreground-secondary: #374151;
+  --primary: #1e40af;
+  --primary-light: #2563eb;
+  --primary-subtle: #eff4ff;
+  --muted: #f0f2f7;
+  --muted-foreground: #5b6577;
+  --border: #e1e5ee;
+  --border-subtle: #ebeef5;
+  --destructive: #dc2626;
+  --success: #059669;
+  --warning: #d97706;
+  --ring: #1e40af33;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --font-sans: var(--font-inter);
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+   --------------------------------------------------------------------------- */
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---------------------------------------------------------------------------
+   Accessibility
    --------------------------------------------------------------------------- */
 
 :focus-visible {
@@ -9,14 +58,9 @@
   outline-offset: 2px;
 }
 
-/* Remove default focus for mouse users */
 :focus:not(:focus-visible) {
   outline: none;
 }
-
-/* ---------------------------------------------------------------------------
-   Accessibility: Reduced motion preference
-   --------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -28,46 +72,45 @@
   }
 }
 
-:root {
-  --background: #ffffff;
-  --foreground: #0f172a;
-  --primary: #1e40af;
-  --primary-light: #3b82f6;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --border: #e2e8f0;
-  --destructive: #dc2626;
-  --success: #16a34a;
-  --warning: #d97706;
-}
+/* ---------------------------------------------------------------------------
+   Selection
+   --------------------------------------------------------------------------- */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-primary-light: var(--primary-light);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --font-sans: var(--font-inter);
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
+::selection {
+  background: var(--primary);
+  color: #ffffff;
 }
 
 /* ---------------------------------------------------------------------------
-   Page transitions & animations
+   Scrollbar — subtle, unobtrusive
+   --------------------------------------------------------------------------- */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* ---------------------------------------------------------------------------
+   Animations — exponential easing for natural deceleration
    --------------------------------------------------------------------------- */
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -78,7 +121,7 @@ body {
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -86,20 +129,39 @@ body {
   }
 }
 
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out both;
+  animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out both;
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-fade-in-up-delay-1 {
-  animation: fadeInUp 0.5s ease-out 0.1s both;
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
 .animate-fade-in-up-delay-2 {
-  animation: fadeInUp 0.5s ease-out 0.2s both;
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+.animate-fade-in-up-delay-3 {
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes shake {
@@ -111,3 +173,20 @@ body {
 .animate-shake {
   animation: shake 0.3s ease-in-out;
 }
+
+/* ---------------------------------------------------------------------------
+   Stagger children — for dashboard cards etc.
+   --------------------------------------------------------------------------- */
+
+.stagger-children > * {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 420ms; }

@@ -8,20 +8,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { notifyLoiSentToLandlord } from '@/lib/email/notifications';
+import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
+    // Require broker or admin role
+    try {
+      await requireBrokerOrAdminForApi();
+    } catch (authError) {
+      return NextResponse.json(
+        { error: (authError as Error).message },
+        { status: 401 },
+      );
+    }
+
     const { id: loiId } = await params;
     const supabase = await createClient();
-
-    // Verify authenticated user (broker/admin)
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Fetch the LOI with all related contacts and property data
     const { data: loi, error: loiError } = await supabase
@@ -93,7 +98,6 @@ export async function POST(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[POST /api/lois/[id]/resend] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to resend LOI notification' }, { status: 500 });
   }
 }

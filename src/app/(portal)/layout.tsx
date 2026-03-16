@@ -77,7 +77,7 @@ export default async function PortalLayout({
           </div>
         </div>
 
-        <main id="main-content" className="flex-1 overflow-auto bg-muted" tabIndex={-1}>
+        <main id="main-content" className="flex-1 overflow-auto bg-background" tabIndex={-1}>
           <div className="animate-fade-in">
             {children}
           </div>

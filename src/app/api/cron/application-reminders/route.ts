@@ -10,10 +10,10 @@ function getServiceClient() {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  // Verify cron secret
+  // Verify cron secret — fail closed if not configured
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   if (queryError) {
     console.error('[cron/application-reminders] Query error:', queryError);
-    return NextResponse.json({ error: queryError.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to query applications' }, { status: 500 });
   }
 
   if (!draftApps || draftApps.length === 0) {
@@ -66,9 +66,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rocket-realty-portal.vercel.app';
 
   for (const app of draftApps) {
-    const contact = app.contact as any;
-    const property = app.property as any;
-    const unit = app.unit as any;
+    const contact = app.contact as unknown as { first_name: string | null; email: string | null } | null;
+    const property = app.property as unknown as { address: string; city: string; state: string } | null;
+    const unit = app.unit as unknown as { suite_number: string | null } | null;
 
     if (!contact?.email) {
       skipped++;

@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createEnvelope, isDocuSignConfigured } from '@/lib/docusign/client';
 import type { LeaseWithRelations } from '@/types/database';
 import { notifyLeaseReadyForSignature } from '@/lib/email/notifications';
+import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 
 export async function POST(
   _request: NextRequest,
@@ -23,14 +24,19 @@ export async function POST(
       );
     }
 
+    // Require broker or admin role
+    let currentUser;
+    try {
+      currentUser = await requireBrokerOrAdminForApi();
+    } catch (authError) {
+      return NextResponse.json(
+        { error: (authError as Error).message },
+        { status: 401 },
+      );
+    }
+
     const { id } = await params;
     const supabase = await createClient();
-
-    // Verify the user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Fetch lease with relations
     const { data: lease, error: leaseError } = await supabase
@@ -122,7 +128,7 @@ export async function POST(
 
     // Audit log
     await supabase.from('audit_log').insert({
-      user_id: user.id,
+      user_id: currentUser.id,
       action: 'lease_sent_for_signature',
       entity_type: 'lease',
       entity_id: id,
@@ -155,7 +161,6 @@ export async function POST(
     });
   } catch (error) {
     console.error('[Send for Signing] Error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to send for signing';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to send for signing' }, { status: 500 });
   }
 }

@@ -233,8 +233,8 @@ export function DataTable<T extends object>({
 
       {/* Bulk action toolbar */}
       {selectable && selectedIds.size > 0 && bulkActions && (
-        <div className="mb-3 flex items-center gap-3 rounded-lg bg-[#eff6ff] px-4 py-2.5">
-          <span className="text-sm font-medium text-[#1e40af]">
+        <div className="mb-3 flex items-center gap-3 rounded-lg bg-primary-subtle border border-primary/10 px-4 py-2.5">
+          <span className="text-[13px] font-medium text-primary">
             {selectedIds.size} selected
           </span>
           <div className="flex gap-2">
@@ -252,7 +252,7 @@ export function DataTable<T extends object>({
           </div>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="ml-auto text-xs text-[#64748b] hover:text-[#0f172a]"
+            className="ml-auto text-[11px] text-muted-foreground hover:text-foreground transition-colors"
           >
             Clear selection
           </button>
@@ -261,7 +261,7 @@ export function DataTable<T extends object>({
 
       {/* Table */}
       {showEmpty && sorted.length === 0 ? (
-        <div className="rounded-xl border border-border bg-white py-16 text-center">
+        <div className="rounded-xl border border-border-subtle bg-[var(--background-raised)] py-16 text-center">
           {EmptyIcon && (
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
               <EmptyIcon className="h-6 w-6 text-muted-foreground" />
@@ -300,16 +300,16 @@ export function DataTable<T extends object>({
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-border-subtle bg-[var(--background-raised)]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[640px] text-[13px]">
               <thead>
-                <tr className="border-b border-border text-left">
+                <tr className="border-b border-border text-left bg-muted/40">
                   {selectable && (
                     <th scope="col" className="w-10 px-4 py-3">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded accent-[#1e40af]"
+                        className="h-4 w-4 rounded accent-primary"
                         checked={
                           paginated.length > 0 &&
                           paginated.every((row) =>
@@ -370,14 +370,14 @@ export function DataTable<T extends object>({
                     <tr
                       key={rowId}
                       className={`border-b border-border last:border-0 transition-colors duration-150 ${
-                        isSelected ? 'bg-[#eff6ff]' : 'hover:bg-muted/50'
+                        isSelected ? 'bg-primary-subtle' : 'hover:bg-muted/30'
                       }`}
                     >
                       {selectable && (
                         <td className="w-10 px-4 py-3">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 rounded accent-[#1e40af]"
+                            className="h-4 w-4 rounded accent-primary"
                             checked={isSelected}
                             onChange={(e) => {
                               setSelectedIds((prev) => {

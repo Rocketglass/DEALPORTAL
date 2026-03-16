@@ -45,18 +45,8 @@ function isSupabaseConfigured(): boolean {
  */
 export async function requireAuth(): Promise<AuthUser> {
   if (!isSupabaseConfigured()) {
-    // Supabase not configured — fail closed in production, provide dev fallback
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        '[Auth Guard] Supabase not configured. Returning dev fallback user.',
-      );
-      return {
-        id: 'dev-user-id',
-        email: 'dev@localhost',
-        role: 'admin',
-        contactId: null,
-      };
-    }
+    // Supabase not configured — always fail closed (no dev fallback)
+    console.error('[Auth Guard] Supabase not configured. Redirecting to login.');
     redirect('/login');
   }
 
@@ -171,15 +161,8 @@ export async function requireOwnership(userId: string): Promise<AuthUser> {
  */
 export async function requireAuthForApi(): Promise<AuthUser> {
   if (!isSupabaseConfigured()) {
-    if (process.env.NODE_ENV === 'development') {
-      return {
-        id: 'dev-user-id',
-        email: 'dev@localhost',
-        role: 'admin',
-        contactId: null,
-      };
-    }
-    throw new Error('Unauthorized: Supabase not configured');
+    // Always fail closed — no dev fallback
+    throw new Error('Unauthorized: Authentication service not configured');
   }
 
   const { createClient } = await import('@/lib/supabase/server');

@@ -54,6 +54,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const contactIds = contacts.map((c) => c.id);
 
     // Fetch applications with their property, unit, and documents
+    // Note: review_notes intentionally excluded — internal broker data
     const { data: rows, error: appsError } = await supabase
       .from('applications')
       .select(`
@@ -61,7 +62,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         status,
         business_name,
         submitted_at,
-        review_notes,
         property:properties(name),
         unit:units(suite_number),
         documents:application_documents(
@@ -101,7 +101,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         suiteName: unit?.suite_number ?? null,
         submittedAt: row.submitted_at as string | null,
         status: (row.status as ApplicationStatus),
-        brokerNotes: (row.review_notes as string | null) ?? null,
         documents: documents.map((doc) => ({
           id: doc.id,
           name: doc.file_name,
@@ -115,7 +114,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ applications });
   } catch (error) {
     console.error('[applications/status GET] unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Unexpected server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
   }
 }
