@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, type ReactNode } from 'react';
+import { useState, useMemo, useCallback, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { type LucideIcon, Download } from 'lucide-react';
 import { Button } from './button';
@@ -79,6 +79,8 @@ export function DataTable<T extends object>({
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const bulkLockRef = useRef(false);
 
   // Filter and search
   const filtered = useMemo(() => {
@@ -244,7 +246,20 @@ export function DataTable<T extends object>({
                 variant={action.variant || 'secondary'}
                 size="sm"
                 icon={action.icon}
-                onClick={() => action.onClick(Array.from(selectedIds))}
+                loading={bulkLoading}
+                disabled={bulkLoading}
+                onClick={async () => {
+                  if (bulkLockRef.current) return;
+                  bulkLockRef.current = true;
+                  setBulkLoading(true);
+                  try {
+                    await action.onClick(Array.from(selectedIds));
+                    setSelectedIds(new Set());
+                  } finally {
+                    setBulkLoading(false);
+                    bulkLockRef.current = false;
+                  }
+                }}
               >
                 {action.label}
               </Button>
@@ -302,7 +317,7 @@ export function DataTable<T extends object>({
       ) : (
         <div className="overflow-hidden rounded-xl border border-border-subtle bg-[var(--background-raised)]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-[13px]">
+            <table className="w-full min-w-[640px] table-fixed text-[13px]">
               <thead>
                 <tr className="border-b border-border text-left bg-muted/40">
                   {selectable && (
@@ -394,7 +409,7 @@ export function DataTable<T extends object>({
                         </td>
                       )}
                       {columns.map((col) => (
-                        <td key={col.key} className="px-4 py-3">
+                        <td key={col.key} className="truncate px-4 py-3">
                           {col.render
                             ? col.render(row)
                             : (getNestedValue(row, col.key) as ReactNode) ?? ''}
