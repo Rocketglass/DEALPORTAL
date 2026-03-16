@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSecurityHeaders } from '@/lib/security/headers';
+import { checkRateLimit } from '@/lib/security/rate-limit';
 
 /**
  * All portal routes that require broker/admin authentication.
@@ -50,29 +51,6 @@ function isProtectedRoute(pathname: string): boolean {
   );
 }
 
-/**
- * Simple in-memory rate limiting tracker.
- * In production, this would be Redis-backed. For now, this provides
- * rate-limit headers as hints and basic per-IP tracking.
- */
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 100; // per window
-
-function getRateLimitInfo(ip: string): { remaining: number; resetAt: number } {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    const resetAt = now + RATE_LIMIT_WINDOW_MS;
-    rateLimitMap.set(ip, { count: 1, resetAt });
-    return { remaining: RATE_LIMIT_MAX_REQUESTS - 1, resetAt };
-  }
-
-  entry.count++;
-  const remaining = Math.max(0, RATE_LIMIT_MAX_REQUESTS - entry.count);
-  return { remaining, resetAt: entry.resetAt };
-}
 
 /**
  * Apply security headers to a response.
@@ -89,14 +67,13 @@ function applySecurityHeaders(response: NextResponse): void {
  */
 function applyRateLimitHeaders(
   response: NextResponse,
-  remaining: number,
-  resetAt: number,
+  result: { limit: number; remaining: number; reset: number },
 ): void {
-  response.headers.set('X-RateLimit-Limit', String(RATE_LIMIT_MAX_REQUESTS));
-  response.headers.set('X-RateLimit-Remaining', String(remaining));
+  response.headers.set('X-RateLimit-Limit', String(result.limit));
+  response.headers.set('X-RateLimit-Remaining', String(result.remaining));
   response.headers.set(
     'X-RateLimit-Reset',
-    String(Math.ceil(resetAt / 1000)),
+    String(Math.ceil(result.reset / 1000)),
   );
 }
 
@@ -160,12 +137,13 @@ export async function updateSession(request: NextRequest) {
     request.headers.get('x-real-ip') ||
     '127.0.0.1';
 
-  const rateLimitInfo = getRateLimitInfo(clientIp);
+  const pathname = request.nextUrl.pathname;
+  const rateLimitResult = await checkRateLimit(clientIp, pathname);
 
   // CSRF validation for mutation requests
   if (!validateCsrf(request)) {
     console.error(
-      `[Security] CSRF validation failed for ${request.method} ${request.nextUrl.pathname} from IP ${clientIp}`,
+      `[Security] CSRF validation failed for ${request.method} ${pathname} from IP ${clientIp}`,
     );
     const response = NextResponse.json(
       { error: 'CSRF validation failed' },
@@ -176,19 +154,19 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Rate limit exceeded
-  if (rateLimitInfo.remaining <= 0) {
+  if (!rateLimitResult.success) {
     console.warn(
-      `[Security] Rate limit exceeded for IP ${clientIp} on ${request.nextUrl.pathname}`,
+      `[Security] Rate limit exceeded for IP ${clientIp} on ${pathname}`,
     );
     const response = NextResponse.json(
       { error: 'Too many requests' },
       { status: 429 },
     );
     applySecurityHeaders(response);
-    applyRateLimitHeaders(response, 0, rateLimitInfo.resetAt);
+    applyRateLimitHeaders(response, rateLimitResult);
     response.headers.set(
       'Retry-After',
-      String(Math.ceil((rateLimitInfo.resetAt - Date.now()) / 1000)),
+      String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
     );
     return response;
   }
@@ -197,7 +175,7 @@ export async function updateSession(request: NextRequest) {
   if (!url || !key) {
     const response = NextResponse.next({ request });
     applySecurityHeaders(response);
-    applyRateLimitHeaders(response, rateLimitInfo.remaining, rateLimitInfo.resetAt);
+    applyRateLimitHeaders(response, rateLimitResult);
     return response;
   }
 
@@ -224,8 +202,6 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
-
   // Protected portal routes — redirect to login if not authenticated
   if (!user && isProtectedRoute(pathname)) {
     console.warn(
@@ -236,7 +212,7 @@ export async function updateSession(request: NextRequest) {
     redirectUrl.searchParams.set('redirect', pathname);
     const response = NextResponse.redirect(redirectUrl);
     applySecurityHeaders(response);
-    applyRateLimitHeaders(response, rateLimitInfo.remaining, rateLimitInfo.resetAt);
+    applyRateLimitHeaders(response, rateLimitResult);
     return response;
   }
 
@@ -267,7 +243,7 @@ export async function updateSession(request: NextRequest) {
       redirectUrl.search = '';
       const response = NextResponse.redirect(redirectUrl);
       applySecurityHeaders(response);
-      applyRateLimitHeaders(response, rateLimitInfo.remaining, rateLimitInfo.resetAt);
+      applyRateLimitHeaders(response, rateLimitResult);
       return response;
     }
   }
@@ -308,7 +284,7 @@ export async function updateSession(request: NextRequest) {
       { status: 401 },
     );
     applySecurityHeaders(response);
-    applyRateLimitHeaders(response, rateLimitInfo.remaining, rateLimitInfo.resetAt);
+    applyRateLimitHeaders(response, rateLimitResult);
     return response;
   }
 
@@ -318,13 +294,13 @@ export async function updateSession(request: NextRequest) {
     redirectUrl.pathname = '/dashboard';
     const response = NextResponse.redirect(redirectUrl);
     applySecurityHeaders(response);
-    applyRateLimitHeaders(response, rateLimitInfo.remaining, rateLimitInfo.resetAt);
+    applyRateLimitHeaders(response, rateLimitResult);
     return response;
   }
 
   // Apply security headers to all responses
   applySecurityHeaders(supabaseResponse);
-  applyRateLimitHeaders(supabaseResponse, rateLimitInfo.remaining, rateLimitInfo.resetAt);
+  applyRateLimitHeaders(supabaseResponse, rateLimitResult);
 
   return supabaseResponse;
 }
