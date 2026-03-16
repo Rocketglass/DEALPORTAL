@@ -128,13 +128,24 @@ export async function POST(
 
       const newStatus = ACTION_TO_STATUS[action];
 
+      // When accepting, copy the proposed_value to agreed_value
+      let agreedValue: string | null = null;
+      if (action === 'accept') {
+        const { data: sectionData } = await supabase
+          .from('loi_sections')
+          .select('proposed_value')
+          .eq('id', sectionId)
+          .single();
+        agreedValue = sectionData?.proposed_value ?? null;
+      }
+
       // Update the section status and landlord response
       const { error: sectionError } = await supabase
         .from('loi_sections')
         .update({
           status: newStatus,
           landlord_response: action === 'counter' ? (value ?? null) : (note ?? null),
-          agreed_value: null,
+          agreed_value: agreedValue,
           updated_at: now,
         })
         .eq('id', sectionId)

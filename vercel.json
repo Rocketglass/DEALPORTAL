@@ -60,5 +60,11 @@
       ]
     }
   ],
-  "redirects": []
+  "redirects": [],
+  "crons": [
+    {
+      "path": "/api/cron/application-reminders",
+      "schedule": "0 9 * * *"
+    }
+  ]
 }

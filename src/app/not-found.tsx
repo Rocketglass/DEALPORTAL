@@ -17,7 +17,7 @@ export default function NotFound() {
           Go Home
         </Link>
         <Link
-          href="/properties"
+          href="/browse"
           className="text-sm font-medium text-[var(--primary)] hover:underline"
         >
           View Properties

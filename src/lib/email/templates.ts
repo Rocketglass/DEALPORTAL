@@ -443,3 +443,62 @@ export function inspectionBooked(data: InspectionBookedData): {
     `),
   };
 }
+
+// ---------------------------------------------------------------------------
+// 10. Application reminder — sent to applicant (24h follow-up)
+// ---------------------------------------------------------------------------
+
+interface ApplicationReminderData {
+  applicantFirstName: string;
+  propertyAddress: string;
+  suiteNumber?: string;
+  resumeUrl: string;
+}
+
+export function applicationReminder(data: ApplicationReminderData): {
+  subject: string;
+  html: string;
+} {
+  const locationText = data.suiteNumber
+    ? `Suite ${data.suiteNumber} at ${data.propertyAddress}`
+    : data.propertyAddress;
+
+  return {
+    subject: `Finish Your Application — ${data.propertyAddress}`,
+    html: layout(`
+      ${heading('Finish Your Application')}
+      ${paragraph(`Hi ${data.applicantFirstName},`)}
+      ${paragraph(`You started an application for <strong>${locationText}</strong>. It looks like you haven\u2019t finished yet.`)}
+      ${paragraph('Click below to pick up where you left off \u2014 it only takes a few minutes.')}
+      ${ctaButton('Resume Application', data.resumeUrl)}
+      ${paragraph('If you have questions, simply reply to this email.')}
+      ${paragraph('\u2014 Rocket Realty')}
+    `),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 11. Application reminder urgent — sent to applicant (72h follow-up)
+// ---------------------------------------------------------------------------
+
+export function applicationReminderUrgent(data: ApplicationReminderData): {
+  subject: string;
+  html: string;
+} {
+  const locationText = data.suiteNumber
+    ? `Suite ${data.suiteNumber} at ${data.propertyAddress}`
+    : data.propertyAddress;
+
+  return {
+    subject: `Your application is waiting — ${data.propertyAddress}`,
+    html: layout(`
+      ${heading("Don\u2019t Miss Out")}
+      ${paragraph(`Hi ${data.applicantFirstName},`)}
+      ${paragraph(`Don\u2019t miss out on <strong>${locationText}</strong>. Your application is almost complete \u2014 it only takes a few minutes to finish.`)}
+      ${paragraph('Spaces like this don\u2019t stay available long. Complete your application today.')}
+      ${ctaButton('Finish Application', data.resumeUrl)}
+      ${paragraph('If you have questions, simply reply to this email.')}
+      ${paragraph('\u2014 Rocket Realty')}
+    `),
+  };
+}

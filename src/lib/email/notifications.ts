@@ -9,6 +9,8 @@ import { sendEmail } from './send';
 import {
   applicationReceived,
   applicationStatusUpdate,
+  applicationReminder,
+  applicationReminderUrgent,
   loiSentToLandlord,
   loiCountered,
   loiAgreed,
@@ -277,4 +279,38 @@ export async function notifyInspectionBooked(
   });
 
   await sendEmail({ to: brokerEmail, subject, html });
+}
+
+// ---------------------------------------------------------------------------
+// 10. Application reminder — 24h follow-up for incomplete applications
+// ---------------------------------------------------------------------------
+
+export async function notifyApplicationReminder(
+  params: {
+    applicantFirstName: string;
+    propertyAddress: string;
+    suiteNumber?: string;
+    resumeUrl: string;
+  },
+  recipientEmail: string,
+): Promise<void> {
+  const { subject, html } = applicationReminder(params);
+  await sendEmail({ to: recipientEmail, subject, html });
+}
+
+// ---------------------------------------------------------------------------
+// 11. Application reminder urgent — 72h follow-up for incomplete applications
+// ---------------------------------------------------------------------------
+
+export async function notifyApplicationReminderUrgent(
+  params: {
+    applicantFirstName: string;
+    propertyAddress: string;
+    suiteNumber?: string;
+    resumeUrl: string;
+  },
+  recipientEmail: string,
+): Promise<void> {
+  const { subject, html } = applicationReminderUrgent(params);
+  await sendEmail({ to: recipientEmail, subject, html });
 }

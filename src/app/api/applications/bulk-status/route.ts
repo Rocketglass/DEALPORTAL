@@ -66,29 +66,25 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   try {
     const supabase = getServiceClient();
 
-    let updated = 0;
-    let errors = 0;
+    const { data: updatedRows, error: updateError } = await supabase
+      .from('applications')
+      .update({
+        status: status as ApplicationStatus,
+        updated_at: now,
+        reviewed_at: now,
+        reviewed_by: currentUser.id,
+      })
+      .in('id', ids as string[])
+      .select('id');
 
-    for (const id of ids) {
-      const { error: updateError } = await supabase
-        .from('applications')
-        .update({
-          status: status as ApplicationStatus,
-          updated_at: now,
-          reviewed_at: now,
-          reviewed_by: currentUser.id,
-        })
-        .eq('id', id);
+    const updated = updatedRows?.length ?? 0;
+    const errors = (ids as string[]).length - updated;
 
-      if (updateError) {
-        console.error(
-          `[PATCH /api/applications/bulk-status] Failed to update ${id}:`,
-          updateError.message,
-        );
-        errors++;
-      } else {
-        updated++;
-      }
+    if (updateError) {
+      console.error(
+        `[PATCH /api/applications/bulk-status] Update error:`,
+        updateError.message,
+      );
     }
 
     console.log(

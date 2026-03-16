@@ -62,33 +62,29 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   try {
     const supabase = getServiceClient();
 
-    let updated = 0;
-    let errors = 0;
+    const updatePayload: Record<string, unknown> = {
+      status: status as InvoiceStatus,
+      updated_at: now,
+    };
 
-    for (const id of ids) {
-      const updatePayload: Record<string, unknown> = {
-        status: status as InvoiceStatus,
-        updated_at: now,
-      };
+    if (status === 'sent') {
+      updatePayload.sent_date = now;
+    }
 
-      if (status === 'sent') {
-        updatePayload.sent_date = now;
-      }
+    const { data: updatedRows, error: updateError } = await supabase
+      .from('commission_invoices')
+      .update(updatePayload)
+      .in('id', ids as string[])
+      .select('id');
 
-      const { error: updateError } = await supabase
-        .from('commission_invoices')
-        .update(updatePayload)
-        .eq('id', id);
+    const updated = updatedRows?.length ?? 0;
+    const errors = (ids as string[]).length - updated;
 
-      if (updateError) {
-        console.error(
-          `[PATCH /api/invoices/bulk-status] Failed to update ${id}:`,
-          updateError.message,
-        );
-        errors++;
-      } else {
-        updated++;
-      }
+    if (updateError) {
+      console.error(
+        `[PATCH /api/invoices/bulk-status] Update error:`,
+        updateError.message,
+      );
     }
 
     console.log(

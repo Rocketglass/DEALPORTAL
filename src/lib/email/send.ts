@@ -76,7 +76,7 @@ export async function sendEmail({
       await db.from('email_logs').insert({
         recipient: Array.isArray(to) ? to.join(', ') : to,
         subject,
-        status: error ? 'failed' : 'delivered',
+        status: error ? 'failed' : 'sent',
         error_message: error?.message ?? null,
         resend_id: data?.id ?? null,
       });
