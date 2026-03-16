@@ -1,4 +1,4 @@
-import { FileText, Handshake, ScrollText, Receipt, DollarSign, TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
+import { FileText, Handshake, ScrollText, Receipt, DollarSign, TrendingUp, Clock, CheckCircle2, BarChart3 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   getDashboardStats,
@@ -7,8 +7,12 @@ import {
   getCommissionSummary,
   getCommissionTimeline,
   getDealFlowTimeline,
+  getVacancyIntelligence,
 } from '@/lib/queries/dashboard';
+import { getPropertyAnalytics } from '@/lib/queries/property-analytics';
 import DashboardCharts from './dashboard-charts';
+import VacancyIntelligenceSection from './vacancy-intelligence';
+import PropertyPerformance from './property-performance';
 import type { PipelineStage } from '@/lib/queries/dashboard';
 
 export const dynamic = 'force-dynamic';
@@ -138,6 +142,8 @@ export default async function DashboardPage() {
     { data: commission },
     { data: commissionTimeline },
     { data: dealFlowTimeline },
+    { data: vacancy },
+    { data: propertyAnalytics },
   ] = await Promise.all([
     getDashboardStats(),
     getRecentActivity(),
@@ -145,6 +151,8 @@ export default async function DashboardPage() {
     getCommissionSummary(),
     getCommissionTimeline(),
     getDealFlowTimeline(),
+    getVacancyIntelligence(),
+    getPropertyAnalytics(),
   ]);
 
   const statCards = [
@@ -290,6 +298,31 @@ export default async function DashboardPage() {
               <PipelineRow stage={pipeline.lois} />
               <div className="border-t border-[#e2e8f0]" />
               <PipelineRow stage={pipeline.leases} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Vacancy Intelligence */}
+      {vacancy && (
+        <div className="mt-8">
+          <VacancyIntelligenceSection data={vacancy} />
+        </div>
+      )}
+
+      {/* Property Performance */}
+      {propertyAnalytics && propertyAnalytics.length > 0 && (
+        <Card className="mt-8">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-lg font-semibold">Property Performance</h2>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Analytics across all properties, sorted by activity.
+            </p>
+            <div className="mt-6">
+              <PropertyPerformance analytics={propertyAnalytics} />
             </div>
           </CardContent>
         </Card>

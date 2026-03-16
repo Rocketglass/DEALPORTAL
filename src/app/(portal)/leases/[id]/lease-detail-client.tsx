@@ -8,6 +8,7 @@ import {
   Pencil,
   Send,
   Download,
+  Share2,
   Building2,
   Users,
   MapPin,
@@ -197,6 +198,21 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
 
   // PDF generation state
   const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  // Share deal summary state
+  const [copied, setCopied] = useState(false);
+
+  async function handleShareDeal() {
+    const url = `${window.location.origin}/deal/${lease.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast({ title: 'Link copied to clipboard', variant: 'success' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: 'Failed to copy link', variant: 'error' });
+    }
+  }
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -421,6 +437,11 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
                 <Button variant="secondary" icon={Download} onClick={handleDownloadPdf}>
                   PDF
                 </Button>
+                {lease.status === 'executed' && (
+                  <Button variant="secondary" icon={Share2} onClick={handleShareDeal}>
+                    {copied ? 'Copied!' : 'Share Deal'}
+                  </Button>
+                )}
               </>
             )}
           </div>

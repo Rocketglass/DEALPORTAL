@@ -22,6 +22,9 @@ import {
   BarChart3,
   Upload,
   Loader2,
+  FileText,
+  Handshake,
+  ScrollText,
 } from 'lucide-react';
 import type { Property, Unit, QrCode as QrCodeType } from '@/types/database';
 import { formatCurrency, formatSqft, cn } from '@/lib/utils';
@@ -430,6 +433,9 @@ export default function PropertyDetailClient({
     browseViews: number;
     otherViews: number;
     dailyBreakdown: { date: string; count: number }[];
+    applications: number;
+    lois: number;
+    leases: number;
   } | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
@@ -1191,6 +1197,63 @@ export default function PropertyDetailClient({
                   </div>
                 </div>
               )}
+
+              {/* Conversion Funnel */}
+              <div className="mt-6">
+                <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                  Conversion Funnel
+                </h3>
+                <div className="space-y-3">
+                  {(() => {
+                    const funnel = [
+                      { label: 'Views', value: analytics.totalViews, icon: Eye, color: '#94a3b8' },
+                      { label: 'QR Scans', value: analytics.qrScans, icon: QrCode, color: '#3b82f6' },
+                      { label: 'Applications', value: analytics.applications, icon: FileText, color: '#f59e0b' },
+                      { label: 'LOIs', value: analytics.lois, icon: Handshake, color: '#8b5cf6' },
+                      { label: 'Leases', value: analytics.leases, icon: ScrollText, color: '#22c55e' },
+                    ];
+                    const maxValue = Math.max(...funnel.map((f) => f.value), 1);
+                    return funnel.map((step) => {
+                      const widthPct = Math.max((step.value / maxValue) * 100, step.value > 0 ? 8 : 2);
+                      return (
+                        <div key={step.label} className="flex items-center gap-3">
+                          <div className="flex w-28 shrink-0 items-center gap-1.5">
+                            <step.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">{step.label}</span>
+                          </div>
+                          <div className="flex-1">
+                            <div
+                              className="h-7 rounded-md flex items-center justify-end pr-2 text-xs font-medium text-white transition-all"
+                              style={{
+                                width: `${widthPct}%`,
+                                backgroundColor: step.color,
+                                minWidth: '2rem',
+                              }}
+                            >
+                              {step.value}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+                {analytics.totalViews > 0 && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Conversion rate:{' '}
+                    <span className="font-medium text-[#0f172a]">
+                      {analytics.totalViews > 0
+                        ? (
+                            (analytics.applications / analytics.totalViews) *
+                            100
+                          ).toFixed(1)
+                        : '0.0'}
+                      %
+                    </span>{' '}
+                    (views to applications)
+                  </p>
+                )}
+              </div>
             </>
           ) : (
             <div className="text-center py-8 text-muted-foreground">

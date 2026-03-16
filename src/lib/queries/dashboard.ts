@@ -293,6 +293,193 @@ export async function getDealFlowTimeline(): Promise<{
 }
 
 // ---------------------------------------------------------------------------
+// Vacancy Intelligence
+// ---------------------------------------------------------------------------
+
+export interface VacancyIntelligence {
+  expiring90: {
+    unitId: string;
+    suiteNumber: string;
+    propertyId: string;
+    propertyName: string;
+    propertyAddress: string;
+    daysUntilExpiry: number;
+    tenantName: string;
+    monthlyRent: number;
+  }[];
+  expiring180: {
+    unitId: string;
+    suiteNumber: string;
+    propertyId: string;
+    propertyName: string;
+    propertyAddress: string;
+    daysUntilExpiry: number;
+    tenantName: string;
+    monthlyRent: number;
+  }[];
+  vacantUnits: {
+    unitId: string;
+    suiteNumber: string;
+    propertyId: string;
+    propertyName: string;
+    propertyAddress: string;
+    sf: number;
+    daysVacant: number;
+  }[];
+  stats: {
+    totalUnits: number;
+    occupiedUnits: number;
+    vacantUnits: number;
+    occupancyRate: number;
+    avgDaysOnMarket: number;
+    avgLeaseTerm: number;
+    avgRentPerSf: number;
+  };
+}
+
+/**
+ * Build vacancy intelligence data for the broker dashboard.
+ * Analyses lease expirations, vacant units, and portfolio-wide stats.
+ */
+export async function getVacancyIntelligence(): Promise<{
+  data: VacancyIntelligence | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+
+    // Fetch all units with property info
+    const { data: units, error: unitsError } = await supabase
+      .from('units')
+      .select('id, property_id, suite_number, sf, status, current_lease_id, created_at, updated_at, property:properties!inner(id, name, address)');
+
+    if (unitsError) throw unitsError;
+
+    // Fetch all active/executed leases
+    const { data: leases, error: leasesError } = await supabase
+      .from('leases')
+      .select('id, unit_id, expiration_date, lessee_name, base_rent_monthly, premises_sf, term_months, status')
+      .in('status', ['executed', 'sent_for_signature', 'partially_signed']);
+
+    if (leasesError) throw leasesError;
+
+    const now = new Date();
+    const msPerDay = 1000 * 60 * 60 * 24;
+
+    // Build a map of unit_id -> lease for quick lookup
+    const leaseByUnit = new Map<string, (typeof leases)[number]>();
+    for (const lease of leases || []) {
+      // If a unit already has a lease mapped, keep the one expiring later
+      const existing = leaseByUnit.get(lease.unit_id);
+      if (!existing || new Date(lease.expiration_date) > new Date(existing.expiration_date)) {
+        leaseByUnit.set(lease.unit_id, lease);
+      }
+    }
+
+    const allUnits = units || [];
+    const expiring90: VacancyIntelligence['expiring90'] = [];
+    const expiring180: VacancyIntelligence['expiring180'] = [];
+    const vacant: VacancyIntelligence['vacantUnits'] = [];
+
+    let occupiedCount = 0;
+    let vacantDaysSum = 0;
+    let vacantCount = 0;
+    let leaseTermSum = 0;
+    let leaseTermCount = 0;
+    let rentSfSum = 0;
+    let rentSfCount = 0;
+
+    for (const unit of allUnits) {
+      const property = unit.property as unknown as { id: string; name: string; address: string };
+      const lease = leaseByUnit.get(unit.id);
+
+      if (unit.status === 'vacant' || (unit.status !== 'occupied' && unit.status !== 'pending' && !lease)) {
+        // Vacant unit
+        const refDate = unit.updated_at || unit.created_at;
+        const daysVacant = Math.floor((now.getTime() - new Date(refDate).getTime()) / msPerDay);
+        vacant.push({
+          unitId: unit.id,
+          suiteNumber: unit.suite_number,
+          propertyId: property.id,
+          propertyName: property.name,
+          propertyAddress: property.address,
+          sf: unit.sf,
+          daysVacant: Math.max(0, daysVacant),
+        });
+        vacantDaysSum += Math.max(0, daysVacant);
+        vacantCount++;
+      } else if (lease) {
+        occupiedCount++;
+
+        // Calculate rent/sf for stats
+        if (lease.base_rent_monthly > 0 && lease.premises_sf > 0) {
+          rentSfSum += (lease.base_rent_monthly * 12) / lease.premises_sf;
+          rentSfCount++;
+        }
+
+        // Calculate lease term for stats
+        if (lease.term_months) {
+          leaseTermSum += lease.term_months;
+          leaseTermCount++;
+        }
+
+        // Check expiration
+        const expirationDate = new Date(lease.expiration_date);
+        const daysUntilExpiry = Math.floor((expirationDate.getTime() - now.getTime()) / msPerDay);
+
+        if (daysUntilExpiry <= 180) {
+          const entry = {
+            unitId: unit.id,
+            suiteNumber: unit.suite_number,
+            propertyId: property.id,
+            propertyName: property.name,
+            propertyAddress: property.address,
+            daysUntilExpiry,
+            tenantName: lease.lessee_name,
+            monthlyRent: lease.base_rent_monthly,
+          };
+
+          if (daysUntilExpiry <= 90) {
+            expiring90.push(entry);
+          } else {
+            expiring180.push(entry);
+          }
+        }
+      } else {
+        // Unit with status occupied/pending but no active lease found — count as occupied
+        occupiedCount++;
+      }
+    }
+
+    // Sort by urgency (most urgent first; already expired = negative days = first)
+    expiring90.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
+    expiring180.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
+    vacant.sort((a, b) => b.daysVacant - a.daysVacant);
+
+    const totalUnits = allUnits.length;
+    const data: VacancyIntelligence = {
+      expiring90,
+      expiring180,
+      vacantUnits: vacant,
+      stats: {
+        totalUnits,
+        occupiedUnits: occupiedCount,
+        vacantUnits: vacantCount,
+        occupancyRate: totalUnits > 0 ? Math.round((occupiedCount / totalUnits) * 1000) / 10 : 0,
+        avgDaysOnMarket: vacantCount > 0 ? Math.round(vacantDaysSum / vacantCount) : 0,
+        avgLeaseTerm: leaseTermCount > 0 ? Math.round(leaseTermSum / leaseTermCount) : 0,
+        avgRentPerSf: rentSfCount > 0 ? Math.round((rentSfSum / rentSfCount) * 100) / 100 : 0,
+      },
+    };
+
+    return { data, error: null };
+  } catch (err) {
+    console.error('getVacancyIntelligence error:', err);
+    return { data: null, error: (err as Error).message };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Original Dashboard Stats
 // ---------------------------------------------------------------------------
 

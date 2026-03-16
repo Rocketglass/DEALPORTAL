@@ -24,18 +24,36 @@ export async function GET(_request: Request, context: RouteContext): Promise<Nex
 
     const supabase = await createClient();
 
-    // Fetch all views for this property
-    const { data: allViews, error: allError } = await supabase
-      .from('property_views')
-      .select('id, source, viewed_at')
-      .eq('property_id', id);
+    // Fetch all views and deal counts in parallel
+    const [viewsResult, appsResult, loisResult, leasesResult] = await Promise.all([
+      supabase
+        .from('property_views')
+        .select('id, source, viewed_at')
+        .eq('property_id', id),
+      supabase
+        .from('applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('property_id', id),
+      supabase
+        .from('lois')
+        .select('id', { count: 'exact', head: true })
+        .eq('property_id', id),
+      supabase
+        .from('leases')
+        .select('id', { count: 'exact', head: true })
+        .eq('property_id', id),
+    ]);
 
-    if (allError) {
-      console.error(`[GET /api/properties/${id}/analytics] Query error:`, allError);
-      return NextResponse.json({ error: allError.message }, { status: 500 });
+    if (viewsResult.error) {
+      console.error(`[GET /api/properties/${id}/analytics] Query error:`, viewsResult.error);
+      return NextResponse.json({ error: viewsResult.error.message }, { status: 500 });
     }
 
-    const views = allViews ?? [];
+    const applications = appsResult.count ?? 0;
+    const lois = loisResult.count ?? 0;
+    const leases = leasesResult.count ?? 0;
+
+    const views = viewsResult.data ?? [];
     const totalViews = views.length;
 
     // Last 30 days
@@ -76,6 +94,9 @@ export async function GET(_request: Request, context: RouteContext): Promise<Nex
       browseViews,
       otherViews,
       dailyBreakdown,
+      applications,
+      lois,
+      leases,
     });
   } catch (error) {
     console.error('[GET /api/properties/[id]/analytics] Unexpected error:', error);

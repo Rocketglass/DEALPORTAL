@@ -53,9 +53,10 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 
     const supabase = await createClient();
 
-    // If the user has a linked contact, update it
-    if (user.contactId) {
-      const { data: contact, error: contactError } = await updateUserContact(user.contactId, {
+    // If the user has a linked contact, update it; otherwise create one
+    let contactId = user.contactId;
+    if (contactId) {
+      const { data: contact, error: contactError } = await updateUserContact(contactId, {
         first_name: body.firstName ?? null,
         last_name: body.lastName ?? null,
         phone: body.phone ?? null,
@@ -68,6 +69,34 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
           { status: 500 }
         );
       }
+    } else {
+      // Create a new contact and link it to the user
+      const { data: newContact, error: createError } = await supabase
+        .from('contacts')
+        .insert({
+          type: 'broker',
+          first_name: body.firstName ?? null,
+          last_name: body.lastName ?? null,
+          email: user.email,
+          phone: body.phone ?? null,
+          company_name: body.company ?? null,
+          tags: [],
+        })
+        .select('id')
+        .single();
+
+      if (createError || !newContact) {
+        return NextResponse.json(
+          { error: 'Failed to create contact record' },
+          { status: 500 }
+        );
+      }
+
+      contactId = newContact.id;
+      await supabase
+        .from('users')
+        .update({ contact_id: contactId })
+        .eq('id', user.id);
     }
 
     // If email changed, update the users table email column

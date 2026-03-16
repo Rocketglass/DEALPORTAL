@@ -88,6 +88,11 @@ export type Database = {
         Insert: Omit<PropertyView, 'id' | 'viewed_at'> & { id?: string };
         Update: Partial<Omit<PropertyView, 'id'>>;
       };
+      loi_templates: {
+        Row: LoiTemplate;
+        Insert: Omit<LoiTemplate, 'id' | 'created_at' | 'updated_at'> & { id?: string };
+        Update: Partial<Omit<LoiTemplate, 'id'>>;
+      };
     };
   };
 };
@@ -458,6 +463,17 @@ export interface PropertyView {
   viewer_ip: string | null;
   user_agent: string | null;
   viewed_at: string;
+}
+
+export interface LoiTemplate {
+  id: string;
+  name: string;
+  property_type: string;
+  description: string | null;
+  sections: Json;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============================================================

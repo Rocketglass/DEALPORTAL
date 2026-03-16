@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DollarSign,
@@ -19,6 +19,12 @@ import {
   Save,
   AlertCircle,
   Loader2,
+  FileText,
+  Building2,
+  Store,
+  Briefcase,
+  Zap,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -27,6 +33,40 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { BackButton } from '@/components/ui/back-button';
 import type { Contact, Property, Unit, LoiSectionKey } from '@/types/database';
+
+// ---------------------------------------------------------------------------
+// LOI Template types
+// ---------------------------------------------------------------------------
+
+interface LoiTemplateSection {
+  section_key: string;
+  section_label: string;
+  display_order: number;
+  default_value: string;
+}
+
+interface LoiTemplate {
+  id: string;
+  name: string;
+  property_type: string;
+  description: string | null;
+  sections: LoiTemplateSection[];
+  is_default: boolean;
+}
+
+const PROPERTY_TYPE_ICONS: Record<string, React.ElementType> = {
+  industrial: Building2,
+  retail: Store,
+  office: Briefcase,
+  flex: Zap,
+};
+
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  industrial: 'Industrial',
+  retail: 'Retail',
+  office: 'Office',
+  flex: 'Flex',
+};
 
 // ---------------------------------------------------------------------------
 // Section configuration
@@ -133,6 +173,12 @@ export default function CreateLoiPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
 
+  // ----- Template state -----
+  const [templates, setTemplates] = useState<LoiTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [templateApplied, setTemplateApplied] = useState(false);
+
   // ----- Form state -----
   const [propertyId, setPropertyId] = useState('');
   const [unitId, setUnitId] = useState('');
@@ -151,7 +197,7 @@ export default function CreateLoiPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // ----- Load dropdown data on mount -----
+  // ----- Load dropdown data and templates on mount -----
   useEffect(() => {
     async function loadData() {
       setLoadingData(true);
@@ -168,12 +214,127 @@ export default function CreateLoiPage() {
         setLoadingData(false);
       }
     }
+    async function loadTemplates() {
+      setLoadingTemplates(true);
+      try {
+        const res = await fetch('/api/loi-templates');
+        const data = await res.json();
+        if (res.ok) {
+          setTemplates(data.templates ?? []);
+        }
+      } catch {
+        // Templates are optional — don't block the form
+      } finally {
+        setLoadingTemplates(false);
+      }
+    }
     loadData();
+    loadTemplates();
   }, []);
 
+  // Selected property and its type (for template auto-suggestion)
+  const selectedProperty = properties.find((p) => p.id === propertyId);
+
   // Available units filtered by selected property
-  const availableUnits =
-    properties.find((p) => p.id === propertyId)?.units ?? [];
+  const availableUnits = selectedProperty?.units ?? [];
+
+  // Templates filtered by selected property type (if a property is selected)
+  const selectedPropertyType = selectedProperty?.property_type?.toLowerCase() ?? '';
+  const suggestedTemplates = selectedPropertyType
+    ? templates.filter((t) => t.property_type === selectedPropertyType)
+    : templates;
+
+  // Apply a template's default values to the section form fields
+  const applyTemplate = useCallback((template: LoiTemplate | null) => {
+    if (!template) {
+      // "Blank LOI" — reset to initial data
+      setSections(INITIAL_DATA);
+      setSelectedTemplateId(null);
+      setTemplateApplied(false);
+      setExpanded(new Set(['base_rent', 'term']));
+      return;
+    }
+
+    setSelectedTemplateId(template.id);
+    setTemplateApplied(true);
+
+    // Build a map of section_key → default_value from the template
+    const defaults = new Map<string, string>();
+    for (const sec of template.sections) {
+      defaults.set(sec.section_key, sec.default_value);
+    }
+
+    // Pre-populate sections — we put the template default_value into the
+    // primary text field of each section so the broker can see and edit it.
+    // For structured sections (like base_rent with multiple fields), we place
+    // the template text into the most descriptive field.
+    const newSections: SectionData = { ...INITIAL_DATA };
+
+    if (defaults.has('base_rent')) {
+      newSections.base_rent = { ...INITIAL_DATA.base_rent, perSfRate: defaults.get('base_rent')! };
+    }
+    if (defaults.has('term')) {
+      // Parse months from template if it's a simple "X months" pattern
+      const termVal = defaults.get('term')!;
+      const monthMatch = termVal.match(/^(\d+)\s*months?$/i);
+      if (monthMatch) {
+        const totalMonths = parseInt(monthMatch[1], 10);
+        const years = Math.floor(totalMonths / 12);
+        const months = totalMonths % 12;
+        newSections.term = { ...INITIAL_DATA.term, years: years.toString(), months: months.toString() };
+      } else {
+        newSections.term = { ...INITIAL_DATA.term, years: termVal, months: '' };
+      }
+    }
+    if (defaults.has('tenant_improvements')) {
+      newSections.tenant_improvements = { ...INITIAL_DATA.tenant_improvements, description: defaults.get('tenant_improvements')! };
+    }
+    if (defaults.has('cam')) {
+      const camVal = defaults.get('cam')!;
+      const camLower = camVal.toLowerCase();
+      let structure = 'nnn';
+      if (camLower.includes('full service')) structure = 'full_service';
+      else if (camLower.includes('modified')) structure = 'modified_gross';
+      newSections.cam = { ...INITIAL_DATA.cam, structure, percentage: camVal };
+    }
+    if (defaults.has('security_deposit')) {
+      newSections.security_deposit = { amount: defaults.get('security_deposit')! };
+    }
+    if (defaults.has('agreed_use')) {
+      newSections.agreed_use = { description: defaults.get('agreed_use')! };
+    }
+    if (defaults.has('parking')) {
+      newSections.parking = { ...INITIAL_DATA.parking, spaces: defaults.get('parking')! };
+    }
+    if (defaults.has('options')) {
+      newSections.options = { ...INITIAL_DATA.options, renewalOptions: defaults.get('options')! };
+    }
+    if (defaults.has('escalations')) {
+      const escVal = defaults.get('escalations')!;
+      const pctMatch = escVal.match(/(\d+)%/);
+      newSections.escalations = {
+        annualIncrease: pctMatch ? pctMatch[1] : '',
+        schedule: escVal,
+      };
+    }
+    if (defaults.has('free_rent')) {
+      const frVal = defaults.get('free_rent')!;
+      const isNone = frVal.toLowerCase() === 'none';
+      newSections.free_rent = {
+        months: isNone ? '0' : '',
+        conditions: isNone ? '' : frVal,
+      };
+    }
+
+    setSections(newSections);
+
+    // Expand all sections that have values from the template
+    const expandedKeys = new Set<LoiSectionKey>(['base_rent', 'term']);
+    for (const sec of template.sections) {
+      expandedKeys.add(sec.section_key as LoiSectionKey);
+    }
+    setExpanded(expandedKeys);
+  }, []);
 
   // Filtered contact lists by role
   const tenantContacts = contacts.filter((c) =>
@@ -325,6 +486,114 @@ export default function CreateLoiPage() {
         <div className="mt-4 flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{submitError}</span>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Template picker                                                     */}
+      {/* ------------------------------------------------------------------ */}
+      {!loadingTemplates && templates.length > 0 && (
+        <div className="mt-6">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">Start from a template</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {selectedPropertyType
+                  ? `Showing templates for ${PROPERTY_TYPE_LABELS[selectedPropertyType] ?? selectedPropertyType} properties. `
+                  : 'Select a property to see suggested templates, or choose any below. '}
+                Templates pre-fill standard lease terms you can customize.
+              </p>
+            </div>
+            {templateApplied && (
+              <button
+                type="button"
+                onClick={() => applyTemplate(null)}
+                className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-100 hover:text-slate-700"
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear template
+              </button>
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {/* Blank LOI option */}
+            <button
+              type="button"
+              onClick={() => applyTemplate(null)}
+              className={cn(
+                'group relative flex flex-col items-start rounded-xl border bg-white px-4 py-3.5 text-left transition-all hover:shadow-sm',
+                !selectedTemplateId && !templateApplied
+                  ? 'border-primary/40 ring-1 ring-primary/20'
+                  : 'border-border hover:border-slate-300',
+              )}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={cn(
+                    'flex h-8 w-8 items-center justify-center rounded-lg',
+                    !selectedTemplateId && !templateApplied
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-gray-100 text-muted-foreground group-hover:bg-gray-200',
+                  )}
+                >
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-slate-900">Blank LOI</span>
+                  <p className="text-[11px] leading-tight text-muted-foreground">Start from scratch</p>
+                </div>
+              </div>
+            </button>
+
+            {/* Template cards — show suggested first, then others */}
+            {(selectedPropertyType ? [...suggestedTemplates, ...templates.filter((t) => t.property_type !== selectedPropertyType)] : templates).map((template) => {
+              const Icon = PROPERTY_TYPE_ICONS[template.property_type] ?? FileText;
+              const isSelected = selectedTemplateId === template.id;
+              const isSuggested = selectedPropertyType && template.property_type === selectedPropertyType;
+
+              return (
+                <button
+                  key={template.id}
+                  type="button"
+                  onClick={() => applyTemplate(template)}
+                  className={cn(
+                    'group relative flex flex-col items-start rounded-xl border bg-white px-4 py-3.5 text-left transition-all hover:shadow-sm',
+                    isSelected
+                      ? 'border-primary/40 ring-1 ring-primary/20'
+                      : 'border-border hover:border-slate-300',
+                    isSuggested && !isSelected && 'border-primary/20',
+                  )}
+                >
+                  {isSuggested && (
+                    <span className="absolute -top-2 right-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      Suggested
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={cn(
+                        'flex h-8 w-8 items-center justify-center rounded-lg',
+                        isSelected
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-gray-100 text-muted-foreground group-hover:bg-gray-200',
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-slate-900">
+                        {template.name}
+                      </span>
+                      <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                        {template.description ?? PROPERTY_TYPE_LABELS[template.property_type] ?? template.property_type}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
