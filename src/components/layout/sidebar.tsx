@@ -13,6 +13,7 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
@@ -79,14 +80,14 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-[248px] flex-col border-r border-border bg-[var(--background-raised)]">
       {/* Brand */}
-      <div className="flex h-16 items-center gap-2.5 px-5">
+      <Link href="/" className="flex h-16 items-center gap-2.5 px-5 transition-opacity hover:opacity-80">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
           <Building2 className="h-4 w-4 text-white" />
         </div>
         <span className="text-[15px] font-semibold tracking-tight text-foreground">
           Rocket Realty
         </span>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav aria-label="Main navigation" className="flex-1 px-3 pt-2">
@@ -135,6 +136,13 @@ export function Sidebar() {
           </div>
         )}
 
+        <Link
+          href="/browse"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground"
+        >
+          <ExternalLink className="h-[18px] w-[18px]" />
+          View Public Site
+        </Link>
         <Link
           href="/settings"
           className={cn(
