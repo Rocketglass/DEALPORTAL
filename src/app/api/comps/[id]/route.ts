@@ -25,9 +25,18 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     const supabase = await createClient();
     const body = await request.json();
 
-    // Strip out fields that must never be overwritten
-     
-    const { id: _id, created_at: _createdAt, ...updateFields } = body;
+    // Allowlist of fields that can be updated
+    const ALLOWED_FIELDS = [
+      'property_name', 'address', 'city', 'state', 'zip',
+      'property_type', 'transaction_type', 'sf', 'price_per_sf',
+      'total_price', 'lease_term_months', 'tenant_name',
+      'landlord_name', 'transaction_date', 'notes', 'source',
+    ] as const;
+
+    const updateFields: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (key in body) updateFields[key] = body[key];
+    }
 
     const { data: comp, error: updateError } = await supabase
       .from('comparable_transactions')

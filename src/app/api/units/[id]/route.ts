@@ -31,19 +31,20 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     const supabase = await createClient();
     const body = await request.json();
 
-    // Strip immutable fields
-    const {
-      id: _id,
-      property_id: _propertyId,
-      created_at: _createdAt,
-      updated_at: _updatedAt,
-      current_lease_id: _leaseId,
-      ...updateFields
-    } = body;
+    // Allowlist of fields that can be updated
+    const ALLOWED_FIELDS = [
+      'suite_number', 'sf', 'status', 'asking_rent',
+      'available_date', 'description', 'floor', 'unit_type',
+    ] as const;
+
+    const updateFields: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (key in body) updateFields[key] = body[key];
+    }
 
     // Validate status if provided
     if (updateFields.status !== undefined) {
-      if (!VALID_STATUSES.includes(updateFields.status)) {
+      if (!(VALID_STATUSES as readonly string[]).includes(updateFields.status as string)) {
         return NextResponse.json(
           { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` },
           { status: 400 }

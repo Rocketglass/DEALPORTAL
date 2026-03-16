@@ -28,15 +28,22 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
 
     const body = await request.json();
 
-    // Strip out fields that must never be overwritten via this endpoint
-    const {
-      id: _id,
-      created_at: _createdAt,
-      updated_at: _updatedAt,
-      docusign_envelope_id: _envelopeId,
-      docusign_status: _docusignStatus,
-      ...updateFields
-    } = body;
+    // Allowlist of fields that can be updated
+    const ALLOWED_FIELDS = [
+      'status', 'lessor_name', 'lessee_name', 'premises_address',
+      'premises_city', 'premises_state', 'premises_sf',
+      'commencement_date', 'expiration_date', 'base_rent_monthly',
+      'term_months', 'term_years', 'rent_escalation_percent',
+      'security_deposit', 'cam_description', 'parking_type',
+      'insuring_party', 'form_type', 'notes',
+      'tenant_contact_id', 'landlord_contact_id', 'broker_contact_id',
+      'property_id', 'unit_id', 'loi_id',
+    ] as const;
+
+    const updateFields: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (key in body) updateFields[key] = body[key];
+    }
 
     if (Object.keys(updateFields).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });

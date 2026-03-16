@@ -29,13 +29,17 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     const supabase = await createClient();
     const body = await request.json();
 
-    // Strip out fields that must never be overwritten via this endpoint
-    const {
-      id: _id,
-      created_at: _createdAt,
-      updated_at: _updatedAt,
-      ...updateFields
-    } = body;
+    // Allowlist of fields that can be updated
+    const ALLOWED_FIELDS = [
+      'name', 'address', 'city', 'state', 'zip', 'property_type',
+      'total_sf', 'lot_size_sf', 'year_built', 'parking_spaces',
+      'zoning', 'description', 'photos', 'status',
+    ] as const;
+
+    const updateFields: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (key in body) updateFields[key] = body[key];
+    }
 
     // Validate ZIP if provided
     if (updateFields.zip !== undefined) {
