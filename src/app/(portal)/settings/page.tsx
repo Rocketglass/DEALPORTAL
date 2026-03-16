@@ -323,7 +323,7 @@ function CommissionSection() {
         const parsed = JSON.parse(stored);
         // eslint-disable-next-line react-hooks/set-state-in-effect
         if (parsed.rate) setRate(parsed.rate);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+         
         if (parsed.terms) setTerms(parsed.terms);
       }
     } catch { /* ignore */ }
@@ -423,7 +423,7 @@ function NotificationsSection() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (stored) setPrefs((prev) => ({ ...prev, ...JSON.parse(stored) }));
     } catch { /* ignore */ }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setLoaded(true);
   }, []);
 
@@ -485,7 +485,7 @@ function BrandingSection() {
         const parsed = JSON.parse(stored);
         // eslint-disable-next-line react-hooks/set-state-in-effect
         if (parsed.companyName) setCompanyName(parsed.companyName);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+         
         if (parsed.primaryColor) setPrimaryColor(parsed.primaryColor);
       }
     } catch { /* ignore */ }

@@ -34,7 +34,7 @@ export function RecentlyViewed() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setItems(readItems());
   }, []);
 

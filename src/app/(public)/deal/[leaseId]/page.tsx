@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
-import { formatCurrency, formatDate, formatSqft, formatPerSqft } from '@/lib/utils';
+import { formatCurrency, formatDate, formatPerSqft } from '@/lib/utils';
 import type { Metadata } from 'next';
 
 // ============================================================

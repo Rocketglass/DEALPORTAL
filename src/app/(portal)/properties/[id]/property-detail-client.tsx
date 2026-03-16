@@ -894,6 +894,7 @@ export default function PropertyDetailClient({
                   {/* QR code image */}
                   <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-white border border-border">
                     {qr.qr_image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={qr.qr_image_url} alt="QR Code" className="h-14 w-14" />
                     ) : (
                       <QrCode className="h-8 w-8 text-muted-foreground/30" />

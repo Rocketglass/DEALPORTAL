@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ChevronDown,
@@ -443,20 +443,6 @@ export default function CreateLeasePage() {
       setSubmitting(false);
     }
   }
-
-  // ---- Required fields check (for button state) ----
-
-  const _requiredFieldsFilled = useMemo(() => {
-    return (
-      String(form.lessor_name).trim() !== '' &&
-      String(form.lessee_name).trim() !== '' &&
-      String(form.premises_address).trim() !== '' &&
-      parseFloat(String(form.premises_sf)) > 0 &&
-      String(form.commencement_date).trim() !== '' &&
-      String(form.expiration_date).trim() !== '' &&
-      parseFloat(String(form.base_rent_monthly)) > 0
-    );
-  }, [form]);
 
   // ---- Input helpers ----
 

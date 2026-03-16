@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Building2, Loader2 } from 'lucide-react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
@@ -13,7 +12,6 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const _router = useRouter();
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
