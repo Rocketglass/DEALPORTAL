@@ -2,7 +2,7 @@
 
 **Client:** Rocket Glass, CCIM — Commercial Real Estate Broker, San Diego East County
 **Prepared by:** SersweAI (neil@sersweai.com)
-**Date:** March 15, 2026
+**Date:** March 16, 2026
 
 ---
 
@@ -21,6 +21,7 @@ The Rocket Realty Deal Flow Portal is a full-cycle commercial real estate deal m
 | Item | Details |
 |------|---------|
 | **Live URL** | https://rocket-realty-portal.vercel.app |
+| **Broker Login** | rocketglass4@hotmail.com / RocketRealty2024! |
 | **Admin Login** | neil@sersweai.com / RocketRealty2024! |
 | **GitHub** | https://github.com/nb110240/rocket-realty-portal |
 | **Supabase Dashboard** | Log in at https://supabase.com/dashboard (credentials provided separately) |
@@ -208,6 +209,9 @@ All environment variables are configured in the **Vercel dashboard** under your 
 | `DOCUSIGN_USER_ID` | DocuSign user ID for JWT impersonation |
 | `RESEND_API_KEY` | Resend API key for transactional email |
 | `RESEND_FROM_EMAIL` | Sender email address (default: `notifications@rocketrealty.com`) |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis URL for rate limiting |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis token for rate limiting |
+| `RESEND_WEBHOOK_SECRET` | Secret for verifying Resend webhook signatures |
 | `NEXT_PUBLIC_APP_URL` | Public-facing application URL (used in email links, QR codes, etc.) |
 | `NEXT_PUBLIC_PORTAL_URL` | Portal URL (typically same as APP_URL) |
 
@@ -232,9 +236,58 @@ All environment variables are configured in the **Vercel dashboard** under your 
 | **Validation** | Zod | Runtime type validation for API inputs |
 | **Testing** | Vitest + Testing Library | Unit and component testing |
 
-**Security headers** are configured via `vercel.json` and include HSTS, X-Frame-Options (DENY), Content-Type-Options (nosniff), and a restrictive Permissions-Policy.
+| **Rate Limiting** | Upstash Redis | Tiered: 10/min auth, 30/min public API, 100/min general |
+
+**Security features:**
+- All document storage buckets are **private** (time-limited signed URLs only)
+- Rate limiting on all routes via Upstash Redis (3 tiers)
+- CSRF protection on all state-changing requests
+- Security headers: CSP, HSTS, X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Permissions-Policy
+- Role-based access control (broker, admin, tenant, pending)
+- File upload validation (type, size, magic bytes)
+- Stale deployment auto-recovery (auto-reloads on new Vercel deploy)
 
 **Cron jobs:** One scheduled task runs daily at 9:00 AM UTC — sends follow-up reminders for incomplete tenant applications.
+
+---
+
+## Testing Checklist
+
+### Tenant Flow (use phone or incognito window — no login needed)
+- [ ] Visit https://rocket-realty-portal.vercel.app/browse
+- [ ] Click on a property to view details
+- [ ] Click "Apply Now" on a vacant unit
+- [ ] Fill out the multi-step application form
+- [ ] Upload test documents (PDF, JPG, or PNG — max 10MB each)
+- [ ] Submit the application
+- [ ] Check status at `/applications/status`
+
+### Broker Flow (log in as rocketglass4@hotmail.com)
+- [ ] Log in at `/login`
+- [ ] Dashboard shows pipeline overview, commission summary, and charts
+- [ ] Properties — verify your properties and units appear
+- [ ] Applications — review a submitted application, approve or reject
+- [ ] LOIs — create a new LOI, send to landlord
+- [ ] Leases — create a lease from an agreed LOI
+- [ ] Invoices — generate a commission invoice
+- [ ] Comps — add a market comparable
+- [ ] Settings — verify profile page
+- [ ] Click logo in sidebar → goes to landing page
+- [ ] Click "View Public Site" in sidebar → goes to browse page
+
+### Landlord Flow (after sending an LOI)
+- [ ] Landlord receives email notification
+- [ ] Click review link in email
+- [ ] Review each LOI section
+- [ ] Accept, counter, or reject sections
+- [ ] Submit response
+
+### General
+- [ ] Favicon shows in browser tab (blue "R")
+- [ ] Site loads fast (< 2 seconds)
+- [ ] Works on mobile (test tenant flow on phone)
+- [ ] All navigation links work
+- [ ] Sign out works
 
 ---
 
