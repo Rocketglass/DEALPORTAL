@@ -1,7 +1,9 @@
 'use client';
 
-import { Receipt } from 'lucide-react';
-import { DataTable } from '@/components/ui/data-table';
+import { useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { Receipt, Send, XCircle } from 'lucide-react';
+import { DataTable, type BulkAction } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import type { CommissionInvoice } from '@/types/database';
@@ -85,6 +87,35 @@ interface Props {
 }
 
 export function InvoicesClient({ invoices, error }: Props) {
+  const router = useRouter();
+
+  const handleBulkStatus = useCallback(
+    async (ids: string[], status: string) => {
+      await fetch('/api/invoices/bulk-status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, status }),
+      });
+      router.refresh();
+    },
+    [router],
+  );
+
+  const bulkActions: BulkAction[] = [
+    {
+      label: 'Send Selected',
+      icon: Send,
+      variant: 'primary',
+      onClick: (ids) => handleBulkStatus(ids, 'sent'),
+    },
+    {
+      label: 'Cancel Selected',
+      icon: XCircle,
+      variant: 'destructive',
+      onClick: (ids) => handleBulkStatus(ids, 'cancelled'),
+    },
+  ];
+
   if (error) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
@@ -114,6 +145,8 @@ export function InvoicesClient({ invoices, error }: Props) {
         emptyDescription="Commission invoices are generated automatically when leases are executed."
         pageSize={10}
         exportFileName="invoices"
+        selectable
+        bulkActions={bulkActions}
       />
     </div>
   );

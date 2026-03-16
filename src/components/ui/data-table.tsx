@@ -22,6 +22,13 @@ interface FilterConfig {
   options: { value: string; label: string }[];
 }
 
+export interface BulkAction {
+  label: string;
+  icon?: LucideIcon;
+  variant?: 'primary' | 'secondary' | 'destructive';
+  onClick: (selectedIds: string[]) => void | Promise<void>;
+}
+
 interface DataTableProps<T extends object> {
   data: T[];
   columns: Column<T>[];
@@ -35,6 +42,9 @@ interface DataTableProps<T extends object> {
   emptyActionHref?: string;
   searchPlaceholder?: string;
   exportFileName?: string;
+  selectable?: boolean;
+  bulkActions?: BulkAction[];
+  idKey?: string;
 }
 
 function getNestedValue(obj: object, path: string): unknown {
@@ -59,12 +69,16 @@ export function DataTable<T extends object>({
   emptyActionHref,
   searchPlaceholder,
   exportFileName,
+  selectable = false,
+  bulkActions,
+  idKey = 'id',
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Filter and search
   const filtered = useMemo(() => {
@@ -125,15 +139,17 @@ export function DataTable<T extends object>({
   const safePage = Math.min(currentPage, totalPages);
   const paginated = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-  // Reset page when filters/search change
+  // Reset page and selection when filters/search change
   function handleSearch(value: string) {
     setSearch(value);
     setCurrentPage(1);
+    setSelectedIds(new Set());
   }
 
   function handleFilterChange(key: string, value: string) {
     setFilterValues((prev) => ({ ...prev, [key]: value }));
     setCurrentPage(1);
+    setSelectedIds(new Set());
   }
 
   function handleSort(key: string, direction: SortDirection) {
@@ -215,6 +231,34 @@ export function DataTable<T extends object>({
         )}
       </div>
 
+      {/* Bulk action toolbar */}
+      {selectable && selectedIds.size > 0 && bulkActions && (
+        <div className="mb-3 flex items-center gap-3 rounded-lg bg-[#eff6ff] px-4 py-2.5">
+          <span className="text-sm font-medium text-[#1e40af]">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex gap-2">
+            {bulkActions.map((action) => (
+              <Button
+                key={action.label}
+                variant={action.variant || 'secondary'}
+                size="sm"
+                icon={action.icon}
+                onClick={() => action.onClick(Array.from(selectedIds))}
+              >
+                {action.label}
+              </Button>
+            ))}
+          </div>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto text-xs text-[#64748b] hover:text-[#0f172a]"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       {showEmpty && sorted.length === 0 ? (
         <div className="rounded-xl border border-border bg-white py-16 text-center">
@@ -261,6 +305,40 @@ export function DataTable<T extends object>({
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left">
+                  {selectable && (
+                    <th scope="col" className="w-10 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded accent-[#1e40af]"
+                        checked={
+                          paginated.length > 0 &&
+                          paginated.every((row) =>
+                            selectedIds.has(
+                              String(
+                                (row as Record<string, unknown>)[idKey],
+                              ),
+                            ),
+                          )
+                        }
+                        onChange={(e) => {
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            for (const row of paginated) {
+                              const rowId = String(
+                                (row as Record<string, unknown>)[idKey],
+                              );
+                              if (e.target.checked) {
+                                next.add(rowId);
+                              } else {
+                                next.delete(rowId);
+                              }
+                            }
+                            return next;
+                          });
+                        }}
+                      />
+                    </th>
+                  )}
                   {columns.map((col) => (
                     <th key={col.key} scope="col" className="px-4 py-3">
                       {col.sortable ? (
@@ -281,20 +359,50 @@ export function DataTable<T extends object>({
                 </tr>
               </thead>
               <tbody>
-                {paginated.map((row, idx) => (
-                  <tr
-                    key={((row as Record<string, unknown>).id as string | number) ?? idx}
-                    className="border-b border-border last:border-0 transition-colors duration-150 hover:bg-muted/50"
-                  >
-                    {columns.map((col) => (
-                      <td key={col.key} className="px-4 py-3">
-                        {col.render
-                          ? col.render(row)
-                          : (getNestedValue(row, col.key) as ReactNode) ?? ''}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                {paginated.map((row, idx) => {
+                  const rowId = String(
+                    (row as Record<string, unknown>)[idKey] ??
+                      (row as Record<string, unknown>).id ??
+                      idx,
+                  );
+                  const isSelected = selectable && selectedIds.has(rowId);
+                  return (
+                    <tr
+                      key={rowId}
+                      className={`border-b border-border last:border-0 transition-colors duration-150 ${
+                        isSelected ? 'bg-[#eff6ff]' : 'hover:bg-muted/50'
+                      }`}
+                    >
+                      {selectable && (
+                        <td className="w-10 px-4 py-3">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded accent-[#1e40af]"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              setSelectedIds((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) {
+                                  next.add(rowId);
+                                } else {
+                                  next.delete(rowId);
+                                }
+                                return next;
+                              });
+                            }}
+                          />
+                        </td>
+                      )}
+                      {columns.map((col) => (
+                        <td key={col.key} className="px-4 py-3">
+                          {col.render
+                            ? col.render(row)
+                            : (getNestedValue(row, col.key) as ReactNode) ?? ''}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

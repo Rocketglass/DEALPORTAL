@@ -23,7 +23,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { LoiSectionStatus } from '@/types/database';
-import { notifyLoiCountered } from '@/lib/email/notifications';
+import { notifyLoiCountered, notifyLoiAgreed } from '@/lib/email/notifications';
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -69,7 +69,7 @@ export async function POST(
     // Verify the LOI exists and is in a reviewable state
     const { data: loi, error: loiError } = await supabase
       .from('lois')
-      .select('id, status')
+      .select('id, status, expires_at')
       .eq('id', loiId)
       .single();
 
@@ -81,6 +81,20 @@ export async function POST(
       return NextResponse.json(
         { error: `LOI is not currently open for responses (status: ${loi.status})` },
         { status: 400 },
+      );
+    }
+
+    // Enforce LOI expiration
+    if (loi.expires_at && new Date(loi.expires_at) < new Date()) {
+      // Mark as expired in the database
+      await supabase
+        .from('lois')
+        .update({ status: 'expired', updated_at: new Date().toISOString() })
+        .eq('id', loiId);
+
+      return NextResponse.json(
+        { error: 'This LOI has expired and can no longer accept responses' },
+        { status: 410 },
       );
     }
 
@@ -174,7 +188,7 @@ export async function POST(
       .update({ status: newLoiStatus, updated_at: now })
       .eq('id', loiId);
 
-    // Notify the broker about the landlord's response (fire-and-forget)
+    // Notify parties about the landlord's response (fire-and-forget)
     void (async () => {
       try {
         const { data: loiFull } = await supabase
@@ -183,8 +197,8 @@ export async function POST(
             id,
             property:properties(address, city, state),
             unit:units(suite_number),
-            tenant:contacts!lois_tenant_contact_id_fkey(first_name, last_name, company_name),
-            landlord:contacts!lois_landlord_contact_id_fkey(first_name, last_name, company_name),
+            tenant:contacts!lois_tenant_contact_id_fkey(email, first_name, last_name, company_name),
+            landlord:contacts!lois_landlord_contact_id_fkey(email, first_name, last_name, company_name),
             broker:contacts!lois_broker_contact_id_fkey(email, first_name, last_name, company_name)
           `)
           .eq('id', loiId)
@@ -224,24 +238,37 @@ export async function POST(
           ? `${property.address}, ${property.city}, ${property.state}`
           : 'Unknown property';
 
-        const sectionsCountered = responses
-          .filter((r) => r.action === 'counter' || r.action === 'reject')
-          .map((r) => r.sectionId);
+        const loiNotification = {
+          id: loiFull.id,
+          tenantBusinessName,
+          propertyAddress,
+          suiteNumber: unit?.suite_number ?? '',
+          brokerName,
+          landlordName,
+        };
 
-        await notifyLoiCountered(
-          {
-            id: loiFull.id,
-            tenantBusinessName,
-            propertyAddress,
-            suiteNumber: unit?.suite_number ?? '',
-            brokerName,
-            landlordName,
-            sectionsCountered,
-          },
-          broker.email,
-        );
+        if (newLoiStatus === 'agreed') {
+          // LOI fully agreed — notify all parties
+          const parties = [
+            broker?.email && { email: broker.email, name: brokerName },
+            landlord?.email && { email: landlord.email, name: landlordName },
+            tenant?.email && { email: tenant.email, name: tenantBusinessName },
+          ].filter(Boolean) as { email: string; name: string }[];
+
+          await notifyLoiAgreed(loiNotification, parties);
+        } else {
+          // LOI countered/in-negotiation — notify broker
+          const sectionsCountered = responses
+            .filter((r) => r.action === 'counter' || r.action === 'reject')
+            .map((r) => r.sectionId);
+
+          await notifyLoiCountered(
+            { ...loiNotification, sectionsCountered },
+            broker.email,
+          );
+        }
       } catch (notifyError) {
-        console.error('[LOI respond] Failed to notify broker:', notifyError);
+        console.error('[LOI respond] Failed to notify:', notifyError);
       }
     })();
 

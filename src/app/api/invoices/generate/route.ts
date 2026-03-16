@@ -6,7 +6,10 @@
  *
  * Requires authenticated broker or admin.
  *
- * Body: { leaseId: string }
+ * Body: { leaseId: string; commissionRate?: number }
+ *
+ * commissionRate is optional and overrides the default property-type rate.
+ * Must be between 0.1 and 20 if provided.
  *
  * Returns: { invoice: CommissionInvoice }
  */
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { leaseId } = body as Record<string, unknown>;
+  const { leaseId, commissionRate } = body as Record<string, unknown>;
 
   if (!leaseId || typeof leaseId !== 'string') {
     return NextResponse.json(
@@ -48,11 +51,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
+  // Validate optional commissionRate override
+  if (commissionRate !== undefined && commissionRate !== null) {
+    if (typeof commissionRate !== 'number' || commissionRate < 0.1 || commissionRate > 20) {
+      return NextResponse.json(
+        { error: 'commissionRate must be a number between 0.1 and 20' },
+        { status: 400 },
+      );
+    }
+  }
+
   // ------------------------------------------------------------------
   // Generate invoice
   // ------------------------------------------------------------------
   try {
-    const invoice = await generateCommissionInvoice(leaseId);
+    const invoice = await generateCommissionInvoice(
+      leaseId,
+      typeof commissionRate === 'number' ? commissionRate : undefined,
+    );
 
     console.log(
       `[POST /api/invoices/generate] Invoice ${invoice.invoice_number} created` +

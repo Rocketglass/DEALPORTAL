@@ -10,6 +10,8 @@ import {
   CreditCard,
   Circle,
   X,
+  Pencil,
+  Check,
 } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { BackButton } from '@/components/ui/back-button';
@@ -259,6 +261,9 @@ export default function InvoiceDetailClient({
   const [sending, setSending] = useState(false);
   const [marking, setMarking] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [editingRate, setEditingRate] = useState(false);
+  const [newRate, setNewRate] = useState('');
+  const [savingRate, setSavingRate] = useState(false);
 
   // ---- Status actions ----------------------------------------------------
 
@@ -305,6 +310,45 @@ export default function InvoiceDetailClient({
 
   const handleDownloadPdf = () => {
     window.open(`/api/invoices/${invoice.id}/pdf`, '_blank');
+  };
+
+  const handleEditRate = () => {
+    setNewRate(String(invoice.commission_rate_percent));
+    setEditingRate(true);
+  };
+
+  const handleCancelEditRate = () => {
+    setEditingRate(false);
+    setNewRate('');
+  };
+
+  const handleSaveRate = async () => {
+    const newRateNum = parseFloat(newRate);
+    if (isNaN(newRateNum) || newRateNum < 0.1 || newRateNum > 20) return;
+
+    setSavingRate(true);
+    try {
+      const newAmount =
+        Math.round(invoice.total_consideration * (newRateNum / 100) * 100) / 100;
+
+      const res = await fetch(`/api/invoices/${invoice.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          commission_rate_percent: newRateNum,
+          commission_amount: newAmount,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        setInvoice((prev) => ({ ...prev, ...json.invoice }));
+        setEditingRate(false);
+        setNewRate('');
+      }
+    } finally {
+      setSavingRate(false);
+    }
   };
 
   return (
@@ -496,7 +540,55 @@ export default function InvoiceDetailClient({
                     Commission Rate
                   </td>
                   <td className="px-4 py-3 text-right text-[#64748b]">
-                    {invoice.commission_rate_percent}%
+                    {editingRate ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <input
+                          type="number"
+                          min={0.1}
+                          max={20}
+                          step={0.1}
+                          value={newRate}
+                          onChange={(e) => setNewRate(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveRate();
+                            if (e.key === 'Escape') handleCancelEditRate();
+                          }}
+                          disabled={savingRate}
+                          autoFocus
+                          className="w-20 rounded-lg border border-[#e2e8f0] px-2 py-1 text-right text-sm text-[#0f172a] focus:border-[#1e40af] focus:outline-none focus:ring-1 focus:ring-[#1e40af]"
+                        />
+                        <span className="text-sm">%</span>
+                        <button
+                          onClick={handleSaveRate}
+                          disabled={savingRate}
+                          aria-label="Save commission rate"
+                          className="rounded-md p-1 text-[#1e40af] hover:bg-[#eff6ff] transition-colors disabled:opacity-50"
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={handleCancelEditRate}
+                          disabled={savingRate}
+                          aria-label="Cancel editing"
+                          className="rounded-md p-1 text-[#64748b] hover:bg-[#f1f5f9] transition-colors disabled:opacity-50"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5">
+                        {invoice.commission_rate_percent}%
+                        {invoice.status === 'draft' && (
+                          <button
+                            onClick={handleEditRate}
+                            aria-label="Edit commission rate"
+                            className="rounded-md p-1 text-[#94a3b8] hover:text-[#1e40af] hover:bg-[#eff6ff] transition-colors"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right text-[#64748b]" />
                 </tr>

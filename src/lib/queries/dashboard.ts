@@ -146,6 +146,153 @@ export async function getCommissionSummary(): Promise<{
 }
 
 // ---------------------------------------------------------------------------
+// Commission Timeline (last 12 months)
+// ---------------------------------------------------------------------------
+
+export interface CommissionTimelinePoint {
+  month: string; // "Jan 2026", "Feb 2026"
+  earned: number;
+  outstanding: number;
+}
+
+/**
+ * Build a 12-month commission timeline showing earned vs outstanding per month.
+ */
+export async function getCommissionTimeline(): Promise<{
+  data: CommissionTimelinePoint[] | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+
+    const now = new Date();
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const cutoff = twelveMonthsAgo.toISOString();
+
+    const { data: invoices, error } = await supabase
+      .from('commission_invoices')
+      .select('status, commission_amount, paid_date, sent_date, created_at')
+      .gte('created_at', cutoff);
+
+    if (error) throw error;
+
+    // Build a map for the last 12 months
+    const monthMap = new Map<string, { earned: number; outstanding: number }>();
+    const monthLabels: string[] = [];
+
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+      const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      monthLabels.push(label);
+      monthMap.set(label, { earned: 0, outstanding: 0 });
+    }
+
+    for (const inv of invoices || []) {
+      const amt = inv.commission_amount ?? 0;
+      if (amt === 0) continue;
+
+      if (inv.status === 'paid') {
+        const refDate = inv.paid_date ?? inv.created_at;
+        if (!refDate) continue;
+        const d = new Date(refDate);
+        const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        const bucket = monthMap.get(label);
+        if (bucket) bucket.earned += amt;
+      } else if (inv.status === 'sent' || inv.status === 'overdue') {
+        const refDate = inv.sent_date ?? inv.created_at;
+        if (!refDate) continue;
+        const d = new Date(refDate);
+        const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        const bucket = monthMap.get(label);
+        if (bucket) bucket.outstanding += amt;
+      }
+    }
+
+    const data: CommissionTimelinePoint[] = monthLabels.map((month) => ({
+      month,
+      ...monthMap.get(month)!,
+    }));
+
+    return { data, error: null };
+  } catch (err) {
+    console.error('getCommissionTimeline error:', err);
+    return { data: null, error: (err as Error).message };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Deal Flow Timeline (last 12 months)
+// ---------------------------------------------------------------------------
+
+export interface DealFlowTimelinePoint {
+  month: string;
+  applications: number;
+  lois: number;
+  leases: number;
+}
+
+/**
+ * Count applications, LOIs, and leases created per month over the last 12 months.
+ */
+export async function getDealFlowTimeline(): Promise<{
+  data: DealFlowTimelinePoint[] | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+
+    const now = new Date();
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const cutoff = twelveMonthsAgo.toISOString();
+
+    const [appsRes, loisRes, leasesRes] = await Promise.all([
+      supabase.from('applications').select('created_at').gte('created_at', cutoff),
+      supabase.from('lois').select('created_at').gte('created_at', cutoff),
+      supabase.from('leases').select('created_at').gte('created_at', cutoff),
+    ]);
+
+    if (appsRes.error) throw appsRes.error;
+    if (loisRes.error) throw loisRes.error;
+    if (leasesRes.error) throw leasesRes.error;
+
+    // Build month buckets
+    const monthMap = new Map<string, { applications: number; lois: number; leases: number }>();
+    const monthLabels: string[] = [];
+
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+      const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      monthLabels.push(label);
+      monthMap.set(label, { applications: 0, lois: 0, leases: 0 });
+    }
+
+    const addToBucket = (rows: { created_at: string }[], key: 'applications' | 'lois' | 'leases') => {
+      for (const row of rows) {
+        if (!row.created_at) continue;
+        const d = new Date(row.created_at);
+        const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        const bucket = monthMap.get(label);
+        if (bucket) bucket[key]++;
+      }
+    };
+
+    addToBucket(appsRes.data || [], 'applications');
+    addToBucket(loisRes.data || [], 'lois');
+    addToBucket(leasesRes.data || [], 'leases');
+
+    const data: DealFlowTimelinePoint[] = monthLabels.map((month) => ({
+      month,
+      ...monthMap.get(month)!,
+    }));
+
+    return { data, error: null };
+  } catch (err) {
+    console.error('getDealFlowTimeline error:', err);
+    return { data: null, error: (err as Error).message };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Original Dashboard Stats
 // ---------------------------------------------------------------------------
 

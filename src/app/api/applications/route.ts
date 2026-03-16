@@ -115,6 +115,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // ----------------------------------------------------------------
+    // 1b. Prevent duplicate applications for same contact + property
+    // ----------------------------------------------------------------
+    const { data: existingApp } = await supabase
+      .from('applications')
+      .select('id, status')
+      .eq('contact_id', contactId)
+      .eq('property_id', propertyId as string)
+      .in('status', ['submitted', 'under_review', 'approved', 'info_requested'])
+      .limit(1)
+      .maybeSingle();
+
+    if (existingApp) {
+      return NextResponse.json(
+        {
+          error: 'You already have an active application for this property.',
+          existingApplicationId: existingApp.id,
+        },
+        { status: 409 },
+      );
+    }
+
+    // ----------------------------------------------------------------
     // 2. Insert application record
     // ----------------------------------------------------------------
     const applicationInsert = {

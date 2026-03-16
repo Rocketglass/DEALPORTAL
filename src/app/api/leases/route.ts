@@ -67,6 +67,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { escalations, ...leaseData } = body;
 
+    // Prevent duplicate active leases for the same unit
+    const { data: existingLease } = await supabase
+      .from('leases')
+      .select('id, status')
+      .eq('unit_id', leaseData.unit_id)
+      .in('status', ['draft', 'review', 'sent_for_signature', 'partially_signed', 'executed'])
+      .limit(1)
+      .maybeSingle();
+
+    if (existingLease) {
+      return NextResponse.json(
+        { error: `Unit already has an active lease (${existingLease.status}). Cancel or expire the existing lease first.` },
+        { status: 409 },
+      );
+    }
+
     // Insert the lease row
     const { data: lease, error: leaseError } = await supabase
       .from('leases')

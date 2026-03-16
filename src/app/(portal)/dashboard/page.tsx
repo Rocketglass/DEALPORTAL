@@ -5,7 +5,10 @@ import {
   getRecentActivity,
   getPipelineStats,
   getCommissionSummary,
+  getCommissionTimeline,
+  getDealFlowTimeline,
 } from '@/lib/queries/dashboard';
+import DashboardCharts from './dashboard-charts';
 import type { PipelineStage } from '@/lib/queries/dashboard';
 
 export const dynamic = 'force-dynamic';
@@ -133,11 +136,15 @@ export default async function DashboardPage() {
     { data: activity },
     { data: pipeline },
     { data: commission },
+    { data: commissionTimeline },
+    { data: dealFlowTimeline },
   ] = await Promise.all([
     getDashboardStats(),
     getRecentActivity(),
     getPipelineStats(),
     getCommissionSummary(),
+    getCommissionTimeline(),
+    getDealFlowTimeline(),
   ]);
 
   const statCards = [
@@ -255,6 +262,16 @@ export default async function DashboardPage() {
               </p>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Analytics Charts */}
+      {commissionTimeline && dealFlowTimeline && (
+        <div className="mt-8">
+          <DashboardCharts
+            commissionTimeline={commissionTimeline}
+            dealFlowTimeline={dealFlowTimeline}
+          />
         </div>
       )}
 

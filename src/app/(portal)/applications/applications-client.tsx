@@ -1,8 +1,10 @@
 'use client';
 
+import { useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FileText, Eye } from 'lucide-react';
-import { DataTable } from '@/components/ui/data-table';
+import { FileText, Eye, ClipboardCheck, CheckCircle, XCircle } from 'lucide-react';
+import { DataTable, type BulkAction } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 import type { ApplicationWithRelations } from '@/types/database';
@@ -86,6 +88,41 @@ interface Props {
 }
 
 export function ApplicationsClient({ applications, error }: Props) {
+  const router = useRouter();
+
+  const handleBulkStatus = useCallback(
+    async (ids: string[], status: string) => {
+      await fetch('/api/applications/bulk-status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, status }),
+      });
+      router.refresh();
+    },
+    [router],
+  );
+
+  const bulkActions: BulkAction[] = [
+    {
+      label: 'Mark Under Review',
+      icon: ClipboardCheck,
+      variant: 'secondary',
+      onClick: (ids) => handleBulkStatus(ids, 'under_review'),
+    },
+    {
+      label: 'Approve Selected',
+      icon: CheckCircle,
+      variant: 'primary',
+      onClick: (ids) => handleBulkStatus(ids, 'approved'),
+    },
+    {
+      label: 'Reject Selected',
+      icon: XCircle,
+      variant: 'destructive',
+      onClick: (ids) => handleBulkStatus(ids, 'rejected'),
+    },
+  ];
+
   if (error) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
@@ -122,6 +159,8 @@ export function ApplicationsClient({ applications, error }: Props) {
         emptyDescription="Applications will appear here as prospective tenants submit them through the property listing pages."
         pageSize={10}
         exportFileName="applications"
+        selectable
+        bulkActions={bulkActions}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, Copy, Check, Loader2 } from 'lucide-react';
+import { Send, Copy, Check, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface LoiActionButtonsProps {
@@ -57,6 +57,13 @@ export function LoiActionButtons({ loiId }: LoiActionButtonsProps) {
 
   return (
     <div className="flex gap-2">
+      <Button
+        variant="secondary"
+        icon={Printer}
+        onClick={() => window.open(`/lois/${loiId}/print`, '_blank')}
+      >
+        Print / PDF
+      </Button>
       <Button
         variant="secondary"
         icon={copied ? Check : Copy}
