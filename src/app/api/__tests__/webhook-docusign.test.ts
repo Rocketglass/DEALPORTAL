@@ -143,9 +143,9 @@ const VALID_LEASE = {
 describe('DocuSign Webhook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.NODE_ENV = 'development';
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321';
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://localhost:54321');
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'test-key');
     delete process.env.DOCUSIGN_CONNECT_HMAC_SECRET;
     leaseQueryResult = { data: null, error: null };
     updateResult = { error: null };
@@ -197,8 +197,8 @@ describe('DocuSign Webhook', () => {
   // -----------------------------------------------------------------------
 
   it('returns 401 for invalid HMAC signature in production', async () => {
-    process.env.NODE_ENV = 'production';
-    process.env.DOCUSIGN_CONNECT_HMAC_SECRET = 'test-secret';
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('DOCUSIGN_CONNECT_HMAC_SECRET', 'test-secret');
 
     const req = new NextRequest('http://localhost:3000/api/webhooks/docusign', {
       method: 'POST',
