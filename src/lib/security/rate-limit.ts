@@ -51,6 +51,7 @@ function getRedis(): Redis | null {
 let generalLimiter: Ratelimit | null = null;
 let authLimiter: Ratelimit | null = null;
 let publicApiLimiter: Ratelimit | null = null;
+let emailLookupLimiter: Ratelimit | null = null;
 
 function getGeneralLimiter(): Ratelimit | null {
   if (generalLimiter) return generalLimiter;
@@ -88,6 +89,18 @@ function getPublicApiLimiter(): Ratelimit | null {
   return publicApiLimiter;
 }
 
+function getEmailLookupLimiter(): Ratelimit | null {
+  if (emailLookupLimiter) return emailLookupLimiter;
+  const r = getRedis();
+  if (!r) return null;
+  emailLookupLimiter = new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(3, '3600 s'), // 3 lookups per hour
+    prefix: 'rl:email-lookup',
+  });
+  return emailLookupLimiter;
+}
+
 // ---------------------------------------------------------------------------
 // Route classification
 // ---------------------------------------------------------------------------
@@ -120,6 +133,71 @@ function isPublicApiRoute(pathname: string): boolean {
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
+
+/**
+ * Check rate limit for a request. Returns the result with limit/remaining/reset.
+ * If Upstash is not configured, always allows the request (graceful degradation).
+ */
+/**
+ * Check rate limit for an email-keyed lookup (e.g. application status).
+ * Limits to 3 requests per email per hour to prevent email enumeration.
+ * If Upstash is not configured, falls back to an in-memory Map.
+ */
+export async function checkEmailRateLimit(
+  email: string,
+): Promise<RateLimitResult> {
+  const limiter = getEmailLookupLimiter();
+
+  // Fallback: in-memory rate limiting when Upstash is not configured
+  if (!limiter) {
+    return checkEmailRateLimitInMemory(email);
+  }
+
+  try {
+    const result = await limiter.limit(email);
+    return {
+      success: result.success,
+      limit: result.limit,
+      remaining: result.remaining,
+      reset: result.reset,
+    };
+  } catch (err) {
+    console.error('[rate-limit] Upstash error on email lookup, allowing request:', err);
+    return PASS;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// In-memory fallback for email rate limiting (no Upstash)
+// ---------------------------------------------------------------------------
+
+const emailLookupMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkEmailRateLimitInMemory(email: string): RateLimitResult {
+  const now = Date.now();
+  const windowMs = 3_600_000; // 1 hour
+  const maxRequests = 3;
+
+  const entry = emailLookupMap.get(email);
+
+  if (!entry || now >= entry.resetAt) {
+    emailLookupMap.set(email, { count: 1, resetAt: now + windowMs });
+    return { success: true, limit: maxRequests, remaining: maxRequests - 1, reset: now + windowMs };
+  }
+
+  entry.count += 1;
+
+  if (entry.count > maxRequests) {
+    return { success: false, limit: maxRequests, remaining: 0, reset: entry.resetAt };
+  }
+
+  return {
+    success: true,
+    limit: maxRequests,
+    remaining: maxRequests - entry.count,
+    reset: entry.resetAt,
+  };
+}
 
 /**
  * Check rate limit for a request. Returns the result with limit/remaining/reset.

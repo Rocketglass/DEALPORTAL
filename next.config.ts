@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   // Security headers are applied via middleware (src/lib/supabase/middleware.ts)
@@ -36,4 +37,19 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Sentry webpack plugin options
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // Only upload source maps in production builds
+  silent: !process.env.CI,
+
+  // Automatically tree-shake Sentry logger statements to reduce bundle size
+  disableLogger: true,
+
+  // Configure source maps upload
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
+});

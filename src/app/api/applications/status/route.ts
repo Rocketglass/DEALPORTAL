@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sanitizeEmail } from '@/lib/security/sanitize';
+import { checkEmailRateLimit } from '@/lib/security/rate-limit';
 import type { ApplicationStatus, DocumentType } from '@/types/database';
 
 // Service role client — bypasses RLS for unauthenticated lookups
@@ -31,6 +32,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         { error: 'A valid email address is required' },
         { status: 400 },
+      );
+    }
+
+    // Per-email rate limit: 3 lookups per email per hour to prevent enumeration
+    const rl = await checkEmailRateLimit(email);
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: 'Too many requests for this email address' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rl.reset - Date.now()) / 1000)),
+          },
+        },
       );
     }
 

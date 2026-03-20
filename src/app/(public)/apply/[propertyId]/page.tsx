@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, type DragEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, type DragEvent, type ChangeEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -583,6 +583,31 @@ function FileUploadZone({
 }
 
 // ---------------------------------------------------------------------------
+// Initial form data constant
+// ---------------------------------------------------------------------------
+
+const INITIAL_FORM_DATA: FormData = {
+  businessName: '',
+  businessType: '',
+  stateOfIncorporation: 'CA',
+  agreedUse: '',
+  yearsInBusiness: '',
+  numberOfEmployees: '',
+  requestedSf: '',
+  desiredTermMonths: '',
+  desiredMoveIn: '',
+  monthlyRentBudget: '',
+  contactFirstName: '',
+  contactLastName: '',
+  contactEmail: '',
+  contactPhone: '',
+  guarantorName: '',
+  guarantorEmail: '',
+  guarantorPhone: '',
+  termsAccepted: false,
+};
+
+// ---------------------------------------------------------------------------
 // Main page component
 // ---------------------------------------------------------------------------
 
@@ -591,7 +616,21 @@ export default function TenantApplicationPage() {
   const propertyId = params.propertyId;
   const router = useRouter();
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const STORAGE_KEY = `rr_application_draft_${propertyId}`;
+
+  const [currentStep, setCurrentStep] = useState(() => {
+    if (typeof window === 'undefined') return 1;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.step ?? 1;
+      }
+    } catch {
+      // Corrupted data — start fresh
+    }
+    return 1;
+  });
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [errors, setErrors] = useState<StepErrors>({});
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -605,26 +644,41 @@ export default function TenantApplicationPage() {
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<FormData>({
-    businessName: '',
-    businessType: '',
-    stateOfIncorporation: 'CA',
-    agreedUse: '',
-    yearsInBusiness: '',
-    numberOfEmployees: '',
-    requestedSf: '',
-    desiredTermMonths: '',
-    desiredMoveIn: '',
-    monthlyRentBudget: '',
-    contactFirstName: '',
-    contactLastName: '',
-    contactEmail: '',
-    contactPhone: '',
-    guarantorName: '',
-    guarantorEmail: '',
-    guarantorPhone: '',
-    termsAccepted: false,
+  const [formData, setFormData] = useState<FormData>(() => {
+    if (typeof window === 'undefined') return INITIAL_FORM_DATA;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { ...INITIAL_FORM_DATA, ...parsed.formData };
+      }
+    } catch {
+      // Corrupted data — start fresh
+    }
+    return INITIAL_FORM_DATA;
   });
+
+  const [isRestoredDraft, setIsRestoredDraft] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return !!localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return false;
+    }
+  });
+
+  // Persist form state to localStorage on changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        formData,
+        step: currentStep,
+        savedAt: new Date().toISOString(),
+      }));
+    } catch {
+      // Storage full or disabled — degrade gracefully
+    }
+  }, [formData, currentStep, STORAGE_KEY]);
 
   // ---- helpers ----
   const updateField = useCallback(<K extends keyof FormData>(key: K, value: FormData[K]) => {
@@ -768,13 +822,13 @@ export default function TenantApplicationPage() {
     setHasAttemptedStep((prev) => new Set(prev).add(currentStep));
     if (!validateStep(currentStep)) return;
     setCompletedSteps((prev) => new Set(prev).add(currentStep));
-    setCurrentStep((s) => Math.min(s + 1, 5));
+    setCurrentStep((s: number) => Math.min(s + 1, 5));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentStep, validateStep]);
 
   const goBack = useCallback(() => {
     setErrors({});
-    setCurrentStep((s) => Math.max(s - 1, 1));
+    setCurrentStep((s: number) => Math.max(s - 1, 1));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
@@ -865,6 +919,7 @@ export default function TenantApplicationPage() {
       // ----------------------------------------------------------------
       setCompletedSteps((prev) => new Set(prev).add(5));
       setIsSubmitted(true);
+      localStorage.removeItem(STORAGE_KEY);
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
       // Redirect after a brief moment so the success screen is visible
@@ -1375,6 +1430,23 @@ export default function TenantApplicationPage() {
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
         {/* Step indicator */}
         <StepIndicator currentStep={currentStep} completedSteps={completedSteps} />
+
+        {/* Restored draft banner */}
+        {isRestoredDraft && (
+          <div className="mt-4 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+            <p className="text-sm text-blue-800">
+              Continuing from your saved draft.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsRestoredDraft(false)}
+              className="ml-4 rounded p-0.5 text-blue-600 hover:text-blue-800 transition-colors"
+              aria-label="Dismiss draft notice"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {/* Form card */}
         <div key={shakeKey} className={cn('mt-6 sm:mt-8 rounded-xl bg-white border border-border shadow-sm', shakeKey > 0 && 'animate-shake')}>

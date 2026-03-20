@@ -44,6 +44,7 @@ interface SectionResponse {
   action: 'accept' | 'counter' | 'reject';
   value?: string;
   note?: string;
+  updatedAt?: string; // ISO timestamp - for optimistic locking
 }
 
 export async function POST(
@@ -144,7 +145,7 @@ export async function POST(
       }
 
       // Update the section status and landlord response
-      const { error: sectionError } = await supabase
+      let query = supabase
         .from('loi_sections')
         .update({
           status: newStatus,
@@ -155,11 +156,26 @@ export async function POST(
         .eq('id', sectionId)
         .eq('loi_id', loiId);
 
+      // Optimistic locking: only update if section hasn't changed since client loaded it
+      if (resp.updatedAt) {
+        query = query.eq('updated_at', resp.updatedAt);
+      }
+
+      const { data: updatedRows, error: sectionError } = await query.select('id');
+
       if (sectionError) {
         console.error(`[LOI respond] Error updating section ${sectionId}:`, sectionError);
         return NextResponse.json(
           { error: `Failed to update section: ${sectionError.message}` },
           { status: 500 },
+        );
+      }
+
+      // If optimistic locking was used and no rows matched, the section was modified concurrently
+      if (resp.updatedAt && (!updatedRows || updatedRows.length === 0)) {
+        return NextResponse.json(
+          { error: `Section "${sectionId}" was modified by another user. Please refresh and try again.` },
+          { status: 409 },
         );
       }
 

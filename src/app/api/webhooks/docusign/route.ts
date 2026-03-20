@@ -128,12 +128,17 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
   // Find the lease by envelope ID, including fields needed for notifications
   const { data: lease, error: findError } = await supabase
     .from('leases')
-    .select('id, property_id, unit_id, tenant_contact_id, landlord_contact_id, broker_contact_id, premises_address, lessee_name, commencement_date')
+    .select('id, status, property_id, unit_id, tenant_contact_id, landlord_contact_id, broker_contact_id, premises_address, lessee_name, commencement_date')
     .eq('docusign_envelope_id', envelopeId)
     .single();
 
   if (findError || !lease) {
-    console.error(`[DocuSign Webhook] No lease found for envelope ${envelopeId}`, findError);
+    throw new Error(`No lease found for envelope ${envelopeId}: ${findError?.message ?? 'not found'}`);
+  }
+
+  // Idempotency: if the lease is already executed, skip processing
+  if (lease.status === 'executed') {
+    console.log(`[DocuSign Webhook] Lease ${lease.id} already executed — skipping (idempotent)`);
     return;
   }
 
@@ -149,8 +154,7 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
     .eq('id', lease.id);
 
   if (updateError) {
-    console.error(`[DocuSign Webhook] Failed to update lease ${lease.id}:`, updateError);
-    return;
+    throw new Error(`Failed to update lease ${lease.id}: ${updateError.message}`);
   }
 
   // Download the executed PDF and store it
@@ -304,8 +308,7 @@ async function handleRecipientCompleted(payload: DocuSignConnectPayload): Promis
     .single();
 
   if (error || !lease) {
-    console.error(`[DocuSign Webhook] No lease found for envelope ${envelopeId}`);
-    return;
+    throw new Error(`No lease found for envelope ${envelopeId}: ${error?.message ?? 'not found'}`);
   }
 
   // Move to partially_signed if still in sent_for_signature
@@ -365,7 +368,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
     console.error('[DocuSign Webhook] Error:', error);
-    return NextResponse.json({ received: true, error: 'Internal error' }, { status: 200 });
+    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
   }
 }
 
