@@ -55,9 +55,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       guarantorPhone,
     } = body;
 
-    if (!propertyId) {
-      return NextResponse.json({ error: 'propertyId is required' }, { status: 400 });
-    }
+    const applicationType = propertyId ? 'property' : 'general';
 
     const cleanEmail = sanitizeEmail(contactEmail ?? '');
     if (!cleanEmail) {
@@ -117,30 +115,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // ----------------------------------------------------------------
     // 1b. Prevent duplicate applications for same contact + property
     // ----------------------------------------------------------------
-    const { data: existingApp } = await supabase
-      .from('applications')
-      .select('id, status')
-      .eq('contact_id', contactId)
-      .eq('property_id', propertyId as string)
-      .in('status', ['submitted', 'under_review', 'approved', 'info_requested'])
-      .limit(1)
-      .maybeSingle();
+    if (propertyId) {
+      const { data: existingApp } = await supabase
+        .from('applications')
+        .select('id, status')
+        .eq('contact_id', contactId)
+        .eq('property_id', propertyId as string)
+        .in('status', ['submitted', 'under_review', 'approved', 'info_requested'])
+        .limit(1)
+        .maybeSingle();
 
-    if (existingApp) {
-      return NextResponse.json(
-        {
-          error: 'You already have an active application for this property.',
-          existingApplicationId: existingApp.id,
-        },
-        { status: 409 },
-      );
+      if (existingApp) {
+        return NextResponse.json(
+          {
+            error: 'You already have an active application for this property.',
+            existingApplicationId: existingApp.id,
+          },
+          { status: 409 },
+        );
+      }
     }
 
     // ----------------------------------------------------------------
     // 2. Insert application record
     // ----------------------------------------------------------------
     const applicationInsert = {
-      property_id: propertyId as string,
+      property_id: propertyId ? (propertyId as string) : null,
+      application_type: applicationType,
       contact_id: contactId,
       status: 'submitted' as const,
       business_name: sanitizeHtml(businessName).trim(),
@@ -184,11 +185,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .eq('type', 'broker')
         .limit(1)
         .maybeSingle(),
-      supabase
-        .from('properties')
-        .select('address, city, state')
-        .eq('id', propertyId as string)
-        .maybeSingle(),
+      propertyId
+        ? supabase
+            .from('properties')
+            .select('address, city, state')
+            .eq('id', propertyId as string)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
     const brokerEmail = brokerContact?.email ?? 'broker@rocketglass.com';
@@ -199,7 +202,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const propertyAddress = property
       ? `${property.address}, ${property.city}, ${property.state}`
-      : propertyId as string;
+      : applicationType === 'general'
+        ? 'General Application'
+        : (propertyId as string);
 
     void notifyApplicationReceived(
       {

@@ -128,6 +128,24 @@ function validateCsrf(request: NextRequest): boolean {
   return true;
 }
 
+/**
+ * Race a promise against a timeout. Returns the fallback if the promise
+ * does not settle within `ms` milliseconds.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
+const RATE_LIMIT_PASS = {
+  success: true,
+  limit: 0,
+  remaining: 1,
+  reset: Date.now() + 60_000,
+};
+
 export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -139,7 +157,12 @@ export async function updateSession(request: NextRequest) {
     '127.0.0.1';
 
   const pathname = request.nextUrl.pathname;
-  const rateLimitResult = await checkRateLimit(clientIp, pathname);
+  // Timeout after 3s — if Upstash is unresponsive, allow the request
+  const rateLimitResult = await withTimeout(
+    checkRateLimit(clientIp, pathname),
+    3000,
+    RATE_LIMIT_PASS,
+  );
 
   // CSRF validation for mutation requests
   if (!validateCsrf(request)) {
@@ -199,9 +222,12 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Timeout after 4s — if Supabase is unresponsive, treat as unauthenticated
+  const { data: { user } } = await withTimeout(
+    supabase.auth.getUser(),
+    4000,
+    { data: { user: null }, error: null } as unknown as Awaited<ReturnType<typeof supabase.auth.getUser>>,
+  );
 
   // Protected portal routes — redirect to login if not authenticated
   if (!user && isProtectedRoute(pathname)) {

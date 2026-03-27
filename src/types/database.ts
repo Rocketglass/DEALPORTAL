@@ -25,17 +25,37 @@ export type Database = {
       };
       applications: {
         Row: Application;
-        Insert: Omit<Application, 'id' | 'created_at' | 'updated_at'> & { id?: string };
+        Insert: Omit<Application, 'id' | 'created_at' | 'updated_at' | 'application_type'> & {
+          id?: string;
+          application_type?: ApplicationType;
+        };
         Update: Partial<Omit<Application, 'id'>>;
       };
       application_documents: {
         Row: ApplicationDocument;
-        Insert: Omit<ApplicationDocument, 'id' | 'uploaded_at'> & { id?: string };
+        Insert: Omit<ApplicationDocument, 'id' | 'uploaded_at' | 'shared_with_landlord' | 'shared_at' | 'shared_by' | 'removal_requested_at' | 'removal_requested_by' | 'removal_approved_at' | 'removal_approved_by' | 'removal_status'> & {
+          id?: string;
+          shared_with_landlord?: boolean;
+          shared_at?: string | null;
+          shared_by?: string | null;
+          removal_requested_at?: string | null;
+          removal_requested_by?: string | null;
+          removal_approved_at?: string | null;
+          removal_approved_by?: string | null;
+          removal_status?: string | null;
+        };
         Update: Partial<Omit<ApplicationDocument, 'id'>>;
       };
       lois: {
         Row: Loi;
-        Insert: Omit<Loi, 'id' | 'created_at' | 'updated_at'> & { id?: string };
+        Insert: Omit<Loi, 'id' | 'created_at' | 'updated_at' | 'ai_drafted' | 'ai_draft_prompt' | 'applicant_docusign_envelope_id' | 'applicant_docusign_status' | 'applicant_signed_at'> & {
+          id?: string;
+          ai_drafted?: boolean;
+          ai_draft_prompt?: string | null;
+          applicant_docusign_envelope_id?: string | null;
+          applicant_docusign_status?: string | null;
+          applicant_signed_at?: string | null;
+        };
         Update: Partial<Omit<Loi, 'id'>>;
       };
       loi_sections: {
@@ -65,7 +85,10 @@ export type Database = {
       };
       qr_codes: {
         Row: QrCode;
-        Insert: Omit<QrCode, 'id' | 'created_at'> & { id?: string };
+        Insert: Omit<QrCode, 'id' | 'created_at' | 'qr_type'> & {
+          id?: string;
+          qr_type?: QrType;
+        };
         Update: Partial<Omit<QrCode, 'id'>>;
       };
       notifications: {
@@ -92,6 +115,26 @@ export type Database = {
         Row: LoiTemplate;
         Insert: Omit<LoiTemplate, 'id' | 'created_at' | 'updated_at'> & { id?: string };
         Update: Partial<Omit<LoiTemplate, 'id'>>;
+      };
+      lease_sections: {
+        Row: LeaseSection;
+        Insert: Omit<LeaseSection, 'id' | 'updated_at'> & { id?: string };
+        Update: Partial<Omit<LeaseSection, 'id'>>;
+      };
+      lease_negotiations: {
+        Row: LeaseNegotiation;
+        Insert: Omit<LeaseNegotiation, 'id' | 'created_at'> & { id?: string };
+        Update: Partial<Omit<LeaseNegotiation, 'id'>>;
+      };
+      deal_checklists: {
+        Row: DealChecklist;
+        Insert: Omit<DealChecklist, 'id' | 'created_at' | 'updated_at'> & { id?: string };
+        Update: Partial<Omit<DealChecklist, 'id'>>;
+      };
+      deal_checklist_items: {
+        Row: DealChecklistItem;
+        Insert: Omit<DealChecklistItem, 'id' | 'created_at' | 'updated_at'> & { id?: string };
+        Update: Partial<Omit<DealChecklistItem, 'id'>>;
       };
     };
   };
@@ -190,9 +233,10 @@ export interface User {
 
 export interface Application {
   id: string;
-  property_id: string;
+  property_id: string | null;
   unit_id: string | null;
   contact_id: string;
+  application_type: ApplicationType;
   status: ApplicationStatus;
   business_name: string;
   business_type: string | null;
@@ -238,6 +282,14 @@ export interface ApplicationDocument {
   reviewed_at: string | null;
   reviewed_by: string | null;
   reviewer_notes: string | null;
+  shared_with_landlord: boolean;
+  shared_at: string | null;
+  shared_by: string | null;
+  removal_requested_at: string | null;
+  removal_requested_by: string | null;
+  removal_approved_at: string | null;
+  removal_approved_by: string | null;
+  removal_status: DocumentRemovalStatus | null;
 }
 
 export interface Loi {
@@ -256,6 +308,11 @@ export interface Loi {
   expires_at: string | null;
   agreed_at: string | null;
   notes: string | null;
+  ai_drafted: boolean;
+  ai_draft_prompt: string | null;
+  applicant_docusign_envelope_id: string | null;
+  applicant_docusign_status: string | null;
+  applicant_signed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -395,8 +452,9 @@ export interface CommissionInvoice {
 
 export interface QrCode {
   id: string;
-  property_id: string;
+  property_id: string | null;
   unit_id: string | null;
+  qr_type: QrType;
   short_code: string;
   portal_url: string;
   qr_image_url: string | null;
@@ -483,16 +541,84 @@ export interface LoiTemplate {
 export type ContactType = 'tenant' | 'landlord' | 'broker' | 'prospect' | 'guarantor';
 export type UserRole = 'admin' | 'broker' | 'tenant' | 'landlord';
 export type UnitStatus = 'vacant' | 'occupied' | 'pending' | 'maintenance';
+export type ApplicationType = 'general' | 'property';
 export type ApplicationStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'withdrawn' | 'info_requested';
 export type CreditCheckStatus = 'not_run' | 'pending' | 'completed' | 'failed';
 export type DocumentType = 'tax_return' | 'bank_statement' | 'pnl' | 'business_license' | 'id' | 'credit_report' | 'other';
+export type DocumentRemovalStatus = 'requested' | 'approved' | 'denied';
+export type QrType = 'property' | 'general';
 export type LoiStatus = 'draft' | 'sent' | 'in_negotiation' | 'agreed' | 'expired' | 'rejected' | 'withdrawn';
 export type LoiSectionStatus = 'proposed' | 'accepted' | 'countered' | 'rejected';
 export type LoiSectionKey = 'base_rent' | 'term' | 'tenant_improvements' | 'cam' | 'security_deposit' | 'agreed_use' | 'parking' | 'options' | 'escalations' | 'free_rent' | 'other';
 export type NegotiationAction = 'propose' | 'accept' | 'counter' | 'reject';
 export type LeaseStatus = 'draft' | 'review' | 'sent_for_signature' | 'partially_signed' | 'executed' | 'expired' | 'terminated';
+export type LeaseNegotiationStatus = 'none' | 'in_negotiation' | 'agreed';
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 export type TransactionType = 'lease' | 'sale';
+export type PartyRole = 'broker' | 'tenant' | 'landlord' | 'tenant_agent' | 'landlord_agent';
+export type ChecklistItemAssignment = 'tenant' | 'landlord' | 'both' | 'broker';
+
+// ============================================================
+// Phase 5: Lease negotiation
+// ============================================================
+
+export interface LeaseSection {
+  id: string;
+  lease_id: string;
+  section_key: string;
+  section_label: string;
+  display_order: number;
+  proposed_value: string;
+  counterparty_response: string | null;
+  agreed_value: string | null;
+  status: LoiSectionStatus; // reuses same statuses
+  negotiation_notes: string | null;
+  last_updated_by: string | null;
+  updated_at: string;
+}
+
+export interface LeaseNegotiation {
+  id: string;
+  lease_section_id: string;
+  action: NegotiationAction;
+  value: string | null;
+  note: string | null;
+  created_by: string;
+  party_role: PartyRole;
+  created_at: string;
+}
+
+// ============================================================
+// Phase 6: Deal checklist
+// ============================================================
+
+export interface DealChecklist {
+  id: string;
+  lease_id: string;
+  title: string;
+  status: 'active' | 'completed' | 'archived';
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DealChecklistItem {
+  id: string;
+  checklist_id: string;
+  title: string;
+  description: string | null;
+  assigned_to: ChecklistItemAssignment;
+  display_order: number;
+  is_completed: boolean;
+  completed_at: string | null;
+  completed_by: string | null;
+  due_date: string | null;
+  file_url: string | null;
+  file_name: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 // ============================================================
 // Joined/extended types for queries

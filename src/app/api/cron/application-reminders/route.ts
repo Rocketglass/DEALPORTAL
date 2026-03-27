@@ -79,7 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ? `${property.address}, ${property.city}, ${property.state}`
       : 'the property';
     const suiteNumber: string | undefined = unit?.suite_number ?? undefined;
-    const resumeUrl = `${appUrl}/apply/${app.property_id}`;
+    const resumeUrl = app.property_id ? `${appUrl}/apply/${app.property_id}` : `${appUrl}/apply`;
     const createdAt = new Date(app.created_at);
 
     // --- 72-hour reminder ---
