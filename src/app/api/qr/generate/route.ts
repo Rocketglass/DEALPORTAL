@@ -35,26 +35,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const property_id = String(body.property_id ?? '');
+  const qrType = String(body.qr_type ?? 'property'); // 'property' or 'general'
+  const property_id = body.property_id ? String(body.property_id) : null;
   const unit_id = body.unit_id ? String(body.unit_id) : null;
 
-  // Validate and sanitize input
-  const sanitizedPropertyId = sanitizeUuid(property_id);
-  if (!sanitizedPropertyId) {
-    return NextResponse.json(
-      { error: 'property_id is required and must be a valid UUID' },
-      { status: 400 },
-    );
+  // For property QR codes, property_id is required
+  let sanitizedPropertyId: string | null = null;
+  if (qrType === 'property') {
+    sanitizedPropertyId = sanitizeUuid(property_id ?? '');
+    if (!sanitizedPropertyId) {
+      return NextResponse.json(
+        { error: 'property_id is required for property QR codes' },
+        { status: 400 },
+      );
+    }
   }
 
   const sanitizedUnitId = unit_id ? sanitizeUuid(unit_id) : null;
 
   const shortCode = generateShortCode();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  // QR codes land on the public browse detail page, not the authenticated portal
-  const portalUrl = sanitizedUnitId
-    ? `${appUrl}/browse/${sanitizedPropertyId}?unit=${sanitizedUnitId}`
-    : `${appUrl}/browse/${sanitizedPropertyId}`;
+
+  // General QR codes link to the general application page
+  // Property QR codes link to the property browse page
+  let portalUrl: string;
+  if (qrType === 'general') {
+    portalUrl = `${appUrl}/apply`;
+  } else if (sanitizedUnitId) {
+    portalUrl = `${appUrl}/browse/${sanitizedPropertyId}?unit=${sanitizedUnitId}`;
+  } else {
+    portalUrl = `${appUrl}/browse/${sanitizedPropertyId}`;
+  }
   const qrTargetUrl = `${appUrl}/p/${shortCode}`;
 
   // Generate QR code as data URL
@@ -73,6 +84,7 @@ export async function POST(request: NextRequest) {
       short_code: shortCode,
       portal_url: portalUrl,
       qr_image_url: qrDataUrl,
+      qr_type: qrType as 'property' | 'general',
     })
     .select()
     .single();
@@ -88,6 +100,7 @@ export async function POST(request: NextRequest) {
     entityType: 'qr_code',
     entityId: qrCode.id,
     newValue: {
+      qr_type: qrType,
       property_id: sanitizedPropertyId,
       unit_id: sanitizedUnitId,
       short_code: shortCode,
