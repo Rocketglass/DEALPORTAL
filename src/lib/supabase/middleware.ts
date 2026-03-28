@@ -4,10 +4,9 @@ import { getSecurityHeaders } from '@/lib/security/headers';
 import { checkRateLimit } from '@/lib/security/rate-limit';
 
 /**
- * All portal routes that require broker/admin authentication.
- * These are the protected paths — no public or tenant access.
+ * Broker/admin portal routes — existing dashboard routes.
  */
-const PROTECTED_PORTAL_ROUTES = [
+const BROKER_PORTAL_ROUTES = [
   '/dashboard',
   '/properties',
   '/applications',
@@ -19,6 +18,29 @@ const PROTECTED_PORTAL_ROUTES = [
 ];
 
 /**
+ * Landlord portal routes — accessible by landlord and landlord_agent roles.
+ */
+const LANDLORD_PORTAL_ROUTES = [
+  '/landlord',
+];
+
+/**
+ * Tenant portal routes — accessible by tenant and tenant_agent roles.
+ */
+const TENANT_PORTAL_ROUTES = [
+  '/tenant',
+];
+
+/**
+ * All portal routes that require authentication.
+ */
+const PROTECTED_PORTAL_ROUTES = [
+  ...BROKER_PORTAL_ROUTES,
+  ...LANDLORD_PORTAL_ROUTES,
+  ...TENANT_PORTAL_ROUTES,
+];
+
+/**
  * Routes that must always be publicly accessible — even though they may start
  * with a prefix that looks protected. Listed explicitly to avoid false matches.
  */
@@ -26,6 +48,7 @@ const PUBLIC_ROUTES = [
   '/auth/callback',
   '/auth/confirm',
   '/applications/status',
+  '/invite', // Invitation acceptance page
 ];
 
 /**
@@ -287,6 +310,57 @@ export async function updateSession(request: NextRequest) {
       applyRateLimitHeaders(response, rateLimitResult);
       return response;
     }
+
+    // Role-based portal routing — redirect users to their designated portal
+    // if they try to access a portal area that doesn't match their role.
+    if (role && role !== 'pending') {
+      const isLandlordRole = role === 'landlord' || role === 'landlord_agent';
+      const isTenantRole = role === 'tenant' || role === 'tenant_agent';
+      const isBrokerRole = role === 'broker' || role === 'admin';
+
+      const isAccessingBrokerPortal = BROKER_PORTAL_ROUTES.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`),
+      );
+      const isAccessingLandlordPortal = LANDLORD_PORTAL_ROUTES.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`),
+      );
+      const isAccessingTenantPortal = TENANT_PORTAL_ROUTES.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`),
+      );
+
+      // Redirect non-broker roles away from broker portal
+      if (isAccessingBrokerPortal && !isBrokerRole) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = isLandlordRole ? '/landlord/dashboard' : '/tenant/dashboard';
+        redirectUrl.search = '';
+        const response = NextResponse.redirect(redirectUrl);
+        applySecurityHeaders(response);
+        applyRateLimitHeaders(response, rateLimitResult);
+        return response;
+      }
+
+      // Redirect non-landlord roles away from landlord portal
+      if (isAccessingLandlordPortal && !isLandlordRole && !isBrokerRole) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = isTenantRole ? '/tenant/dashboard' : '/dashboard';
+        redirectUrl.search = '';
+        const response = NextResponse.redirect(redirectUrl);
+        applySecurityHeaders(response);
+        applyRateLimitHeaders(response, rateLimitResult);
+        return response;
+      }
+
+      // Redirect non-tenant roles away from tenant portal
+      if (isAccessingTenantPortal && !isTenantRole && !isBrokerRole) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = isLandlordRole ? '/landlord/dashboard' : '/dashboard';
+        redirectUrl.search = '';
+        const response = NextResponse.redirect(redirectUrl);
+        applySecurityHeaders(response);
+        applyRateLimitHeaders(response, rateLimitResult);
+        return response;
+      }
+    }
   }
 
   // Public API routes — accessible without authentication.
@@ -331,8 +405,24 @@ export async function updateSession(request: NextRequest) {
 
   // Redirect logged-in users away from auth pages
   if (user && AUTH_PAGES.includes(pathname)) {
+    // Query user role for correct redirect
+    const { data: loginUserRow } = await supabase
+      .from('users')
+      .select('role')
+      .eq('auth_provider_id', user.id)
+      .single();
+
+    const loginRole = loginUserRow?.role;
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/dashboard';
+
+    if (loginRole === 'landlord' || loginRole === 'landlord_agent') {
+      redirectUrl.pathname = '/landlord/dashboard';
+    } else if (loginRole === 'tenant' || loginRole === 'tenant_agent') {
+      redirectUrl.pathname = '/tenant/dashboard';
+    } else {
+      redirectUrl.pathname = '/dashboard';
+    }
+
     const response = NextResponse.redirect(redirectUrl);
     applySecurityHeaders(response);
     applyRateLimitHeaders(response, rateLimitResult);

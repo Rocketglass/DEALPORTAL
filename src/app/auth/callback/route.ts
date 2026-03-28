@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type');
   // Optional: honour a ?next= param for deep-link redirects
   const next = searchParams.get('next') ?? '/dashboard';
+  const invitationToken = searchParams.get('invitation');
 
   if (!code) {
     // No code in the URL — something went wrong upstream
@@ -77,6 +78,79 @@ export async function GET(request: NextRequest) {
     // If this is a password recovery flow, redirect to the reset-password page
     if (type === 'recovery') {
       return NextResponse.redirect(`${origin}/reset-password`);
+    }
+
+    // If an invitation token is present, look up the invitation and assign the correct role.
+    // This runs AFTER the initial upsert (which creates a 'pending' row if new).
+    // Note: the invitations table type is added in plan 03-03; casting to any until then.
+    if (user && invitationToken) {
+      const { createClient: createServiceClient } = await import('@/lib/supabase/service');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const serviceSupabase = (await createServiceClient()) as any;
+
+      const { data: invitation } = await serviceSupabase
+        .from('invitations')
+        .select('id, role, principal_id, contact_id, deal_id, status')
+        .eq('token', invitationToken)
+        .eq('status', 'pending')
+        .single();
+
+      if (invitation) {
+        // Update user with invitation role and principal_id (for agents)
+        await serviceSupabase
+          .from('users')
+          .update({
+            role: invitation.role,
+            contact_id: invitation.contact_id,
+            principal_id: invitation.principal_id || null,
+          })
+          .eq('auth_provider_id', user.id);
+
+        // Mark invitation as accepted
+        await serviceSupabase
+          .from('invitations')
+          .update({
+            status: 'accepted',
+            accepted_at: new Date().toISOString(),
+            accepted_by_user_id: user.id,
+          })
+          .eq('id', invitation.id);
+
+        // Redirect to the appropriate portal based on role
+        const roleRedirects: Record<string, string> = {
+          landlord: '/landlord/dashboard',
+          landlord_agent: '/landlord/dashboard',
+          tenant: '/tenant/dashboard',
+          tenant_agent: '/tenant/dashboard',
+          broker: '/dashboard',
+          admin: '/dashboard',
+        };
+
+        return NextResponse.redirect(
+          `${origin}${roleRedirects[invitation.role] || next}`,
+        );
+      }
+    }
+
+    // Role-aware default redirect
+    if (user) {
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('role')
+        .eq('auth_provider_id', user.id)
+        .single();
+
+      const userRole = userRow?.role;
+      let redirectPath = next;
+      if (next === '/dashboard') {
+        if (userRole === 'landlord' || userRole === 'landlord_agent') {
+          redirectPath = '/landlord/dashboard';
+        } else if (userRole === 'tenant' || userRole === 'tenant_agent') {
+          redirectPath = '/tenant/dashboard';
+        }
+      }
+
+      return NextResponse.redirect(`${origin}${redirectPath}`);
     }
 
     return NextResponse.redirect(`${origin}${next}`);
