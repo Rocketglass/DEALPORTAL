@@ -70,25 +70,25 @@ ALTER TABLE application_drafts ENABLE ROW LEVEL SECURITY;
 -- Users can only access their own draft
 CREATE POLICY app_drafts_own_select ON application_drafts
   FOR SELECT USING (
-    user_id = (SELECT id FROM users WHERE auth_provider_id = auth.uid())
+    user_id = (SELECT id FROM users WHERE auth_provider_id = auth.uid()::TEXT)
   );
 
 CREATE POLICY app_drafts_own_insert ON application_drafts
   FOR INSERT WITH CHECK (
-    user_id = (SELECT id FROM users WHERE auth_provider_id = auth.uid())
+    user_id = (SELECT id FROM users WHERE auth_provider_id = auth.uid()::TEXT)
   );
 
 CREATE POLICY app_drafts_own_update ON application_drafts
   FOR UPDATE USING (
-    user_id = (SELECT id FROM users WHERE auth_provider_id = auth.uid())
+    user_id = (SELECT id FROM users WHERE auth_provider_id = auth.uid()::TEXT)
   )
   WITH CHECK (
-    user_id = (SELECT id FROM users WHERE auth_provider_id = auth.uid())
+    user_id = (SELECT id FROM users WHERE auth_provider_id = auth.uid()::TEXT)
   );
 
 CREATE POLICY app_drafts_own_delete ON application_drafts
   FOR DELETE USING (
-    user_id = (SELECT id FROM users WHERE auth_provider_id = auth.uid())
+    user_id = (SELECT id FROM users WHERE auth_provider_id = auth.uid()::TEXT)
   );
 
 -- Broker/admin full access (support use case)
