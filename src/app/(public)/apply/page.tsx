@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, type DragEvent, type ChangeEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ChevronLeft,
@@ -14,9 +14,13 @@ import {
   Pencil,
   Shield,
   Building2,
+  MapPin,
+  LogIn,
+  UserPlus,
 } from 'lucide-react';
 import { PublicHeader } from '@/components/layout/public-header';
 import { cn } from '@/lib/utils';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -59,11 +63,14 @@ const DOCUMENT_CATEGORIES: { key: DocumentCategory; label: string; description: 
 
 const STEPS = [
   { number: 1, label: 'Business' },
-  { number: 2, label: 'Space' },
-  { number: 3, label: 'Contact' },
-  { number: 4, label: 'Documents' },
-  { number: 5, label: 'Review' },
+  { number: 2, label: 'Properties' },
+  { number: 3, label: 'Space' },
+  { number: 4, label: 'Contact' },
+  { number: 5, label: 'Documents' },
+  { number: 6, label: 'Review' },
 ] as const;
+
+const STORAGE_KEY = 'rr_application_draft_v2';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,6 +107,16 @@ interface UploadedFile {
 }
 
 type StepErrors = Record<string, string>;
+
+interface PropertyListing {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  property_type: string;
+  total_sf: number;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -316,6 +333,20 @@ function FileUploadZone({ category, files, onAdd, onRemove }: {
 }
 
 // ---------------------------------------------------------------------------
+// Property card skeleton
+// ---------------------------------------------------------------------------
+
+function PropertyCardSkeleton() {
+  return (
+    <div className="animate-pulse rounded-xl border border-border bg-white p-4">
+      <div className="h-4 w-3/4 bg-muted rounded mb-2" />
+      <div className="h-3 w-1/2 bg-muted rounded mb-1" />
+      <div className="h-3 w-1/3 bg-muted rounded" />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Initial form data
 // ---------------------------------------------------------------------------
 
@@ -328,15 +359,35 @@ const INITIAL_FORM_DATA: FormData = {
   guarantorName: '', guarantorEmail: '', guarantorPhone: '', termsAccepted: false,
 };
 
-const STORAGE_KEY = 'rr_application_draft_general';
-
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
 export default function GeneralApplicationPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const propertyParam = searchParams.get('property');
 
+  // Auth state
+  const [authUser, setAuthUser] = useState<{ id: string; email: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Properties list
+  const [properties, setProperties] = useState<PropertyListing[]>([]);
+  const [propertiesLoading, setPropertiesLoading] = useState(false);
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return propertyParam ? [propertyParam] : [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.selectedPropertyIds ?? (propertyParam ? [propertyParam] : []);
+      }
+    } catch { /* */ }
+    return propertyParam ? [propertyParam] : [];
+  });
+
+  // Form state — restore from localStorage on mount
   const [currentStep, setCurrentStep] = useState(() => {
     if (typeof window === 'undefined') return 1;
     try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) return JSON.parse(saved).step ?? 1; } catch { /* */ }
@@ -352,6 +403,7 @@ export default function GeneralApplicationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [draftBanner, setDraftBanner] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<FormData>(() => {
     if (typeof window === 'undefined') return INITIAL_FORM_DATA;
@@ -364,9 +416,83 @@ export default function GeneralApplicationPage() {
     try { return !!localStorage.getItem(STORAGE_KEY); } catch { return false; }
   });
 
+  // Persist to localStorage on every change
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ formData, step: currentStep, savedAt: new Date().toISOString() })); } catch { /* */ }
-  }, [formData, currentStep]);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        formData, step: currentStep, selectedPropertyIds, savedAt: new Date().toISOString(),
+      }));
+    } catch { /* */ }
+  }, [formData, currentStep, selectedPropertyIds]);
+
+  // Check auth state on mount
+  useEffect(() => {
+    if (!isSupabaseConfigured()) { setAuthChecked(true); return; }
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
+        setAuthUser({ id: data.user.id, email: data.user.email ?? '' });
+      }
+      setAuthChecked(true);
+    }).catch(() => setAuthChecked(true));
+  }, []);
+
+  // Load server draft for authenticated users
+  useEffect(() => {
+    if (!authChecked || !authUser) return;
+    fetch('/api/applications/drafts')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.draft) {
+          const { form_data, selected_property_ids, current_step } = data.draft;
+          // Server draft takes priority over localStorage
+          if (form_data && Object.keys(form_data).length > 0) {
+            setFormData((prev) => ({ ...prev, ...form_data }));
+          }
+          if (selected_property_ids?.length > 0) {
+            setSelectedPropertyIds(selected_property_ids);
+          }
+          if (current_step && current_step > 1) {
+            setCurrentStep(current_step);
+          }
+          setDraftBanner('Welcome back! Your application draft has been restored.');
+          setIsRestoredDraft(true);
+        }
+      })
+      .catch(() => { /* non-fatal */ });
+  }, [authChecked, authUser]);
+
+  // Fetch properties for the Properties step
+  useEffect(() => {
+    setPropertiesLoading(true);
+    fetch('/api/public/properties')
+      .then((r) => r.ok ? r.json() : { properties: [] })
+      .then((data) => {
+        setProperties(data.properties ?? []);
+        // If property param was provided, ensure it's pre-selected
+        if (propertyParam) {
+          setSelectedPropertyIds((prev) =>
+            prev.includes(propertyParam) ? prev : [...prev, propertyParam]
+          );
+        }
+      })
+      .catch(() => setProperties([]))
+      .finally(() => setPropertiesLoading(false));
+  }, [propertyParam]);
+
+  // Save draft to server on step change (fire-and-forget)
+  const saveDraftToServer = useCallback((step: number, fd: FormData, propIds: string[]) => {
+    if (!authUser) return;
+    fetch('/api/applications/drafts', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        form_data: fd,
+        selected_property_ids: propIds,
+        current_step: step,
+      }),
+    }).catch(() => { /* non-fatal */ });
+  }, [authUser]);
 
   const updateField = useCallback(<K extends keyof FormData>(key: K, value: FormData[K]) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -392,6 +518,13 @@ export default function GeneralApplicationPage() {
 
   const removeFile = useCallback((id: string) => { setFiles((prev) => prev.filter((f) => f.id !== id)); }, []);
 
+  const togglePropertySelection = useCallback((propertyId: string) => {
+    setSelectedPropertyIds((prev) =>
+      prev.includes(propertyId) ? prev.filter((id) => id !== propertyId) : [...prev, propertyId]
+    );
+    setErrors((prev) => { const next = { ...prev }; delete next.properties; return next; });
+  }, []);
+
   const validateStep = useCallback((step: number): boolean => {
     const stepErrors: StepErrors = {};
     if (step === 1) {
@@ -399,13 +532,16 @@ export default function GeneralApplicationPage() {
       if (!formData.businessType) stepErrors.businessType = 'Please select your business type';
     }
     if (step === 2) {
+      if (selectedPropertyIds.length === 0) stepErrors.properties = 'Please select at least one property you\'re interested in';
+    }
+    if (step === 3) {
       if (!formData.requestedSf.trim()) stepErrors.requestedSf = 'Please enter the square footage you need';
       else if (Number(formData.requestedSf) <= 0) stepErrors.requestedSf = 'Must be a positive number';
       if (!formData.desiredTermMonths.trim()) stepErrors.desiredTermMonths = 'Please enter your desired lease term';
       if (!formData.desiredMoveIn.trim()) stepErrors.desiredMoveIn = 'Please select your desired move-in date';
       if (!formData.monthlyRentBudget.trim()) stepErrors.monthlyRentBudget = 'Please enter your monthly rent budget';
     }
-    if (step === 3) {
+    if (step === 4) {
       if (!formData.contactFirstName.trim()) stepErrors.contactFirstName = 'First name is required';
       if (!formData.contactLastName.trim()) stepErrors.contactLastName = 'Last name is required';
       if (!formData.contactEmail.trim()) stepErrors.contactEmail = 'Email address is required';
@@ -415,35 +551,38 @@ export default function GeneralApplicationPage() {
       if (formData.guarantorEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.guarantorEmail.trim()))
         stepErrors.guarantorEmail = 'Please enter a valid guarantor email';
     }
-    if (step === 4 && files.length === 0) stepErrors.documents = 'Please upload at least one document';
-    if (step === 5) {
+    if (step === 5 && files.length === 0) stepErrors.documents = 'Please upload at least one document';
+    if (step === 6) {
       if (!formData.termsAccepted) stepErrors.termsAccepted = 'You must accept the terms to submit';
       const s: string[] = [];
       if (!formData.businessName.trim()) s.push('Business name (Step 1)');
       if (!formData.businessType) s.push('Business type (Step 1)');
-      if (!formData.requestedSf.trim()) s.push('Square footage (Step 2)');
-      if (!formData.desiredTermMonths.trim()) s.push('Lease term (Step 2)');
-      if (!formData.desiredMoveIn.trim()) s.push('Move-in date (Step 2)');
-      if (!formData.monthlyRentBudget.trim()) s.push('Rent budget (Step 2)');
-      if (!formData.contactFirstName.trim()) s.push('First name (Step 3)');
-      if (!formData.contactLastName.trim()) s.push('Last name (Step 3)');
-      if (!formData.contactEmail.trim()) s.push('Email (Step 3)');
-      if (!formData.contactPhone.trim()) s.push('Phone (Step 3)');
-      if (files.length === 0) s.push('Documents (Step 4)');
+      if (selectedPropertyIds.length === 0) s.push('Properties (Step 2)');
+      if (!formData.requestedSf.trim()) s.push('Square footage (Step 3)');
+      if (!formData.desiredTermMonths.trim()) s.push('Lease term (Step 3)');
+      if (!formData.desiredMoveIn.trim()) s.push('Move-in date (Step 3)');
+      if (!formData.monthlyRentBudget.trim()) s.push('Rent budget (Step 3)');
+      if (!formData.contactFirstName.trim()) s.push('First name (Step 4)');
+      if (!formData.contactLastName.trim()) s.push('Last name (Step 4)');
+      if (!formData.contactEmail.trim()) s.push('Email (Step 4)');
+      if (!formData.contactPhone.trim()) s.push('Phone (Step 4)');
+      if (files.length === 0) s.push('Documents (Step 5)');
       if (s.length > 0) { setSubmitErrorSummary(s); stepErrors['_summary'] = 'Fix issues above'; } else setSubmitErrorSummary([]);
     }
     setErrors(stepErrors);
     if (Object.keys(stepErrors).length > 0) setShakeKey((k) => k + 1);
     return Object.keys(stepErrors).length === 0;
-  }, [formData, files]);
+  }, [formData, files, selectedPropertyIds]);
 
   const goNext = useCallback(() => {
     setHasAttemptedStep((prev) => new Set(prev).add(currentStep));
     if (!validateStep(currentStep)) return;
     setCompletedSteps((prev) => new Set(prev).add(currentStep));
-    setCurrentStep((s: number) => Math.min(s + 1, 5));
+    const nextStep = Math.min(currentStep + 1, 6);
+    setCurrentStep(nextStep);
+    saveDraftToServer(nextStep, formData, selectedPropertyIds);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [currentStep, validateStep]);
+  }, [currentStep, validateStep, saveDraftToServer, formData, selectedPropertyIds]);
 
   const goBack = useCallback(() => { setErrors({}); setCurrentStep((s: number) => Math.max(s - 1, 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }, []);
   const goToStep = useCallback((step: number) => {
@@ -453,15 +592,15 @@ export default function GeneralApplicationPage() {
   }, [currentStep, completedSteps]);
 
   const handleSubmit = useCallback(async () => {
-    setHasAttemptedStep((prev) => new Set(prev).add(5));
-    if (!validateStep(5)) return;
+    setHasAttemptedStep((prev) => new Set(prev).add(6));
+    if (!validateStep(6)) return;
     setIsSubmitting(true); setSubmissionError(null); setUploadProgress(null);
     try {
       const appRes = await fetch('/api/applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // No propertyId — this is a general application
+          propertyIds: selectedPropertyIds,
           businessName: formData.businessName, businessType: formData.businessType,
           stateOfIncorporation: formData.stateOfIncorporation, agreedUse: formData.agreedUse,
           yearsInBusiness: formData.yearsInBusiness, numberOfEmployees: formData.numberOfEmployees,
@@ -487,7 +626,7 @@ export default function GeneralApplicationPage() {
         }
       }
 
-      setCompletedSteps((prev) => new Set(prev).add(5));
+      setCompletedSteps((prev) => new Set(prev).add(6));
       setIsSubmitted(true);
       localStorage.removeItem(STORAGE_KEY);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -496,9 +635,13 @@ export default function GeneralApplicationPage() {
       setSubmissionError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setShakeKey((k) => k + 1);
     } finally { setIsSubmitting(false); setUploadProgress(null); }
-  }, [validateStep, formData, files, router]);
+  }, [validateStep, formData, files, router, selectedPropertyIds]);
 
   const today = new Date().toISOString().split('T')[0];
+
+  // ---------------------------------------------------------------------------
+  // Success screen
+  // ---------------------------------------------------------------------------
 
   if (isSubmitted) {
     return (
@@ -528,7 +671,10 @@ export default function GeneralApplicationPage() {
     );
   }
 
+  // ---------------------------------------------------------------------------
   // Step renderers
+  // ---------------------------------------------------------------------------
+
   const renderStep1 = () => (
     <div className="space-y-5">
       <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3">
@@ -537,7 +683,7 @@ export default function GeneralApplicationPage() {
           <div>
             <p className="text-sm font-medium text-foreground">General Application</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Not applying to a specific property? No problem. Fill out this application and our team will match you with the right space.
+              Fill out this application and select the properties you&rsquo;re interested in. Our team will be in touch.
             </p>
           </div>
         </div>
@@ -555,6 +701,102 @@ export default function GeneralApplicationPage() {
   );
 
   const renderStep2 = () => (
+    <div className="space-y-5">
+      <p className="text-sm text-muted-foreground">
+        Select the properties you&rsquo;re interested in. You can choose multiple.
+      </p>
+
+      {errors.properties && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <p className="flex items-center gap-1.5 text-sm text-red-600" role="alert">
+            <AlertCircle className="h-4 w-4 shrink-0" />{errors.properties}
+          </p>
+        </div>
+      )}
+
+      {/* Select all option */}
+      {!propertiesLoading && properties.length > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            if (selectedPropertyIds.length === properties.length) {
+              setSelectedPropertyIds([]);
+            } else {
+              setSelectedPropertyIds(properties.map((p) => p.id));
+            }
+            setErrors((prev) => { const next = { ...prev }; delete next.properties; return next; });
+          }}
+          className="w-full rounded-lg border border-dashed border-border bg-white px-4 py-3 text-sm font-medium text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors text-left"
+        >
+          {selectedPropertyIds.length === properties.length
+            ? 'Deselect all properties'
+            : 'Not sure yet — show me all options (select all)'}
+        </button>
+      )}
+
+      {propertiesLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[1, 2, 3].map((i) => <PropertyCardSkeleton key={i} />)}
+        </div>
+      ) : properties.length === 0 ? (
+        <div className="rounded-xl border border-border bg-white p-8 text-center">
+          <Building2 className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
+          <p className="text-sm font-medium text-foreground">No properties available</p>
+          <p className="mt-1 text-xs text-muted-foreground">Please continue with your application and our team will match you with suitable spaces.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {properties.map((property) => {
+            const isSelected = selectedPropertyIds.includes(property.id);
+            return (
+              <button
+                key={property.id}
+                type="button"
+                onClick={() => togglePropertySelection(property.id)}
+                className={cn(
+                  'relative rounded-xl border bg-white p-4 text-left transition-all shadow-sm hover:shadow-md',
+                  isSelected
+                    ? 'border-blue-700 bg-blue-50/50 ring-1 ring-blue-700'
+                    : 'border-border hover:border-primary/40',
+                )}
+              >
+                {isSelected && (
+                  <div className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-blue-700">
+                    <Check className="h-3 w-3 text-white" />
+                  </div>
+                )}
+                <div className="pr-6">
+                  <p className="text-sm font-semibold text-foreground leading-snug">{property.name}</p>
+                  <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span>{property.city}, {property.state}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      {property.property_type}
+                    </span>
+                    {property.total_sf > 0 && (
+                      <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {property.total_sf.toLocaleString()} SF
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {selectedPropertyIds.length > 0 && (
+        <p className="text-xs text-primary font-medium">
+          {selectedPropertyIds.length} {selectedPropertyIds.length === 1 ? 'property' : 'properties'} selected
+        </p>
+      )}
+    </div>
+  );
+
+  const renderStep3 = () => (
     <div className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div><Label htmlFor="preferredPropertyType">Preferred Property Type</Label><Select id="preferredPropertyType" value={formData.preferredPropertyType} onChange={(v) => updateField('preferredPropertyType', v)} placeholder="Select type" options={PROPERTY_TYPE_PREFS.map((t) => ({ value: t, label: t }))} /></div>
@@ -579,7 +821,7 @@ export default function GeneralApplicationPage() {
     </div>
   );
 
-  const renderStep3 = () => (
+  const renderStep4 = () => (
     <div className="space-y-6">
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-4">Contact Information</h3>
@@ -604,7 +846,7 @@ export default function GeneralApplicationPage() {
     </div>
   );
 
-  const renderStep4 = () => (
+  const renderStep5 = () => (
     <div className="space-y-6">
       <div className="rounded-lg bg-muted/70 border border-border px-4 py-3">
         <div className="flex items-start gap-2.5">
@@ -621,7 +863,11 @@ export default function GeneralApplicationPage() {
     </div>
   );
 
-  const renderStep5 = () => {
+  const renderStep6 = () => {
+    const selectedPropertyNames = properties
+      .filter((p) => selectedPropertyIds.includes(p.id))
+      .map((p) => p.name);
+
     const sections = [
       { step: 1, title: 'Business Information', items: [
         { label: 'Business Name', value: formData.businessName },
@@ -632,7 +878,14 @@ export default function GeneralApplicationPage() {
         { label: 'Employees', value: formData.numberOfEmployees || '---' },
         { label: 'Annual Revenue', value: formData.annualRevenue ? formatCurrencyInput(formData.annualRevenue) : '---' },
       ]},
-      { step: 2, title: 'Space Requirements', items: [
+      { step: 2, title: 'Selected Properties', items:
+        selectedPropertyIds.length > 0
+          ? selectedPropertyNames.length > 0
+            ? selectedPropertyNames.map((name) => ({ label: 'Property', value: name }))
+            : selectedPropertyIds.map((id) => ({ label: 'Property ID', value: id }))
+          : [{ label: 'Properties', value: 'None selected' }],
+      },
+      { step: 3, title: 'Space Requirements', items: [
         { label: 'Property Type', value: formData.preferredPropertyType || 'Any' },
         { label: 'Preferred Area', value: formData.preferredArea || '---' },
         { label: 'Requested SF', value: formData.requestedSf ? `${Number(formData.requestedSf).toLocaleString()} SF` : '---' },
@@ -640,7 +893,7 @@ export default function GeneralApplicationPage() {
         { label: 'Move-in Date', value: formData.desiredMoveIn ? new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(formData.desiredMoveIn + 'T00:00:00')) : '---' },
         { label: 'Monthly Budget', value: formData.monthlyRentBudget ? formatCurrencyInput(formData.monthlyRentBudget) : '---' },
       ]},
-      { step: 3, title: 'Contact Information', items: [
+      { step: 4, title: 'Contact Information', items: [
         { label: 'Name', value: `${formData.contactFirstName} ${formData.contactLastName}`.trim() || '---' },
         { label: 'Email', value: formData.contactEmail || '---' },
         { label: 'Phone', value: formData.contactPhone ? formatPhoneDisplay(formData.contactPhone) : '---' },
@@ -650,11 +903,22 @@ export default function GeneralApplicationPage() {
           { label: 'Guarantor Phone', value: formData.guarantorPhone ? formatPhoneDisplay(formData.guarantorPhone) : '---' },
         ] : []),
       ]},
-      { step: 4, title: 'Documents', items: DOCUMENT_CATEGORIES.map((cat) => {
+      { step: 5, title: 'Documents', items: DOCUMENT_CATEGORIES.map((cat) => {
         const count = files.filter((f) => f.category === cat.key).length;
         return { label: cat.label, value: count > 0 ? `${count} file${count > 1 ? 's' : ''} uploaded` : 'No files' };
       })},
     ];
+
+    // Auth-gated submission
+    if (!authChecked) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-center py-8">
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="space-y-6">
@@ -675,27 +939,62 @@ export default function GeneralApplicationPage() {
             ))}</dl>
           </div>
         ))}
-        <div className="rounded-xl border border-border bg-white p-4">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" checked={formData.termsAccepted} onChange={(e) => updateField('termsAccepted', e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary/20 accent-primary" />
-            <span className="text-sm text-muted-foreground leading-relaxed">
-              I confirm that the information provided is accurate and complete. I authorize Rocket Realty to verify the information submitted, including credit checks and reference verification.
-            </span>
-          </label>
-          {errors.termsAccepted && <p className="mt-2 flex items-center gap-1 text-xs text-destructive" role="alert"><AlertCircle className="h-3 w-3 shrink-0" />{errors.termsAccepted}</p>}
-        </div>
+
+        {!authUser ? (
+          // Auth gate — user must log in or register to submit
+          <div className="rounded-xl border border-border bg-white p-6 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 mb-4">
+              <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="text-base font-semibold text-foreground">Create an account to submit</h3>
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+              To submit your application, please create an account or log in. Your progress has been saved.
+            </p>
+            <div className="mt-5 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                href="/register?redirect=/apply&draft=restore"
+                className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors"
+              >
+                <UserPlus className="h-4 w-4" />
+                Create Account
+              </Link>
+              <Link
+                href="/login?redirect=/apply&draft=restore"
+                className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-border bg-white px-5 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors"
+              >
+                <LogIn className="h-4 w-4" />
+                Log In
+              </Link>
+            </div>
+          </div>
+        ) : (
+          // Authenticated — show terms + submit
+          <div className="rounded-xl border border-border bg-white p-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" checked={formData.termsAccepted} onChange={(e) => updateField('termsAccepted', e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary/20 accent-primary" />
+              <span className="text-sm text-muted-foreground leading-relaxed">
+                I confirm that the information provided is accurate and complete. I authorize Rocket Realty to verify the information submitted, including credit checks and reference verification.
+              </span>
+            </label>
+            {errors.termsAccepted && <p className="mt-2 flex items-center gap-1 text-xs text-destructive" role="alert"><AlertCircle className="h-3 w-3 shrink-0" />{errors.termsAccepted}</p>}
+          </div>
+        )}
       </div>
     );
   };
 
   const stepMeta: Record<number, { title: string; description: string }> = {
     1: { title: 'Business Information', description: 'Tell us about your business' },
-    2: { title: 'Space Requirements', description: 'What are you looking for?' },
-    3: { title: 'Contact & Guarantor', description: 'How can we reach you?' },
-    4: { title: 'Financial Documents', description: 'Upload supporting documents' },
-    5: { title: 'Review & Submit', description: 'Review your application before submitting' },
+    2: { title: 'Select Properties', description: 'Choose the properties you\'re interested in' },
+    3: { title: 'Space Requirements', description: 'What are you looking for?' },
+    4: { title: 'Contact & Guarantor', description: 'How can we reach you?' },
+    5: { title: 'Financial Documents', description: 'Upload supporting documents' },
+    6: { title: 'Review & Submit', description: 'Review your application before submitting' },
   };
+
+  const isLastStep = currentStep === 6;
+  const canSubmit = authUser !== null;
 
   return (
     <div className="min-h-screen bg-muted">
@@ -703,10 +1002,11 @@ export default function GeneralApplicationPage() {
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
         <StepIndicator currentStep={currentStep} completedSteps={completedSteps} />
 
-        {isRestoredDraft && (
+        {(draftBanner || isRestoredDraft) && (
           <div className="mt-4 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-            <p className="text-sm text-blue-800">Continuing from your saved draft.</p>
-            <button type="button" onClick={() => setIsRestoredDraft(false)} className="ml-4 rounded p-0.5 text-blue-600 hover:text-blue-800 transition-colors"><X className="h-4 w-4" /></button>
+            <p className="text-sm text-blue-800">{draftBanner ?? 'Continuing from your saved draft.'}</p>
+            <button type="button" onClick={() => { setDraftBanner(null); setIsRestoredDraft(false); }}
+              className="ml-4 rounded p-0.5 text-blue-600 hover:text-blue-800 transition-colors"><X className="h-4 w-4" /></button>
           </div>
         )}
 
@@ -721,9 +1021,10 @@ export default function GeneralApplicationPage() {
             {currentStep === 3 && renderStep3()}
             {currentStep === 4 && renderStep4()}
             {currentStep === 5 && renderStep5()}
+            {currentStep === 6 && renderStep6()}
           </div>
 
-          {submissionError && currentStep === 5 && (
+          {submissionError && currentStep === 6 && (
             <div className="mx-5 mb-0 mt-0 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 sm:mx-8">
               <div className="flex items-start gap-2"><AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" /><p className="text-sm text-destructive">{submissionError}</p></div>
             </div>
@@ -748,18 +1049,21 @@ export default function GeneralApplicationPage() {
                 <ChevronLeft className="h-4 w-4" />Back
               </button>
             ) : <div />}
-            {currentStep < 5 ? (
+            {!isLastStep ? (
               <button type="button" onClick={goNext}
                 className="flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors">
                 Continue<ChevronRight className="h-4 w-4" />
               </button>
-            ) : (
+            ) : canSubmit ? (
               <button type="button" onClick={handleSubmit} disabled={isSubmitting}
                 className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors disabled:opacity-70">
                 {isSubmitting ? (
                   <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{uploadProgress ? `Uploading ${uploadProgress.current}/${uploadProgress.total}…` : 'Submitting…'}</>
                 ) : 'Submit Application'}
               </button>
+            ) : (
+              // No submit button when not authenticated — auth card is shown in the step
+              <div />
             )}
           </div>
         </div>
