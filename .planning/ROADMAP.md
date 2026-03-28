@@ -111,7 +111,7 @@ Plans:
   4. When all parties have agreed on lease terms, the broker can generate the PDF and send it to DocuSign from the portal
   5. Email notifications fire correctly for both LOI section updates and lease term updates, referencing the correct parties and deal
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 07-01-PLAN.md — Authenticate lease negotiate/respond endpoints with role attribution, email + in-app notifications to non-actor parties
@@ -130,7 +130,7 @@ Plans:
 | 4. General Application Flow | 2/2 | Complete   | 2026-03-28 | - |
 | 5. Landlord and Tenant Portals | 3/3 | Complete   | 2026-03-28 | - |
 | 6. In-Portal LOI Negotiation | 2/2 | Complete   | 2026-03-28 | - |
-| 7. Lease Negotiation and Notifications | 1/3 | In Progress|  | - |
+| 7. Lease Negotiation and Notifications | 2/3 | In Progress|  | - |
 
 ---
 *Roadmap created: 2026-03-27 for v1.1 Multi-Party Portal*

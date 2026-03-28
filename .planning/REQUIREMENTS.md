@@ -47,15 +47,15 @@ Requirements for Multi-Party Portal milestone. Each maps to roadmap phases.
 
 ### Lease Negotiation
 
-- [ ] **LEAS-01**: Lease terms can be reviewed by all three parties in-portal before DocuSign
-- [ ] **LEAS-02**: Any party can propose changes to lease terms in-portal
-- [ ] **LEAS-03**: When any party updates lease terms, the other parties receive notification
+- [x] **LEAS-01**: Lease terms can be reviewed by all three parties in-portal before DocuSign
+- [x] **LEAS-02**: Any party can propose changes to lease terms in-portal
+- [x] **LEAS-03**: When any party updates lease terms, the other parties receive notification
 - [ ] **LEAS-04**: Once all parties agree on lease terms, broker can generate PDF and send to DocuSign
 
 ### Notifications
 
 - [ ] **NOTF-01**: Email notification sent to all relevant parties when LOI section is updated
-- [ ] **NOTF-02**: Email notification sent to all relevant parties when lease term is updated
+- [x] **NOTF-02**: Email notification sent to all relevant parties when lease term is updated
 - [x] **NOTF-03**: In-app notification badge updates in real-time for logged-in users
 
 ## v2 Requirements
@@ -111,12 +111,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LOI-03 | Phase 6 | Complete |
 | LOI-04 | Phase 6 | Complete |
 | LOI-05 | Phase 6 | Complete |
-| LEAS-01 | Phase 7 | Pending |
-| LEAS-02 | Phase 7 | Pending |
-| LEAS-03 | Phase 7 | Pending |
+| LEAS-01 | Phase 7 | Complete |
+| LEAS-02 | Phase 7 | Complete |
+| LEAS-03 | Phase 7 | Complete |
 | LEAS-04 | Phase 7 | Pending |
 | NOTF-01 | Phase 7 | Pending |
-| NOTF-02 | Phase 7 | Pending |
+| NOTF-02 | Phase 7 | Complete |
 | NOTF-03 | Phase 7 | Complete |
 
 **Coverage:**

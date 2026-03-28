@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Party Portal
 status: executing
-stopped_at: Completed 07-02-PLAN.md (proactive notification badge with pathname-based re-fetch)
-last_updated: "2026-03-28T03:02:07.959Z"
+stopped_at: Completed 07-01-PLAN.md (authenticated lease negotiate/respond endpoints with email and in-app notifications)
+last_updated: "2026-03-28T03:03:32.159Z"
 last_activity: "2026-03-28 — Completed plan 03-03 (invitation system: table, API endpoints, email sender)"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 12
 ---
 
@@ -54,6 +54,7 @@ Progress: [███░░] 12% (v1.1 phases 3-7)
 | Phase 06-in-portal-loi-negotiation P06-01 | 6 | 2 tasks | 4 files |
 | Phase 06-in-portal-loi-negotiation PP06-02 | 3 | 2 tasks | 5 files |
 | Phase 07-lease-negotiation-and-notifications P02 | 1 | 1 tasks | 1 files |
+| Phase 07-lease-negotiation-and-notifications P07-01 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,8 @@ From 03-03 (invitation system):
 - [Phase 06-in-portal-loi-negotiation]: Three-party timeline colors extended: broker=blue (#1e40af), landlord=amber-500, tenant=emerald-500
 - [Phase 07-02]: Separate unreadBadgeCount state from notifications array — badge updates proactively on pathname change, panel state updates only on open
 - [Phase 07-02]: Panel fetch syncs unreadBadgeCount after mapping to prevent divergence when panel opens with fresher data
+- [Phase 07-01]: party_role derived from user.role not request body — eliminates spoofing vector from public endpoint
+- [Phase 07-01]: negotiation_status gate removed from GET endpoint — authenticated parties can see all their leases; respond endpoint still gates non-negotiation leases
 
 ### Pending Todos
 
@@ -112,6 +115,6 @@ None yet. Key architectural note: Phase 3 (roles + RLS) must be fully complete b
 
 ## Session Continuity
 
-Last session: 2026-03-28T03:02:07.957Z
-Stopped at: Completed 07-02-PLAN.md (proactive notification badge with pathname-based re-fetch)
+Last session: 2026-03-28T03:03:32.157Z
+Stopped at: Completed 07-01-PLAN.md (authenticated lease negotiate/respond endpoints with email and in-app notifications)
 Resume file: None
