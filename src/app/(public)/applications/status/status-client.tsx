@@ -32,6 +32,18 @@ const statusSteps: StatusStep[] = [
   { key: 'approved', label: 'Decision' },
 ];
 
+interface LoiProgress {
+  status: string;
+  sentAt: string | null;
+  agreedAt: string | null;
+}
+
+interface LeaseProgress {
+  status: string;
+  docusignStatus: string | null;
+  signedDate: string | null;
+}
+
 interface ApplicationResult {
   id: string;
   businessName: string;
@@ -40,6 +52,8 @@ interface ApplicationResult {
   submittedAt: string | null;
   status: ApplicationStatus;
   brokerNotes: string | null;
+  loi: LoiProgress | null;
+  lease: LeaseProgress | null;
   documents: {
     id: string;
     name: string;
@@ -351,11 +365,84 @@ export function ApplicationStatusClient() {
                           <p className="text-sm font-medium text-green-800">
                             Application approved
                           </p>
-                          <p className="mt-1 text-sm text-green-700">
-                            Next steps: A Letter of Intent (LOI) will be sent to the landlord for review.
-                            Your broker will reach out with details.
-                          </p>
+                          {!application.loi && (
+                            <p className="mt-1 text-sm text-green-700">
+                              Next steps: A Letter of Intent (LOI) will be sent to the landlord for review.
+                              Your broker will reach out with details.
+                            </p>
+                          )}
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Deal pipeline — shown when LOI or lease exists */}
+                  {application.status === 'approved' && (application.loi || application.lease) && (
+                    <div className="mt-6 rounded-xl border border-[var(--border)] bg-white p-5">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted-foreground)]">
+                        Deal Progress
+                      </h3>
+                      <div className="mt-4 space-y-3">
+                        {/* LOI status */}
+                        {application.loi && (
+                          <div className="flex items-center gap-3">
+                            {application.loi.status === 'agreed' ? (
+                              <CheckCircle2 className="h-5 w-5 text-[var(--success)]" />
+                            ) : (
+                              <Clock className="h-5 w-5 text-amber-500" />
+                            )}
+                            <div>
+                              <p className="text-sm font-medium">
+                                Letter of Intent
+                                {application.loi.status === 'draft' && ' — Being prepared'}
+                                {application.loi.status === 'sent' && ' — Sent to landlord'}
+                                {application.loi.status === 'in_negotiation' && ' — Under negotiation'}
+                                {application.loi.status === 'agreed' && ' — All terms agreed'}
+                                {application.loi.status === 'rejected' && ' — Rejected'}
+                              </p>
+                              {application.loi.sentAt && (
+                                <p className="text-xs text-[var(--muted-foreground)]">
+                                  Sent {formatDate(application.loi.sentAt)}
+                                  {application.loi.agreedAt && ` · Agreed ${formatDate(application.loi.agreedAt)}`}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Lease status */}
+                        {application.lease && (
+                          <div className="flex items-center gap-3">
+                            {application.lease.status === 'executed' ? (
+                              <CheckCircle2 className="h-5 w-5 text-[var(--success)]" />
+                            ) : (
+                              <Clock className="h-5 w-5 text-amber-500" />
+                            )}
+                            <div>
+                              <p className="text-sm font-medium">
+                                Lease
+                                {application.lease.status === 'draft' && ' — Being prepared'}
+                                {application.lease.status === 'pending_review' && ' — Under review'}
+                                {application.lease.status === 'sent_for_signature' && ' — Sent for signature'}
+                                {application.lease.status === 'partially_signed' && ' — Partially signed'}
+                                {application.lease.status === 'executed' && ' — Fully executed'}
+                              </p>
+                              {application.lease.signedDate && (
+                                <p className="text-xs text-[var(--muted-foreground)]">
+                                  Signed {formatDate(application.lease.signedDate)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Show pending stages */}
+                        {application.loi && !application.lease && application.loi.status !== 'agreed' && (
+                          <div className="flex items-center gap-3 opacity-40">
+                            <div className="h-5 w-5 rounded-full border-2 border-[var(--border)]" />
+                            <p className="text-sm">Lease — Pending LOI agreement</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

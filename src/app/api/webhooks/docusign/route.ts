@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getEnvelopeDocument } from '@/lib/docusign/client';
 import { generateCommissionInvoice } from '@/lib/commission/generate-invoice';
-import { notifyLeaseExecuted } from '@/lib/email/notifications';
+import { notifyLeaseExecuted, notifyInvoiceSent } from '@/lib/email/notifications';
 
 // Use service role client for webhook processing (no user session)
 function getServiceClient() {
@@ -217,6 +217,50 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
     console.log(
       `[DocuSign Webhook] Commission invoice ${invoice.invoice_number} generated for lease ${lease.id}`,
     );
+
+    // Notify the payee (landlord) that the invoice has been generated
+    try {
+      const { data: payee } = await supabase
+        .from('contacts')
+        .select('email, first_name, last_name, company_name')
+        .eq('id', invoice.payee_contact_id)
+        .maybeSingle();
+
+      const { data: prop } = await supabase
+        .from('properties')
+        .select('address')
+        .eq('id', lease.property_id)
+        .maybeSingle();
+
+      const { data: unit } = await supabase
+        .from('units')
+        .select('suite_number')
+        .eq('id', lease.unit_id)
+        .maybeSingle();
+
+      if (payee?.email) {
+        const payeeName = [payee.first_name, payee.last_name].filter(Boolean).join(' ')
+          || payee.company_name || 'Landlord';
+
+        await notifyInvoiceSent(
+          {
+            id: invoice.id,
+            invoiceNumber: invoice.invoice_number,
+            propertyAddress: prop?.address ?? '',
+            suiteNumber: unit?.suite_number ?? '',
+            commissionAmount: `$${Number(invoice.commission_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+            dueDate: invoice.due_date
+              ? new Date(invoice.due_date).toLocaleDateString()
+              : 'Due on receipt',
+          },
+          payee.email,
+          payeeName,
+        );
+        console.log(`[DocuSign Webhook] Invoice notification sent to ${payee.email}`);
+      }
+    } catch (notifyErr) {
+      console.error('[DocuSign Webhook] Failed to send invoice notification:', notifyErr);
+    }
   } catch (invoiceError) {
     // Log but do not re-throw — a billing failure should not cause DocuSign
     // to retry the webhook and double-update the lease.

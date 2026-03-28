@@ -95,10 +95,57 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Failed to fetch applications' }, { status: 500 });
     }
 
+    // Fetch LOIs and leases linked to these applications for deal pipeline tracking
+    const appIds = (rows ?? []).map((r) => r.id as string);
+
+    // LOIs linked to applications
+    const { data: lois } = appIds.length > 0
+      ? await supabase
+          .from('lois')
+          .select('id, application_id, status, sent_at, agreed_at')
+          .in('application_id', appIds)
+      : { data: [] };
+
+    // Leases linked via LOIs
+    const loiIds = (lois ?? []).map((l) => l.id as string);
+    const { data: leases } = loiIds.length > 0
+      ? await supabase
+          .from('leases')
+          .select('id, loi_id, status, docusign_status, signed_date, sent_for_signature_at')
+          .in('loi_id', loiIds)
+      : { data: [] };
+
+    // Build lookup maps
+    const loiByApp = new Map<string, { status: string; sentAt: string | null; agreedAt: string | null }>();
+    for (const l of (lois ?? [])) {
+      if (l.application_id) {
+        loiByApp.set(l.application_id as string, {
+          status: l.status as string,
+          sentAt: l.sent_at as string | null,
+          agreedAt: l.agreed_at as string | null,
+        });
+      }
+    }
+
+    const leaseByLoi = new Map<string, { status: string; docusignStatus: string | null; signedDate: string | null }>();
+    for (const ls of (leases ?? [])) {
+      if (ls.loi_id) {
+        leaseByLoi.set(ls.loi_id as string, {
+          status: ls.status as string,
+          docusignStatus: ls.docusign_status as string | null,
+          signedDate: ls.signed_date as string | null,
+        });
+      }
+    }
+
+    // Find LOI id by application_id for lease lookup
+    const loiIdByApp = new Map<string, string>();
+    for (const l of (lois ?? [])) {
+      if (l.application_id) loiIdByApp.set(l.application_id as string, l.id as string);
+    }
+
     // Shape the response into the format the status page expects
     const applications = (rows ?? []).map((row) => {
-      // Supabase returns joined singular relations as objects, not arrays,
-      // but the inferred type may be overly broad — cast via unknown.
       const property = row.property as unknown as { name: string } | null;
       const unit = row.unit as unknown as { suite_number: string } | null;
       const documents = (row.documents as Array<{
@@ -109,13 +156,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         uploaded_at: string;
       }> | null) ?? [];
 
+      const appId = row.id as string;
+      const loiData = loiByApp.get(appId) ?? null;
+      const loiId = loiIdByApp.get(appId);
+      const leaseData = loiId ? leaseByLoi.get(loiId) ?? null : null;
+
       return {
-        id: row.id as string,
+        id: appId,
         businessName: (row.business_name as string) ?? '',
         propertyName: property?.name ?? 'Unknown Property',
         suiteName: unit?.suite_number ?? null,
         submittedAt: row.submitted_at as string | null,
         status: (row.status as ApplicationStatus),
+        loi: loiData,
+        lease: leaseData,
         documents: documents.map((doc) => ({
           id: doc.id,
           name: doc.file_name,

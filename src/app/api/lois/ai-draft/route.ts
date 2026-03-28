@@ -351,6 +351,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Check for property-type templates to use as defaults
+    const { data: templates } = await supabase
+      .from('loi_templates')
+      .select('sections')
+      .eq('property_type', property.property_type)
+      .eq('is_default', true)
+      .maybeSingle();
+
     // Generate AI-drafted sections
     const generatedSections = generateSections(
       {
@@ -376,6 +384,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         total_sf: property.total_sf,
       },
     );
+
+    // Apply template defaults — template values override generated defaults
+    // but application-specific data (business name, budget, term) still takes priority
+    if (templates?.sections && Array.isArray(templates.sections)) {
+      const templateSections = templates.sections as Array<{
+        section_key: string;
+        section_label?: string;
+        default_value?: string;
+      }>;
+
+      for (const tmpl of templateSections) {
+        const match = generatedSections.find((s) => s.section_key === tmpl.section_key);
+        if (match && tmpl.default_value) {
+          // Only apply template default if the generated value is a generic placeholder
+          const isGeneric = match.proposed_value.includes('TBD') ||
+            match.proposed_value.includes('Per property standard');
+          if (isGeneric) {
+            match.proposed_value = tmpl.default_value;
+          }
+          // Always use template label if available
+          if (tmpl.section_label) {
+            match.section_label = tmpl.section_label;
+          }
+        }
+      }
+    }
 
     // Build the AI draft prompt summary for audit/reference
     const aiDraftPrompt = [
