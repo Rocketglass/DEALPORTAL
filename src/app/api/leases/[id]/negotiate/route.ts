@@ -1,34 +1,42 @@
 /**
  * GET /api/leases/[id]/negotiate
  *
- * Public endpoint — no authentication required.
- * Returns the lease data needed for the negotiation review page:
+ * Authenticated endpoint — requires an active session.
+ * Accessible to broker, admin, landlord, landlord_agent, tenant, tenant_agent.
+ * Non-parties (landlord/tenant that don't match the lease contacts) receive 403.
+ *
+ * Returns the lease data all parties need to view and negotiate lease sections:
+ *   - callerRole: the authenticated user's role (so the UI knows which party is viewing)
+ *   - landlordContactId: lease.landlord_contact_id
+ *   - tenantContactId: lease.tenant_contact_id
+ *   - brokerContactId: lease.broker_contact_id
  *   - meta: property, suite, tenant, landlord, broker info
  *   - sections: array of lease sections with current status
  *   - timeline: negotiation history entries
- *
- * Only returns leases whose negotiation_status is 'in_negotiation' or 'agreed'.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-function getServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Supabase not configured');
-  return createClient(url, key);
-}
+import { requireAuthForApi } from '@/lib/security/auth-guard';
+import { createClient as createServiceClient } from '@/lib/supabase/service';
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
-    const { id: leaseId } = await params;
-    const supabase = getServiceClient();
+    // 1. Authenticate the request — throws if no session
+    let user;
+    try {
+      user = await requireAuthForApi();
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // Fetch lease with related data and sections
+    const { id: leaseId } = await params;
+    const supabase = await createServiceClient();
+
+    // 2. Fetch lease with related data and sections (service client bypasses RLS — auth enforced above)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: lease, error } = await supabase
       .from('leases')
       .select(`
@@ -44,6 +52,9 @@ export async function GET(
         lessee_name,
         commencement_date,
         expiration_date,
+        landlord_contact_id,
+        tenant_contact_id,
+        broker_contact_id,
         created_at,
         property:properties(name, address, city, state),
         unit:units(suite_number),
@@ -69,21 +80,38 @@ export async function GET(
       return NextResponse.json({ error: 'Lease not found' }, { status: 404 });
     }
 
-    // Only allow access when lease is in negotiation or agreed
-    const negotiationStatus = (lease as Record<string, unknown>).negotiation_status as string;
-    if (!['in_negotiation', 'agreed'].includes(negotiationStatus)) {
-      return NextResponse.json(
-        { error: 'This lease is not currently available for negotiation review.' },
-        { status: 403 },
-      );
+    // Cast to any for field access — Supabase types don't infer partial FK join shapes
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const leaseData = lease as any;
+
+    // 3. Authorization: verify the caller is a party to this lease
+    const { role, contactId, principalId } = user;
+    const effectiveContactId = contactId ?? principalId;
+
+    const isBrokerOrAdmin = role === 'broker' || role === 'admin';
+    const isLandlord = role === 'landlord' || role === 'landlord_agent';
+    const isTenant = role === 'tenant' || role === 'tenant_agent';
+
+    if (!isBrokerOrAdmin) {
+      if (isLandlord) {
+        if (!effectiveContactId || effectiveContactId !== leaseData.landlord_contact_id) {
+          return NextResponse.json({ error: 'Forbidden: not a party to this lease' }, { status: 403 });
+        }
+      } else if (isTenant) {
+        if (!effectiveContactId || effectiveContactId !== leaseData.tenant_contact_id) {
+          return NextResponse.json({ error: 'Forbidden: not a party to this lease' }, { status: 403 });
+        }
+      } else {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
-    // Shape display helpers
-    const property = lease.property as unknown as { name: string; address: string; city: string; state: string } | null;
-    const unit = lease.unit as unknown as { suite_number: string } | null;
-    const tenant = lease.tenant as unknown as { company_name: string | null; first_name: string | null; last_name: string | null } | null;
-    const landlord = lease.landlord as unknown as { company_name: string | null; first_name: string | null; last_name: string | null } | null;
-    const broker = lease.broker as unknown as { company_name: string | null; first_name: string | null; last_name: string | null } | null;
+    // 4. Shape display helpers
+    const property = leaseData.property as { name: string; address: string; city: string; state: string } | null;
+    const unit = leaseData.unit as { suite_number: string } | null;
+    const tenant = leaseData.tenant as { company_name: string | null; first_name: string | null; last_name: string | null } | null;
+    const landlord = leaseData.landlord as { company_name: string | null; first_name: string | null; last_name: string | null } | null;
+    const broker = leaseData.broker as { company_name: string | null; first_name: string | null; last_name: string | null } | null;
 
     const tenantName =
       tenant?.company_name ??
@@ -100,7 +128,7 @@ export async function GET(
       [broker?.first_name, broker?.last_name].filter(Boolean).join(' ') ??
       '';
 
-    // Sort sections by display_order
+    // 5. Sort sections by display_order
     type RawSection = {
       id: string;
       section_key: string;
@@ -113,7 +141,7 @@ export async function GET(
       updated_at: string;
     };
 
-    const sections = ((lease.sections as RawSection[]) ?? [])
+    const sections = ((leaseData.sections as RawSection[]) ?? [])
       .sort((a, b) => a.display_order - b.display_order)
       .map((s) => ({
         id: s.id,
@@ -126,7 +154,7 @@ export async function GET(
         updatedAt: s.updated_at,
       }));
 
-    // Fetch negotiation timeline for all sections of this lease
+    // 6. Fetch negotiation timeline for all sections of this lease
     const sectionIds = sections.map((s) => s.id);
     let timeline: Array<{
       id: string;
@@ -140,13 +168,15 @@ export async function GET(
     }> = [];
 
     if (sectionIds.length > 0) {
-      const { data: negotiations } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: negotiations } = await (supabase as any)
         .from('lease_negotiations')
         .select('id, lease_section_id, action, value, note, created_by, party_role, created_at')
         .in('lease_section_id', sectionIds)
         .order('created_at', { ascending: true });
 
-      timeline = (negotiations ?? []).map((n) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      timeline = ((negotiations as any[]) ?? []).map((n: any) => ({
         id: n.id,
         sectionId: n.lease_section_id,
         action: n.action,
@@ -159,23 +189,27 @@ export async function GET(
     }
 
     return NextResponse.json({
+      callerRole: role,
+      landlordContactId: leaseData.landlord_contact_id,
+      tenantContactId: leaseData.tenant_contact_id,
+      brokerContactId: leaseData.broker_contact_id,
       meta: {
-        leaseId: lease.id,
-        negotiationStatus,
+        leaseId: leaseData.id,
+        negotiationStatus: leaseData.negotiation_status,
         property: property?.name ?? '',
         propertyAddress: property
           ? `${property.address}, ${property.city}, ${property.state}`
-          : lease.premises_address,
+          : leaseData.premises_address,
         suite: unit?.suite_number ?? '',
-        premisesSf: lease.premises_sf,
+        premisesSf: leaseData.premises_sf,
         tenant: tenantName,
         landlord: landlordName,
         broker: brokerName,
-        lessorName: lease.lessor_name,
-        lesseeName: lease.lessee_name,
-        commencementDate: lease.commencement_date,
-        expirationDate: lease.expiration_date,
-        createdAt: lease.created_at,
+        lessorName: leaseData.lessor_name,
+        lesseeName: leaseData.lessee_name,
+        commencementDate: leaseData.commencement_date,
+        expirationDate: leaseData.expiration_date,
+        createdAt: leaseData.created_at,
       },
       sections,
       timeline,
