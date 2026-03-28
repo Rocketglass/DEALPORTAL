@@ -56,7 +56,7 @@ Requirements for Multi-Party Portal milestone. Each maps to roadmap phases.
 
 - [ ] **NOTF-01**: Email notification sent to all relevant parties when LOI section is updated
 - [ ] **NOTF-02**: Email notification sent to all relevant parties when lease term is updated
-- [ ] **NOTF-03**: In-app notification badge updates in real-time for logged-in users
+- [x] **NOTF-03**: In-app notification badge updates in real-time for logged-in users
 
 ## v2 Requirements
 
@@ -117,7 +117,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LEAS-04 | Phase 7 | Pending |
 | NOTF-01 | Phase 7 | Pending |
 | NOTF-02 | Phase 7 | Pending |
-| NOTF-03 | Phase 7 | Pending |
+| NOTF-03 | Phase 7 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 30 total
