@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   DollarSign,
   Calendar,
@@ -263,9 +263,9 @@ function SectionCard({
 }) {
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const Icon = getSectionIcon(section.sectionKey);
+  const sectionIcon = getSectionIcon(section.sectionKey);
   const statusCfg = sectionStatusConfig[section.status] ?? sectionStatusConfig.proposed;
-  const StatusIcon = statusCfg.icon;
+  const statusIcon = statusCfg.icon;
 
   const sortedNegotiations = [...(section.negotiations ?? [])].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
@@ -294,7 +294,7 @@ function SectionCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-              <Icon className="h-4 w-4 text-[#64748b]" />
+              {React.createElement(sectionIcon, { className: 'h-4 w-4 text-[#64748b]' })}
             </div>
             <span className="text-sm font-semibold text-[#0f172a]">{section.label}</span>
           </div>
@@ -305,7 +305,7 @@ function SectionCard({
               statusCfg.text,
             )}
           >
-            <StatusIcon className="h-3 w-3" />
+            {React.createElement(statusIcon, { className: 'h-3 w-3' })}
             {statusCfg.label}
           </span>
         </div>

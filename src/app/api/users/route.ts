@@ -40,7 +40,7 @@ export async function GET(): Promise<NextResponse> {
     const agentUsers = (users ?? []).filter((u) => u.principal_id);
     const principalIds = [...new Set(agentUsers.map((u) => u.principal_id))];
 
-    let principalMap = new Map<string, { email: string; contact: { first_name: string | null; last_name: string | null } | null }>();
+    const principalMap = new Map<string, { email: string; contact: { first_name: string | null; last_name: string | null } | null }>();
 
     if (principalIds.length > 0) {
       const { data: principals } = await supabase
