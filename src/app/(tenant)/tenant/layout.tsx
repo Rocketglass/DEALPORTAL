@@ -2,7 +2,7 @@ import { requireRole } from '@/lib/security/auth-guard';
 import { PortalSidebar } from '@/components/layout/portal-sidebar';
 import { Header } from '@/components/layout/header';
 import { MobileNav } from '@/components/layout/mobile-nav';
-import { LayoutDashboard, FileText, FileSignature } from 'lucide-react';
+import { LayoutDashboard, FileText, FileSignature, ScrollText } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +10,7 @@ const tenantNavItems = [
   { href: '/tenant/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/tenant/applications', label: 'My Applications', icon: FileText },
   { href: '/tenant/lois', label: 'LOIs', icon: FileSignature },
+  { href: '/tenant/leases', label: 'Leases', icon: ScrollText },
 ];
 
 export default async function TenantLayout({
