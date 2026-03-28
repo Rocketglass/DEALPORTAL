@@ -94,7 +94,11 @@ Plans:
   3. Tenant can counter, accept, or reject any LOI section from their portal; their action is recorded in negotiation history
   4. When any party updates a section, the other two parties each receive an email notification and an in-app notification badge
   5. Broker can view the complete negotiation history across both parties and respond to any outstanding counter from either side
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — API auth + multi-party notifications: authenticate review-data and respond endpoints, role-based attribution, email + in-app notifications to other two parties
+- [ ] 06-02-PLAN.md — Shared LOI negotiation UI: reusable LoiNegotiationView component, landlord and tenant LOI detail pages, portal nav updates
 
 ### Phase 7: Lease Negotiation and Notifications
 **Goal**: All three parties can review and propose changes to lease terms in-portal before DocuSign; once all parties agree, broker sends to DocuSign; the full notification layer is complete across all LOI and lease events
@@ -120,7 +124,7 @@ Plans:
 | 3. Role Foundation | 1/3 | In Progress|  | - |
 | 4. General Application Flow | 2/2 | Complete   | 2026-03-28 | - |
 | 5. Landlord and Tenant Portals | 3/3 | Complete   | 2026-03-28 | - |
-| 6. In-Portal LOI Negotiation | v1.1 | 0/TBD | Not started | - |
+| 6. In-Portal LOI Negotiation | v1.1 | 0/2 | Not started | - |
 | 7. Lease Negotiation and Notifications | v1.1 | 0/TBD | Not started | - |
 
 ---
