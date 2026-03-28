@@ -11,6 +11,7 @@ import {
   ScrollText,
   Receipt,
   BarChart3,
+  Users,
   Settings,
   LogOut,
   ExternalLink,
@@ -37,6 +38,7 @@ const navItems = [
   { href: '/leases', label: 'Leases', icon: ScrollText },
   { href: '/invoices', label: 'Invoices', icon: Receipt },
   { href: '/comps', label: 'Comps', icon: BarChart3 },
+  { href: '/users', label: 'Users', icon: Users },
 ];
 
 export function Sidebar() {
