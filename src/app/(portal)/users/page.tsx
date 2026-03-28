@@ -140,7 +140,7 @@ export default function UsersPage() {
         setInvitations(data.invitations ?? []);
       }
     } catch {
-      toast('Failed to load users', 'error');
+      toast({ title: 'Failed to load users', variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -167,12 +167,12 @@ export default function UsersPage() {
         throw new Error(data.error ?? 'Failed to send invitation');
       }
 
-      toast(`Invitation sent to ${inviteEmail}`, 'success');
+      toast({ title: `Invitation sent to ${inviteEmail}`, variant: 'success' });
       setInviteEmail('');
       setShowInviteForm(false);
       fetchData();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to send invitation', 'error');
+      toast({ title: err instanceof Error ? err.message : 'Failed to send invitation', variant: 'error' });
     } finally {
       setInviting(false);
     }
@@ -192,10 +192,10 @@ export default function UsersPage() {
         throw new Error(data.error ?? 'Failed to update role');
       }
 
-      toast('Role updated', 'success');
+      toast({ title: 'Role updated', variant: 'success' });
       fetchData();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to update role', 'error');
+      toast({ title: err instanceof Error ? err.message : 'Failed to update role', variant: 'error' });
     } finally {
       setChangingRole(null);
     }
@@ -205,10 +205,10 @@ export default function UsersPage() {
     try {
       const res = await fetch(`/api/invitations/${id}/resend`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to resend');
-      toast('Invitation resent', 'success');
+      toast({ title: 'Invitation resent', variant: 'success' });
       fetchData();
     } catch {
-      toast('Failed to resend invitation', 'error');
+      toast({ title: 'Failed to resend invitation', variant: 'error' });
     }
   }
 
@@ -216,10 +216,10 @@ export default function UsersPage() {
     try {
       const res = await fetch(`/api/invitations/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to revoke');
-      toast('Invitation revoked', 'success');
+      toast({ title: 'Invitation revoked', variant: 'success' });
       fetchData();
     } catch {
-      toast('Failed to revoke invitation', 'error');
+      toast({ title: 'Failed to revoke invitation', variant: 'error' });
     }
   }
 
