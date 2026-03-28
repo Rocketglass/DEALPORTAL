@@ -14,6 +14,7 @@ const BROKER_PORTAL_ROUTES = [
   '/leases',
   '/invoices',
   '/comps',
+  '/users',
   '/settings',
 ];
 
