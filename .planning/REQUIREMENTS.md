@@ -22,7 +22,7 @@ Requirements for Multi-Party Portal milestone. Each maps to roadmap phases.
 - [ ] **ROLE-04**: Tenant can log into the portal and access their own applications/deals
 - [x] **ROLE-05**: Landlord agent can act on behalf of a landlord
 - [x] **ROLE-06**: Tenant agent can act on behalf of a tenant
-- [ ] **ROLE-07**: Broker can invite landlords, tenants, and agents to the portal
+- [x] **ROLE-07**: Broker can invite landlords, tenants, and agents to the portal
 
 ### Landlord Portal
 
@@ -98,7 +98,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROLE-04 | Phase 3 | Pending |
 | ROLE-05 | Phase 3 | Complete |
 | ROLE-06 | Phase 3 | Complete |
-| ROLE-07 | Phase 3 | Pending |
+| ROLE-07 | Phase 3 | Complete |
 | LAND-01 | Phase 5 | Pending |
 | LAND-02 | Phase 5 | Pending |
 | LAND-03 | Phase 5 | Pending |

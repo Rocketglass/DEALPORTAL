@@ -10,24 +10,24 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 3 of 7 (Role Foundation)
-Plan: 2 of 4
+Plan: 3 of 4
 Status: In progress
-Last activity: 2026-03-27 — Completed plan 03-02 (role-based auth guards, middleware routing, invitation callback)
+Last activity: 2026-03-28 — Completed plan 03-03 (invitation system: table, API endpoints, email sender)
 
-Progress: [██░░░] 8% (v1.1 phases 3-7)
+Progress: [███░░] 12% (v1.1 phases 3-7)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2 (v1.1)
-- Average duration: 10 min
-- Total execution time: 19 min
+- Total plans completed: 3 (v1.1)
+- Average duration: 8 min
+- Total execution time: 24 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 03-role-foundation | 2 | 19 min | 10 min |
+| 03-role-foundation | 3 | 24 min | 8 min |
 
 *Updated after each plan completion*
 
@@ -54,6 +54,12 @@ From 03-02 (auth guards + routing):
 - invitations table queries use `as any` cast in auth callback until 03-03 adds the typed table to Database type
 - Service client (src/lib/supabase/service.ts) created for RLS bypass in trusted server contexts
 
+From 03-03 (invitation system):
+- Email send failure is non-fatal — invitation record persists, broker can resend; avoids blocking on transient email errors
+- Resend endpoint refreshes expiry (new 7-day window) if invitation was expired — simplifies broker workflow
+- token is 64-char hex (randomBytes(32).toString('hex')) — cryptographically secure and URL-safe
+- invitations_select_by_token RLS policy added for token-based public lookup safety (service-role bypasses RLS anyway)
+
 ### Pending Todos
 
 None yet.
@@ -64,6 +70,6 @@ None yet. Key architectural note: Phase 3 (roles + RLS) must be fully complete b
 
 ## Session Continuity
 
-Last session: 2026-03-27
-Stopped at: Completed 03-02-PLAN.md (role-based auth guards, middleware routing, invitation callback)
+Last session: 2026-03-28
+Stopped at: Completed 03-03-PLAN.md (invitation system: table, API endpoints, email sender)
 Resume file: None
