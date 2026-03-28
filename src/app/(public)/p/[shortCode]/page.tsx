@@ -34,5 +34,9 @@ export default async function QrRedirectPage({
     .insert({ property_id: qrCode.property_id, source: 'qr_scan' })
     .then(() => {});
 
-  redirect(qrCode.portal_url);
+  // Redirect to the unified application form with property pre-selected
+  const targetUrl = qrCode.property_id
+    ? `/apply?property=${qrCode.property_id}`
+    : '/apply';
+  redirect(targetUrl);
 }
