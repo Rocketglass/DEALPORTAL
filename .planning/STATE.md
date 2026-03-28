@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Party Portal
 status: executing
-stopped_at: "Completed 04-01-PLAN.md (multi-property application data foundation: migration, public properties API, draft save/load API)"
-last_updated: "2026-03-28T02:04:18.212Z"
+stopped_at: "Completed 04-02-PLAN.md (unified apply page: 6-step form, multi-property selector, auth draft sync, auth-gated submit, QR redirect update)"
+last_updated: "2026-03-28T02:10:32.464Z"
 last_activity: "2026-03-28 — Completed plan 03-03 (invitation system: table, API endpoints, email sender)"
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
   percent: 12
 ---
 
@@ -47,6 +47,7 @@ Progress: [███░░] 12% (v1.1 phases 3-7)
 
 *Updated after each plan completion*
 | Phase 04-general-application-flow P04-01 | 3 | 3 tasks | 5 files |
+| Phase 04-general-application-flow P04-02 | 4 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,9 @@ From 03-03 (invitation system):
 - [Phase 04-general-application-flow]: Service client used for draft API to avoid RLS race window on first insert
 - [Phase 04-general-application-flow]: Junction table insert failure is non-fatal — log but never block the 201 application response
 - [Phase 04-general-application-flow]: application_drafts uses UNIQUE(user_id) — one draft per user, upsert on conflict
+- [Phase 04-general-application-flow]: STORAGE_KEY changed to rr_application_draft_v2 to avoid collisions with old 5-step draft format
+- [Phase 04-general-application-flow]: QR redirect no longer uses qrCode.portal_url — always routes to /apply?property=UUID
+- [Phase 04-general-application-flow]: Server draft takes priority over localStorage draft when authenticated user returns to /apply
 
 ### Pending Todos
 
@@ -90,6 +94,6 @@ None yet. Key architectural note: Phase 3 (roles + RLS) must be fully complete b
 
 ## Session Continuity
 
-Last session: 2026-03-28T02:04:18.210Z
-Stopped at: Completed 04-01-PLAN.md (multi-property application data foundation: migration, public properties API, draft save/load API)
+Last session: 2026-03-28T02:10:32.460Z
+Stopped at: Completed 04-02-PLAN.md (unified apply page: 6-step form, multi-property selector, auth draft sync, auth-gated submit, QR redirect update)
 Resume file: None

@@ -27,7 +27,7 @@
 **Milestone Goal:** Transform the portal from a broker-centric tool with public tenant/landlord pages into a true multi-party platform where broker, landlord, and tenant all have authenticated access and can collaborate on LOI and lease negotiation in-portal.
 
 - [ ] **Phase 3: Role Foundation** — Expand the auth system to support all six roles with RLS policies and broker-managed invitations
-- [ ] **Phase 4: General Application Flow** — Allow tenants to apply without a specific property and save progress
+- [x] **Phase 4: General Application Flow** — Allow tenants to apply without a specific property and save progress (completed 2026-03-28)
 - [ ] **Phase 5: Landlord and Tenant Portals** — Give both party types authenticated dashboards with deal visibility
 - [ ] **Phase 6: In-Portal LOI Negotiation** — All three parties negotiate LOI sections inside the portal with full history and notifications
 - [ ] **Phase 7: Lease Negotiation and Notifications** — All three parties negotiate lease terms in-portal before DocuSign; complete notification layer wired across all negotiation events
@@ -61,7 +61,7 @@ Plans:
   2. A tenant can select multiple properties they are interested in within a single application
   3. A tenant can save their in-progress application, log out, return later, and continue from where they left off
   4. A tenant can submit the completed application from within their portal dashboard
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 04-01-PLAN.md — Schema + API: application_properties junction table, application_drafts table, properties list endpoint, draft save/load API
@@ -113,7 +113,7 @@ Plans:
 | 1. Foundation | v1.0 | — | Complete | 2026-03-16 |
 | 2. Full Pipeline | v1.0 | — | Complete | 2026-03-16 |
 | 3. Role Foundation | 1/3 | In Progress|  | - |
-| 4. General Application Flow | v1.1 | 0/2 | Not started | - |
+| 4. General Application Flow | 2/2 | Complete   | 2026-03-28 | - |
 | 5. Landlord and Tenant Portals | v1.1 | 0/TBD | Not started | - |
 | 6. In-Portal LOI Negotiation | v1.1 | 0/TBD | Not started | - |
 | 7. Lease Negotiation and Notifications | v1.1 | 0/TBD | Not started | - |
