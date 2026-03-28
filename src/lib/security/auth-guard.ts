@@ -20,6 +20,7 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   contactId: string | null;
+  principalId: string | null;
 }
 
 /**
@@ -70,7 +71,7 @@ export async function requireAuth(): Promise<AuthUser> {
   // Look up the user's role in the users table
   const { data: dbUser, error: dbError } = await supabase
     .from('users')
-    .select('id, email, role, contact_id')
+    .select('id, email, role, contact_id, principal_id')
     .eq('auth_provider_id', user.id)
     .eq('is_active', true)
     .single();
@@ -88,6 +89,7 @@ export async function requireAuth(): Promise<AuthUser> {
     email: dbUser.email,
     role: dbUser.role as UserRole,
     contactId: dbUser.contact_id,
+    principalId: dbUser.principal_id,
   };
 }
 
@@ -124,6 +126,22 @@ export async function requireBrokerOrAdmin(): Promise<AuthUser> {
 }
 
 /**
+ * Require landlord or landlord_agent role.
+ * Used for landlord portal routes.
+ */
+export async function requireLandlordOrAgent(): Promise<AuthUser> {
+  return requireRole('landlord', 'landlord_agent');
+}
+
+/**
+ * Require tenant or tenant_agent role.
+ * Used for tenant portal routes.
+ */
+export async function requireTenantOrAgent(): Promise<AuthUser> {
+  return requireRole('tenant', 'tenant_agent');
+}
+
+/**
  * Require the current user to match a specific user ID.
  * Used for ownership checks — e.g., ensuring a user can only access their own data.
  *
@@ -135,6 +153,11 @@ export async function requireOwnership(userId: string): Promise<AuthUser> {
 
   // Broker and admin can access any user's data
   if (user.role === 'broker' || user.role === 'admin') {
+    return user;
+  }
+
+  // Agents can access their principal's data
+  if (user.principalId === userId) {
     return user;
   }
 
@@ -179,7 +202,7 @@ export async function requireAuthForApi(): Promise<AuthUser> {
 
   const { data: dbUser, error: dbError } = await supabase
     .from('users')
-    .select('id, email, role, contact_id')
+    .select('id, email, role, contact_id, principal_id')
     .eq('auth_provider_id', user.id)
     .eq('is_active', true)
     .single();
@@ -195,6 +218,7 @@ export async function requireAuthForApi(): Promise<AuthUser> {
     email: dbUser.email,
     role: dbUser.role as UserRole,
     contactId: dbUser.contact_id,
+    principalId: dbUser.principal_id,
   };
 }
 
@@ -210,5 +234,31 @@ export async function requireBrokerOrAdminForApi(): Promise<AuthUser> {
     );
   }
 
+  return user;
+}
+
+/**
+ * Require landlord or landlord_agent role for API routes.
+ */
+export async function requireLandlordOrAgentForApi(): Promise<AuthUser> {
+  const user = await requireAuthForApi();
+  if (user.role !== 'landlord' && user.role !== 'landlord_agent') {
+    throw new Error(
+      `Forbidden: User ${user.email} has role '${user.role}', requires landlord or landlord_agent`,
+    );
+  }
+  return user;
+}
+
+/**
+ * Require tenant or tenant_agent role for API routes.
+ */
+export async function requireTenantOrAgentForApi(): Promise<AuthUser> {
+  const user = await requireAuthForApi();
+  if (user.role !== 'tenant' && user.role !== 'tenant_agent') {
+    throw new Error(
+      `Forbidden: User ${user.email} has role '${user.role}', requires tenant or tenant_agent`,
+    );
+  }
   return user;
 }
