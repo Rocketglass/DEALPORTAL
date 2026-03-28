@@ -222,6 +222,7 @@ export interface Contact {
 export interface User {
   id: string;
   contact_id: string | null;
+  principal_id: string | null;
   email: string;
   role: UserRole;
   auth_provider_id: string | null;
@@ -539,7 +540,7 @@ export interface LoiTemplate {
 // ============================================================
 
 export type ContactType = 'tenant' | 'landlord' | 'broker' | 'prospect' | 'guarantor';
-export type UserRole = 'admin' | 'broker' | 'tenant' | 'landlord';
+export type UserRole = 'admin' | 'broker' | 'tenant' | 'landlord' | 'tenant_agent' | 'landlord_agent';
 export type UnitStatus = 'vacant' | 'occupied' | 'pending' | 'maintenance';
 export type ApplicationType = 'general' | 'property';
 export type ApplicationStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'withdrawn' | 'info_requested';
