@@ -487,6 +487,43 @@ export function inspectionBooked(data: InspectionBookedData): {
 }
 
 // ---------------------------------------------------------------------------
+// 9b. Lease term update — sent to the two non-actor parties when any party responds
+// ---------------------------------------------------------------------------
+
+interface LeaseTermUpdateData {
+  recipientName: string;
+  actorName: string;
+  actorRole: string;
+  propertyAddress: string;
+  suiteNumber: string;
+  tenantBusinessName: string;
+  sectionsUpdatedCount: number;
+  leaseId: string;
+}
+
+export function leaseTermUpdate(data: LeaseTermUpdateData): { subject: string; html: string } {
+  const actorRoleLabel =
+    data.actorRole.charAt(0).toUpperCase() + data.actorRole.slice(1).replace('_', ' ');
+  const sectionWord = data.sectionsUpdatedCount === 1 ? 'term' : 'terms';
+  return {
+    subject: `Lease Update: ${data.propertyAddress} — ${actorRoleLabel} responded`,
+    html: layout(`
+      ${heading('Lease Term Updated')}
+      ${paragraph(`Dear ${data.recipientName},`)}
+      ${paragraph(`<strong>${data.actorName}</strong> (${actorRoleLabel}) has responded to ${data.sectionsUpdatedCount} ${sectionWord} of the Lease for ${data.propertyAddress}, ${data.suiteNumber}.`)}
+      ${detailsTable(`
+        ${detailRow('Property', `${data.propertyAddress}, ${data.suiteNumber}`)}
+        ${detailRow('Tenant', data.tenantBusinessName)}
+        ${detailRow('Responded By', `${data.actorName} (${actorRoleLabel})`)}
+        ${detailRow('Terms Updated', String(data.sectionsUpdatedCount))}
+      `)}
+      ${paragraph('Log in to the portal to review the updated terms and respond.')}
+      ${ctaButton('View Lease Negotiations', `${PORTAL_URL}/leases/${data.leaseId}`)}
+    `),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // 10. Application reminder — sent to applicant (24h follow-up)
 // ---------------------------------------------------------------------------
 

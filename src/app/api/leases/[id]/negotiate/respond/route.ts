@@ -1,35 +1,33 @@
 /**
  * POST /api/leases/[id]/negotiate/respond
  *
- * Public endpoint — no authentication required. Used by any party
- * (tenant, landlord, broker) who accesses the lease negotiation link.
+ * Authenticated endpoint — requires an active session.
+ * Accessible to broker, admin, landlord, landlord_agent, tenant, tenant_agent.
+ * Non-parties receive 403.
  *
  * Accepts a single section response and:
- *   1. Updates the lease_sections record with the response/action.
- *   2. Inserts a lease_negotiations row recording the action.
+ *   1. Updates the lease_sections record with the response/action and last_updated_by = caller's role.
+ *   2. Inserts a lease_negotiations row recording the action with created_by = caller's role.
  *   3. If all sections are accepted -> updates lease negotiation_status to 'agreed'.
+ *   4. Sends email notifications to the OTHER TWO parties (not the actor).
+ *   5. Inserts in-app notification rows for each non-actor party.
  *
  * Body:
  * {
  *   sectionId: string;
  *   action: 'accept' | 'counter' | 'reject';
  *   value?: string;      // counter-proposal text (required when action='counter')
- *   note?: string;       // optional note/reason
- *   partyRole: 'broker' | 'tenant' | 'landlord' | 'tenant_agent' | 'landlord_agent';
+ *   note?: string;       // rejection reason (required when action='reject')
+ *   updatedAt?: string;  // ISO timestamp for optimistic locking
  * }
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import type { LoiSectionStatus, PartyRole } from '@/types/database';
+import { requireAuthForApi } from '@/lib/security/auth-guard';
+import { createClient as createServiceClient } from '@/lib/supabase/service';
+import type { LoiSectionStatus } from '@/types/database';
+import { notifyLeaseTermUpdate } from '@/lib/email/notifications';
 import { sanitizeHtml, sanitizeUuid } from '@/lib/security/sanitize';
-
-function getServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Supabase not configured');
-  return createClient(url, key);
-}
 
 const ACTION_TO_STATUS: Record<string, LoiSectionStatus> = {
   accept: 'accepted',
@@ -37,14 +35,12 @@ const ACTION_TO_STATUS: Record<string, LoiSectionStatus> = {
   reject: 'rejected',
 };
 
-const VALID_PARTY_ROLES: PartyRole[] = ['broker', 'tenant', 'landlord', 'tenant_agent', 'landlord_agent'];
-
 interface RespondBody {
   sectionId: string;
   action: 'accept' | 'counter' | 'reject';
   value?: string;
   note?: string;
-  partyRole: PartyRole;
+  updatedAt?: string; // ISO timestamp for optimistic locking
 }
 
 export async function POST(
@@ -54,6 +50,14 @@ export async function POST(
   try {
     const { id: leaseId } = await params;
 
+    // 1. Authenticate the request — throws if no session
+    let user;
+    try {
+      user = await requireAuthForApi();
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     let body: RespondBody;
     try {
       body = await request.json();
@@ -61,7 +65,7 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
 
-    const { sectionId, action, partyRole } = body;
+    const { sectionId, action } = body;
     // Sanitize user-provided text to prevent stored XSS
     const value = body.value ? sanitizeHtml(body.value) : body.value;
     const note = body.note ? sanitizeHtml(body.note) : body.note;
@@ -77,13 +81,6 @@ export async function POST(
     if (!action || !ACTION_TO_STATUS[action]) {
       return NextResponse.json(
         { error: 'action must be one of: accept, counter, reject' },
-        { status: 400 },
-      );
-    }
-
-    if (!partyRole || !VALID_PARTY_ROLES.includes(partyRole)) {
-      return NextResponse.json(
-        { error: 'partyRole must be one of: broker, tenant, landlord, tenant_agent, landlord_agent' },
         { status: 400 },
       );
     }
@@ -104,12 +101,14 @@ export async function POST(
       );
     }
 
-    const supabase = getServiceClient();
+    // Service client for all DB operations — auth enforced above
+    const supabase = await createServiceClient();
 
-    // Verify the lease exists and is in a negotiable state
-    const { data: lease, error: leaseError } = await supabase
+    // 2. Fetch the lease to verify existence, state, and party membership
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: lease, error: leaseError } = await (supabase as any)
       .from('leases')
-      .select('id, status, negotiation_status')
+      .select('id, status, negotiation_status, landlord_contact_id, tenant_contact_id, broker_contact_id')
       .eq('id', leaseId)
       .single();
 
@@ -117,10 +116,35 @@ export async function POST(
       return NextResponse.json({ error: 'Lease not found' }, { status: 404 });
     }
 
-    const negotiationStatus = (lease as Record<string, unknown>).negotiation_status as string;
-    if (negotiationStatus !== 'in_negotiation') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const leaseRow = lease as any;
+
+    // 3. Authorization: verify the caller is a party to this lease
+    const { role, contactId, principalId } = user;
+    const effectiveContactId = contactId ?? principalId;
+
+    const isBrokerOrAdmin = role === 'broker' || role === 'admin';
+    const isLandlord = role === 'landlord' || role === 'landlord_agent';
+    const isTenant = role === 'tenant' || role === 'tenant_agent';
+
+    if (!isBrokerOrAdmin) {
+      if (isLandlord) {
+        if (!effectiveContactId || effectiveContactId !== leaseRow.landlord_contact_id) {
+          return NextResponse.json({ error: 'Forbidden: not a party to this lease' }, { status: 403 });
+        }
+      } else if (isTenant) {
+        if (!effectiveContactId || effectiveContactId !== leaseRow.tenant_contact_id) {
+          return NextResponse.json({ error: 'Forbidden: not a party to this lease' }, { status: 403 });
+        }
+      } else {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
+    // 4. Verify the lease is in a negotiable state
+    if (leaseRow.negotiation_status !== 'in_negotiation') {
       return NextResponse.json(
-        { error: `Lease is not currently open for negotiation (status: ${negotiationStatus})` },
+        { error: `Lease is not currently open for negotiation (status: ${leaseRow.negotiation_status})` },
         { status: 400 },
       );
     }
@@ -128,39 +152,56 @@ export async function POST(
     const now = new Date().toISOString();
     const newStatus = ACTION_TO_STATUS[action];
 
-    // When accepting, copy the proposed_value to agreed_value
+    // 5. When accepting, copy the latest counter or proposed_value to agreed_value
     let agreedValue: string | null = null;
     if (action === 'accept') {
-      const { data: sectionData } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: sectionData } = await (supabase as any)
         .from('lease_sections')
         .select('proposed_value, counterparty_response')
         .eq('id', sectionId)
         .single();
       // If there was a counter-proposal, the agreed value is the latest counter;
       // otherwise it's the original proposed value
-      agreedValue = sectionData?.counterparty_response ?? sectionData?.proposed_value ?? null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      agreedValue = (sectionData as any)?.counterparty_response ?? (sectionData as any)?.proposed_value ?? null;
     }
 
-    // Update the section status
-    const { data: updatedRows, error: sectionError } = await supabase
+    // 6. Update the section status, response, last_updated_by
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase as any)
       .from('lease_sections')
       .update({
         status: newStatus,
         counterparty_response: action === 'counter' ? (value ?? null) : undefined,
         agreed_value: agreedValue,
         negotiation_notes: note ?? undefined,
-        last_updated_by: partyRole,
+        last_updated_by: role,
         updated_at: now,
       })
       .eq('id', sectionId)
-      .eq('lease_id', leaseId)
-      .select('id');
+      .eq('lease_id', leaseId);
+
+    // Optimistic locking: only update if section hasn't changed since client loaded it
+    if (body.updatedAt) {
+      query = query.eq('updated_at', body.updatedAt);
+    }
+
+    const { data: updatedRows, error: sectionError } = await query.select('id');
 
     if (sectionError) {
       console.error(`[Lease negotiate respond] Error updating section ${sectionId}:`, sectionError);
       return NextResponse.json(
         { error: `Failed to update section: ${sectionError.message}` },
         { status: 500 },
+      );
+    }
+
+    // If optimistic locking was used and no rows matched, the section was modified concurrently
+    if (body.updatedAt && (!updatedRows || updatedRows.length === 0)) {
+      return NextResponse.json(
+        { error: `Section "${sectionId}" was modified by another user. Please refresh and try again.` },
+        { status: 409 },
       );
     }
 
@@ -171,14 +212,15 @@ export async function POST(
       );
     }
 
-    // Insert negotiation history (audit trail)
-    const { error: negError } = await supabase.from('lease_negotiations').insert({
+    // 7. Insert negotiation history entry with actual role as created_by and party_role
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: negError } = await (supabase as any).from('lease_negotiations').insert({
       lease_section_id: sectionId,
       action: action === 'accept' ? 'accept' : action === 'counter' ? 'counter' : 'reject',
       value: action === 'counter' ? (value ?? null) : null,
       note: note ?? null,
-      created_by: partyRole,
-      party_role: partyRole,
+      created_by: role,
+      party_role: role,
       created_at: now,
     });
 
@@ -187,8 +229,9 @@ export async function POST(
       // Non-fatal — history is secondary to the status update
     }
 
-    // Re-check all sections to determine if the lease has reached full agreement
-    const { data: allSections } = await supabase
+    // 8. Re-check all sections to determine if the lease has reached full agreement
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: allSections } = await (supabase as any)
       .from('lease_sections')
       .select('status')
       .eq('lease_id', leaseId);
@@ -196,18 +239,21 @@ export async function POST(
     const allAgreed =
       allSections != null &&
       allSections.length > 0 &&
-      allSections.every((s) => s.status === 'accepted');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (allSections as any[]).every((s: any) => s.status === 'accepted');
 
     const newNegotiationStatus = allAgreed ? 'agreed' : 'in_negotiation';
 
-    await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
       .from('leases')
       .update({ negotiation_status: newNegotiationStatus, updated_at: now })
       .eq('id', leaseId);
 
-    // Insert audit log entry
-    const { error: auditError } = await supabase.from('audit_log').insert({
-      user_id: null, // public endpoint, no authenticated user
+    // 9. Insert audit log entry with authenticated user_id
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: auditError } = await (supabase as any).from('audit_log').insert({
+      user_id: user.id,
       action: `lease_section_${action}`,
       entity_type: 'lease_section',
       entity_id: sectionId,
@@ -218,7 +264,7 @@ export async function POST(
         action,
         value: value ?? null,
         note: note ?? null,
-        party_role: partyRole,
+        party_role: role,
         resulting_status: newNegotiationStatus,
       },
     });
@@ -227,6 +273,197 @@ export async function POST(
       console.error('[Lease negotiate respond] Audit log error:', auditError);
       // Non-fatal
     }
+
+    // 10. Notify the OTHER TWO parties about this update (fire-and-forget)
+    void (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: leaseFull } = await (supabase as any)
+          .from('leases')
+          .select(`
+            id,
+            landlord_contact_id,
+            tenant_contact_id,
+            broker_contact_id,
+            property:properties(address, city, state),
+            unit:units(suite_number),
+            tenant:contacts!leases_tenant_contact_id_fkey(email, first_name, last_name, company_name),
+            landlord:contacts!leases_landlord_contact_id_fkey(email, first_name, last_name, company_name),
+            broker:contacts!leases_broker_contact_id_fkey(email, first_name, last_name, company_name)
+          `)
+          .eq('id', leaseId)
+          .single();
+
+        if (!leaseFull) return;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const leaseFullData = leaseFull as any;
+        const brokerContact = leaseFullData.broker;
+        const landlordContact = leaseFullData.landlord;
+        const tenantContact = leaseFullData.tenant;
+        const property = leaseFullData.property;
+        const unit = leaseFullData.unit;
+
+        const brokerName =
+          (brokerContact?.company_name ??
+          [brokerContact?.first_name, brokerContact?.last_name].filter(Boolean).join(' '))
+          || 'Broker';
+
+        const landlordName =
+          (landlordContact?.company_name ??
+          [landlordContact?.first_name, landlordContact?.last_name].filter(Boolean).join(' '))
+          || 'Landlord';
+
+        const tenantBusinessName =
+          (tenantContact?.company_name ??
+          [tenantContact?.first_name, tenantContact?.last_name].filter(Boolean).join(' '))
+          || 'Tenant';
+
+        const propertyAddress = property
+          ? `${property.address}, ${property.city}, ${property.state}`
+          : 'Unknown property';
+
+        const suiteNumber = unit?.suite_number ?? '';
+
+        // Determine actor's display name
+        let actorName: string;
+        if (isBrokerOrAdmin) {
+          actorName = brokerName;
+        } else if (isLandlord) {
+          actorName = landlordName;
+        } else {
+          actorName = tenantBusinessName;
+        }
+
+        const leaseNotification = {
+          id: leaseId,
+          tenantBusinessName,
+          propertyAddress,
+          suiteNumber,
+          brokerName,
+          landlordName,
+          sectionsUpdated: [sectionId],
+        };
+
+        // Determine the two non-actor recipients
+        const recipients: { email: string; name: string }[] = [];
+
+        if (!isBrokerOrAdmin && brokerContact?.email) {
+          recipients.push({ email: brokerContact.email, name: brokerName });
+        }
+        if (!isLandlord && landlordContact?.email) {
+          recipients.push({ email: landlordContact.email, name: landlordName });
+        }
+        if (!isTenant && tenantContact?.email) {
+          recipients.push({ email: tenantContact.email, name: tenantBusinessName });
+        }
+
+        if (recipients.length > 0) {
+          await notifyLeaseTermUpdate(leaseNotification, actorName, role, recipients);
+        }
+      } catch (notifyError) {
+        console.error('[Lease negotiate respond] Failed to send email notifications:', notifyError);
+      }
+    })();
+
+    // 11. Insert in-app notification rows for each non-actor party (fire-and-forget)
+    void (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: leaseFull } = await (supabase as any)
+          .from('leases')
+          .select(`
+            landlord_contact_id,
+            tenant_contact_id,
+            broker_contact_id,
+            property:properties(address, city, state),
+            unit:units(suite_number),
+            sections:lease_sections!inner(id, section_label)
+          `)
+          .eq('id', leaseId)
+          .single();
+
+        if (!leaseFull) return;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const leaseFullData = leaseFull as any;
+        const property = leaseFullData.property;
+
+        const propertyAddress = property
+          ? `${property.address}, ${property.city}, ${property.state}`
+          : 'Unknown property';
+
+        // Find the label for the updated section
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updatedSection = (leaseFullData.sections as any[])?.find((s: any) => s.id === sectionId);
+        const sectionLabel = updatedSection?.section_label ?? 'section';
+
+        const actionLabel =
+          action === 'reject' ? 'rejected' : action === 'counter' ? 'countered' : 'accepted';
+
+        const roleLabel = role.charAt(0).toUpperCase() + role.slice(1).replace('_', ' ');
+
+        interface NonActorParty {
+          contactId: string;
+          linkUrl: string;
+        }
+
+        const nonActorParties: NonActorParty[] = [];
+
+        if (!isBrokerOrAdmin && leaseFullData.broker_contact_id) {
+          nonActorParties.push({
+            contactId: leaseFullData.broker_contact_id,
+            linkUrl: `/leases/${leaseId}`,
+          });
+        }
+        if (!isLandlord && leaseFullData.landlord_contact_id) {
+          nonActorParties.push({
+            contactId: leaseFullData.landlord_contact_id,
+            linkUrl: `/landlord/leases/${leaseId}`,
+          });
+        }
+        if (!isTenant && leaseFullData.tenant_contact_id) {
+          nonActorParties.push({
+            contactId: leaseFullData.tenant_contact_id,
+            linkUrl: `/tenant/leases/${leaseId}`,
+          });
+        }
+
+        // Look up user_id for each non-actor contact and insert notification row
+        for (const party of nonActorParties) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: targetUser } = await (supabase as any)
+              .from('users')
+              .select('id')
+              .eq('contact_id', party.contactId)
+              .eq('is_active', true)
+              .single();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (!(targetUser as any)?.id) continue; // user not in system yet — skip
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase as any).from('notifications').insert({
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              user_id: (targetUser as any).id,
+              type: 'lease_term_update',
+              title: 'Lease Term Updated',
+              message: `${roleLabel} ${actionLabel} on ${sectionLabel} for ${propertyAddress}`,
+              link_url: party.linkUrl,
+              read: false,
+              email_sent: true,
+              email_sent_at: now,
+            });
+          } catch (insertError) {
+            console.error('[Lease negotiate respond] Failed to insert in-app notification for contact', party.contactId, insertError);
+            // Non-fatal — notification failure never blocks the response
+          }
+        }
+      } catch (notifyError) {
+        console.error('[Lease negotiate respond] Failed to send in-app notifications:', notifyError);
+      }
+    })();
 
     return NextResponse.json({
       success: true,

@@ -15,6 +15,7 @@ import {
   loiCountered,
   loiAgreed,
   loiSectionUpdate,
+  leaseTermUpdate,
   leaseReadyForSignature,
   leaseExecuted,
   invoiceSent,
@@ -212,6 +213,44 @@ export async function notifyLoiSectionUpdate(
         tenantBusinessName: loi.tenantBusinessName,
         sectionsUpdatedCount,
         loiId: loi.id,
+      });
+      return sendEmail({ to: email, subject, html });
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 5c. Lease term update — sent to the two non-actor parties when any party responds
+// ---------------------------------------------------------------------------
+
+interface LeaseForTermNotification {
+  id: string;
+  tenantBusinessName: string;
+  propertyAddress: string;
+  suiteNumber: string;
+  brokerName: string;
+  landlordName: string;
+  sectionsUpdated?: string[];
+}
+
+export async function notifyLeaseTermUpdate(
+  lease: LeaseForTermNotification,
+  actorName: string,
+  actorRole: string,
+  recipients: PartyForNotification[],
+): Promise<void> {
+  const sectionsUpdatedCount = lease.sectionsUpdated?.length ?? 1;
+  await Promise.all(
+    recipients.map(({ email, name }) => {
+      const { subject, html } = leaseTermUpdate({
+        recipientName: name,
+        actorName,
+        actorRole,
+        propertyAddress: lease.propertyAddress,
+        suiteNumber: lease.suiteNumber,
+        tenantBusinessName: lease.tenantBusinessName,
+        sectionsUpdatedCount,
+        leaseId: lease.id,
       });
       return sendEmail({ to: email, subject, html });
     }),
