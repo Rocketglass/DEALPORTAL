@@ -69,6 +69,7 @@ export function Header() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadBadgeCount, setUnreadBadgeCount] = useState(0);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Current authenticated user — fetched client-side so the header is
@@ -91,6 +92,27 @@ export function Header() {
     });
   }, []);
 
+  // Fetch unread count proactively on mount and on every page navigation
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchUnreadCount() {
+      try {
+        const res = await fetch('/api/user/notifications');
+        if (!res.ok) return;
+        const { notifications: data } = await res.json();
+        if (cancelled) return;
+        const count = (data ?? []).filter((n: { read: boolean }) => !n.read).length;
+        setUnreadBadgeCount(count);
+      } catch {
+        // Non-critical
+      }
+    }
+    fetchUnreadCount();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
   // Fetch notifications from the API when the panel is opened
   useEffect(() => {
     if (!showNotifications) return;
@@ -104,27 +126,28 @@ export function Header() {
         const { notifications: data } = await res.json();
         if (cancelled) return;
 
-        setNotifications(
-          (data ?? []).map(
-            (n: {
-              id: string;
-              type: string;
-              title: string;
-              message: string;
-              link_url: string | null;
-              read: boolean;
-              created_at: string;
-            }): Notification => ({
-              id: n.id,
-              type: n.type as Notification['type'],
-              title: n.title,
-              message: n.message,
-              link_url: n.link_url ?? '#',
-              read: n.read,
-              timestamp: formatRelativeTime(n.created_at),
-            }),
-          ),
+        const mapped = (data ?? []).map(
+          (n: {
+            id: string;
+            type: string;
+            title: string;
+            message: string;
+            link_url: string | null;
+            read: boolean;
+            created_at: string;
+          }): Notification => ({
+            id: n.id,
+            type: n.type as Notification['type'],
+            title: n.title,
+            message: n.message,
+            link_url: n.link_url ?? '#',
+            read: n.read,
+            timestamp: formatRelativeTime(n.created_at),
+          }),
         );
+        setNotifications(mapped);
+        const unread = mapped.filter((n: Notification) => !n.read).length;
+        setUnreadBadgeCount(unread);
       } catch {
         // Silently ignore — notifications are non-critical
       }
@@ -136,10 +159,9 @@ export function Header() {
     };
   }, [showNotifications]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
   const handleMarkAllRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadBadgeCount(0);
     try {
       await fetch('/api/user/notifications', { method: 'PATCH' });
     } catch {
@@ -195,12 +217,12 @@ export function Header() {
             className="relative flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground"
           >
             <Bell className="h-[18px] w-[18px]" />
-            {unreadCount > 0 && (
+            {unreadBadgeCount > 0 && (
               <span
                 aria-live="polite"
                 className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white"
               >
-                {unreadCount}
+                {unreadBadgeCount}
               </span>
             )}
           </button>
