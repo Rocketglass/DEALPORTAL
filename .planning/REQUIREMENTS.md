@@ -39,9 +39,9 @@ Requirements for Multi-Party Portal milestone. Each maps to roadmap phases.
 
 ### LOI Negotiation
 
-- [ ] **LOI-01**: All three parties (broker, landlord, tenant) can view LOI sections in-portal after logging in
-- [ ] **LOI-02**: Landlord can accept, counter, or reject LOI sections from their portal
-- [ ] **LOI-03**: Tenant can accept, counter, or reject LOI sections from their portal
+- [x] **LOI-01**: All three parties (broker, landlord, tenant) can view LOI sections in-portal after logging in
+- [x] **LOI-02**: Landlord can accept, counter, or reject LOI sections from their portal
+- [x] **LOI-03**: Tenant can accept, counter, or reject LOI sections from their portal
 - [x] **LOI-04**: When any party updates a section, the other two parties receive notification (email + in-app)
 - [x] **LOI-05**: Broker can see all negotiation history and respond to counters from either party
 
@@ -106,9 +106,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TNNT-01 | Phase 5 | Complete |
 | TNNT-02 | Phase 5 | Complete |
 | TNNT-03 | Phase 5 | Complete |
-| LOI-01 | Phase 6 | Pending |
-| LOI-02 | Phase 6 | Pending |
-| LOI-03 | Phase 6 | Pending |
+| LOI-01 | Phase 6 | Complete |
+| LOI-02 | Phase 6 | Complete |
+| LOI-03 | Phase 6 | Complete |
 | LOI-04 | Phase 6 | Complete |
 | LOI-05 | Phase 6 | Complete |
 | LEAS-01 | Phase 7 | Pending |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Party Portal
 status: executing
-stopped_at: Completed 06-01-PLAN.md (authenticate LOI review-data and respond endpoints, multi-party notifications, in-app notification rows)
-last_updated: "2026-03-28T02:45:32.636Z"
+stopped_at: Completed 06-02-PLAN.md (shared LoiNegotiationView, landlord/tenant LOI pages, portal nav updates)
+last_updated: "2026-03-28T02:50:50.524Z"
 last_activity: "2026-03-28 — Completed plan 03-03 (invitation system: table, API endpoints, email sender)"
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 12
 ---
 
@@ -52,6 +52,7 @@ Progress: [███░░] 12% (v1.1 phases 3-7)
 | Phase 05-landlord-and-tenant-portals P05-03 | 3 | 2 tasks | 3 files |
 | Phase 05-landlord-and-tenant-portals P05-02 | 4 | 2 tasks | 6 files |
 | Phase 06-in-portal-loi-negotiation P06-01 | 6 | 2 tasks | 4 files |
+| Phase 06-in-portal-loi-negotiation PP06-02 | 3 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,9 @@ From 03-03 (invitation system):
 - [Phase 05-02]: No owner_contact_id on Property — landlord-property relationship derived from lois/leases.landlord_contact_id; service client used for landlord queries with auth at page level via requireRole()
 - [Phase 06-01]: requireAuthForApi() used in API routes (throws) rather than requireAuth() (redirects) — API routes must return JSON 401, not redirect to /login
 - [Phase 06-01]: Service client used for LOI respond writes (bypasses RLS); auth enforced at application layer via requireAuthForApi()
+- [Phase 06-in-portal-loi-negotiation]: Per-section submit instead of batch for LoiNegotiationView — multi-party negotiation benefits from granular responses with UI refetch after each submit
+- [Phase 06-in-portal-loi-negotiation]: Shared LoiNegotiationView component with callerRole prop used by all 3 portals — landlord, tenant, broker render same component
+- [Phase 06-in-portal-loi-negotiation]: Three-party timeline colors extended: broker=blue (#1e40af), landlord=amber-500, tenant=emerald-500
 
 ### Pending Todos
 
@@ -105,6 +109,6 @@ None yet. Key architectural note: Phase 3 (roles + RLS) must be fully complete b
 
 ## Session Continuity
 
-Last session: 2026-03-28T02:45:32.634Z
-Stopped at: Completed 06-01-PLAN.md (authenticate LOI review-data and respond endpoints, multi-party notifications, in-app notification rows)
+Last session: 2026-03-28T02:50:50.521Z
+Stopped at: Completed 06-02-PLAN.md (shared LoiNegotiationView, landlord/tenant LOI pages, portal nav updates)
 Resume file: None

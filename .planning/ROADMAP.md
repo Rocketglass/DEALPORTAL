@@ -29,7 +29,7 @@
 - [ ] **Phase 3: Role Foundation** — Expand the auth system to support all six roles with RLS policies and broker-managed invitations
 - [x] **Phase 4: General Application Flow** — Allow tenants to apply without a specific property and save progress (completed 2026-03-28)
 - [x] **Phase 5: Landlord and Tenant Portals** — Give both party types authenticated dashboards with deal visibility (completed 2026-03-28)
-- [ ] **Phase 6: In-Portal LOI Negotiation** — All three parties negotiate LOI sections inside the portal with full history and notifications
+- [x] **Phase 6: In-Portal LOI Negotiation** — All three parties negotiate LOI sections inside the portal with full history and notifications (completed 2026-03-28)
 - [ ] **Phase 7: Lease Negotiation and Notifications** — All three parties negotiate lease terms in-portal before DocuSign; complete notification layer wired across all negotiation events
 
 ## Phase Details
@@ -94,7 +94,7 @@ Plans:
   3. Tenant can counter, accept, or reject any LOI section from their portal; their action is recorded in negotiation history
   4. When any party updates a section, the other two parties each receive an email notification and an in-app notification badge
   5. Broker can view the complete negotiation history across both parties and respond to any outstanding counter from either side
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 06-01-PLAN.md — API auth + multi-party notifications: authenticate review-data and respond endpoints, role-based attribution, email + in-app notifications to other two parties
@@ -124,7 +124,7 @@ Plans:
 | 3. Role Foundation | 1/3 | In Progress|  | - |
 | 4. General Application Flow | 2/2 | Complete   | 2026-03-28 | - |
 | 5. Landlord and Tenant Portals | 3/3 | Complete   | 2026-03-28 | - |
-| 6. In-Portal LOI Negotiation | 1/2 | In Progress|  | - |
+| 6. In-Portal LOI Negotiation | 2/2 | Complete   | 2026-03-28 | - |
 | 7. Lease Negotiation and Notifications | v1.1 | 0/TBD | Not started | - |
 
 ---
