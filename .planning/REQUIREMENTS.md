@@ -88,42 +88,42 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| APP-01 | — | Pending |
-| APP-02 | — | Pending |
-| APP-03 | — | Pending |
-| APP-04 | — | Pending |
-| ROLE-01 | — | Pending |
-| ROLE-02 | — | Pending |
-| ROLE-03 | — | Pending |
-| ROLE-04 | — | Pending |
-| ROLE-05 | — | Pending |
-| ROLE-06 | — | Pending |
-| ROLE-07 | — | Pending |
-| LAND-01 | — | Pending |
-| LAND-02 | — | Pending |
-| LAND-03 | — | Pending |
-| LAND-04 | — | Pending |
-| TNNT-01 | — | Pending |
-| TNNT-02 | — | Pending |
-| TNNT-03 | — | Pending |
-| LOI-01 | — | Pending |
-| LOI-02 | — | Pending |
-| LOI-03 | — | Pending |
-| LOI-04 | — | Pending |
-| LOI-05 | — | Pending |
-| LEAS-01 | — | Pending |
-| LEAS-02 | — | Pending |
-| LEAS-03 | — | Pending |
-| LEAS-04 | — | Pending |
-| NOTF-01 | — | Pending |
-| NOTF-02 | — | Pending |
-| NOTF-03 | — | Pending |
+| APP-01 | Phase 4 | Pending |
+| APP-02 | Phase 4 | Pending |
+| APP-03 | Phase 4 | Pending |
+| APP-04 | Phase 4 | Pending |
+| ROLE-01 | Phase 3 | Pending |
+| ROLE-02 | Phase 3 | Pending |
+| ROLE-03 | Phase 3 | Pending |
+| ROLE-04 | Phase 3 | Pending |
+| ROLE-05 | Phase 3 | Pending |
+| ROLE-06 | Phase 3 | Pending |
+| ROLE-07 | Phase 3 | Pending |
+| LAND-01 | Phase 5 | Pending |
+| LAND-02 | Phase 5 | Pending |
+| LAND-03 | Phase 5 | Pending |
+| LAND-04 | Phase 5 | Pending |
+| TNNT-01 | Phase 5 | Pending |
+| TNNT-02 | Phase 5 | Pending |
+| TNNT-03 | Phase 5 | Pending |
+| LOI-01 | Phase 6 | Pending |
+| LOI-02 | Phase 6 | Pending |
+| LOI-03 | Phase 6 | Pending |
+| LOI-04 | Phase 6 | Pending |
+| LOI-05 | Phase 6 | Pending |
+| LEAS-01 | Phase 7 | Pending |
+| LEAS-02 | Phase 7 | Pending |
+| LEAS-03 | Phase 7 | Pending |
+| LEAS-04 | Phase 7 | Pending |
+| NOTF-01 | Phase 7 | Pending |
+| NOTF-02 | Phase 7 | Pending |
+| NOTF-03 | Phase 7 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 30 total
-- Mapped to phases: 0
-- Unmapped: 30
+- Mapped to phases: 30
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-27 after initial definition*
+*Last updated: 2026-03-27 — traceability populated after roadmap creation*
