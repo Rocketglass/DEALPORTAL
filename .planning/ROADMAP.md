@@ -77,7 +77,12 @@ Plans:
   3. Tenant logs in and sees the current status of their application including which stage the deal is at
   4. Tenant can see the current LOI negotiation status and which sections are agreed, countered, or pending
   5. Tenant can see the lease status and DocuSign signing progress for their deal
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Shared portal layout infrastructure: PortalSidebar component, landlord and tenant route group layouts
+- [ ] 05-02-PLAN.md — Landlord portal: dashboard with properties/pipeline, applications list, application detail with financial doc viewer
+- [ ] 05-03-PLAN.md — Tenant portal: dashboard with application status, LOI section-level progress, lease/signing status
 
 ### Phase 6: In-Portal LOI Negotiation
 **Goal**: All three parties (broker, landlord, tenant) can view, counter, accept, and reject LOI sections from inside the portal — with full negotiation history visible to each party
@@ -114,7 +119,7 @@ Plans:
 | 2. Full Pipeline | v1.0 | — | Complete | 2026-03-16 |
 | 3. Role Foundation | 1/3 | In Progress|  | - |
 | 4. General Application Flow | 2/2 | Complete   | 2026-03-28 | - |
-| 5. Landlord and Tenant Portals | v1.1 | 0/TBD | Not started | - |
+| 5. Landlord and Tenant Portals | v1.1 | 0/3 | Not started | - |
 | 6. In-Portal LOI Negotiation | v1.1 | 0/TBD | Not started | - |
 | 7. Lease Negotiation and Notifications | v1.1 | 0/TBD | Not started | - |
 
