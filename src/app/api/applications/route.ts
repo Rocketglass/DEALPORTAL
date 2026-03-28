@@ -32,6 +32,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // ----------------------------------------------------------------
     const {
       propertyId,
+      propertyIds,
+      userId,
       // Step 1 — Business
       businessName,
       businessType,
@@ -55,7 +57,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       guarantorPhone,
     } = body;
 
-    const applicationType = propertyId ? 'property' : 'general';
+    // Multi-property (propertyIds array) → general; single property (propertyId) → property
+    const hasMultipleProperties = Array.isArray(propertyIds) && propertyIds.length > 0;
+    const applicationType = hasMultipleProperties ? 'general' : (propertyId ? 'property' : 'general');
 
     const cleanEmail = sanitizeEmail(contactEmail ?? '');
     if (!cleanEmail) {
@@ -158,7 +162,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       guarantor_email: guarantorEmail ? sanitizeEmail(guarantorEmail) || null : null,
       guarantor_phone: sanitizeHtml(guarantorPhone ?? '').trim() || null,
       submitted_at: new Date().toISOString(),
-      portal_source: 'qr_portal',
+      portal_source: userId ? 'portal_authenticated' : 'qr_portal',
       credit_check_status: 'not_run' as const,
     };
 
@@ -174,6 +178,37 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { error: 'Failed to create application record' },
         { status: 500 },
       );
+    }
+
+    // ----------------------------------------------------------------
+    // 3. Insert application_properties junction rows
+    //    Populates the junction table for both multi-property (propertyIds)
+    //    and single-property (propertyId) flows. Failure is non-fatal.
+    // ----------------------------------------------------------------
+    const propertyIdsToLink: string[] = [];
+
+    if (hasMultipleProperties) {
+      // New portal flow: array of selected properties
+      propertyIdsToLink.push(...(propertyIds as string[]));
+    } else if (propertyId) {
+      // Legacy QR-code flow: single property
+      propertyIdsToLink.push(propertyId as string);
+    }
+
+    if (propertyIdsToLink.length > 0) {
+      const rows = propertyIdsToLink.map((pid) => ({
+        application_id: application.id,
+        property_id: pid,
+      }));
+
+      const { error: junctionError } = await supabase
+        .from('application_properties')
+        .insert(rows);
+
+      if (junctionError) {
+        // Non-fatal — log but do not block the response
+        console.error('[applications POST] application_properties insert error:', junctionError);
+      }
     }
 
     // Fetch broker contact and property address in parallel for the notification.
