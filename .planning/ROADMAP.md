@@ -30,7 +30,7 @@
 - [x] **Phase 4: General Application Flow** — Allow tenants to apply without a specific property and save progress (completed 2026-03-28)
 - [x] **Phase 5: Landlord and Tenant Portals** — Give both party types authenticated dashboards with deal visibility (completed 2026-03-28)
 - [x] **Phase 6: In-Portal LOI Negotiation** — All three parties negotiate LOI sections inside the portal with full history and notifications (completed 2026-03-28)
-- [ ] **Phase 7: Lease Negotiation and Notifications** — All three parties negotiate lease terms in-portal before DocuSign; complete notification layer wired across all negotiation events
+- [x] **Phase 7: Lease Negotiation and Notifications** — All three parties negotiate lease terms in-portal before DocuSign; complete notification layer wired across all negotiation events (completed 2026-03-28)
 
 ## Phase Details
 
@@ -111,7 +111,7 @@ Plans:
   4. When all parties have agreed on lease terms, the broker can generate the PDF and send it to DocuSign from the portal
   5. Email notifications fire correctly for both LOI section updates and lease term updates, referencing the correct parties and deal
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 07-01-PLAN.md — Authenticate lease negotiate/respond endpoints with role attribution, email + in-app notifications to non-actor parties
@@ -130,7 +130,7 @@ Plans:
 | 4. General Application Flow | 2/2 | Complete   | 2026-03-28 | - |
 | 5. Landlord and Tenant Portals | 3/3 | Complete   | 2026-03-28 | - |
 | 6. In-Portal LOI Negotiation | 2/2 | Complete   | 2026-03-28 | - |
-| 7. Lease Negotiation and Notifications | 2/3 | In Progress|  | - |
+| 7. Lease Negotiation and Notifications | 3/3 | Complete   | 2026-03-28 | - |
 
 ---
 *Roadmap created: 2026-03-27 for v1.1 Multi-Party Portal*

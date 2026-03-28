@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Party Portal
 status: executing
-stopped_at: Completed 07-01-PLAN.md (authenticated lease negotiate/respond endpoints with email and in-app notifications)
-last_updated: "2026-03-28T03:03:32.159Z"
+stopped_at: Completed 07-03-PLAN.md (landlord/tenant lease negotiation UI, portal nav updates)
+last_updated: "2026-03-28T03:08:54.301Z"
 last_activity: "2026-03-28 — Completed plan 03-03 (invitation system: table, API endpoints, email sender)"
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
   percent: 12
 ---
 
@@ -55,6 +55,7 @@ Progress: [███░░] 12% (v1.1 phases 3-7)
 | Phase 06-in-portal-loi-negotiation PP06-02 | 3 | 2 tasks | 5 files |
 | Phase 07-lease-negotiation-and-notifications P02 | 1 | 1 tasks | 1 files |
 | Phase 07-lease-negotiation-and-notifications P07-01 | 3 | 2 tasks | 4 files |
+| Phase 07-lease-negotiation-and-notifications PP07-03 | 3 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,8 @@ From 03-03 (invitation system):
 - [Phase 07-02]: Panel fetch syncs unreadBadgeCount after mapping to prevent divergence when panel opens with fresher data
 - [Phase 07-01]: party_role derived from user.role not request body — eliminates spoofing vector from public endpoint
 - [Phase 07-01]: negotiation_status gate removed from GET endpoint — authenticated parties can see all their leases; respond endpoint still gates non-negotiation leases
+- [Phase 07-lease-negotiation-and-notifications]: Sections displayed in display_order from API (not alphabetically) — matches lease section ordering intent, unlike LOI view
+- [Phase 07-lease-negotiation-and-notifications]: BrokerActionsCard disabled Send to DocuSign until PDF generated in current session — prevents sends before PDF confirmed
 
 ### Pending Todos
 
@@ -115,6 +118,6 @@ None yet. Key architectural note: Phase 3 (roles + RLS) must be fully complete b
 
 ## Session Continuity
 
-Last session: 2026-03-28T03:03:32.157Z
-Stopped at: Completed 07-01-PLAN.md (authenticated lease negotiate/respond endpoints with email and in-app notifications)
+Last session: 2026-03-28T03:08:54.299Z
+Stopped at: Completed 07-03-PLAN.md (landlord/tenant lease negotiation UI, portal nav updates)
 Resume file: None
