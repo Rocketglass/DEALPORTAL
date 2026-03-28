@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Party Portal
 status: executing
-stopped_at: "Completed 05-03-PLAN.md (tenant dashboard: getTenantApplications query, dashboard with LOI section progress, lease signing status)"
-last_updated: "2026-03-28T02:26:20.743Z"
+stopped_at: Completed 05-02-PLAN.md (landlord dashboard, applications list, application detail with PDF viewer)
+last_updated: "2026-03-28T02:29:33.984Z"
 last_activity: "2026-03-28 — Completed plan 03-03 (invitation system: table, API endpoints, email sender)"
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
   percent: 12
 ---
 
@@ -50,6 +50,7 @@ Progress: [███░░] 12% (v1.1 phases 3-7)
 | Phase 04-general-application-flow P04-02 | 4 | 3 tasks | 3 files |
 | Phase 05-landlord-and-tenant-portals P05-01 | 2 | 2 tasks | 3 files |
 | Phase 05-landlord-and-tenant-portals P05-03 | 3 | 2 tasks | 3 files |
+| Phase 05-landlord-and-tenant-portals P05-02 | 4 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,7 @@ From 03-03 (invitation system):
 - [Phase 05-landlord-and-tenant-portals]: Both portal layouts include broker/admin in requireRole() — brokers need cross-portal access for support use cases
 - [Phase 05-landlord-and-tenant-portals]: Lease-to-application join goes via LOI (leases.loi_id) not direct application_id — matches DB schema
 - [Phase 05-landlord-and-tenant-portals]: Supabase returns related rows as arrays even for FK single joins; handled with Array.isArray guard in tenant query
+- [Phase 05-02]: No owner_contact_id on Property — landlord-property relationship derived from lois/leases.landlord_contact_id; service client used for landlord queries with auth at page level via requireRole()
 
 ### Pending Todos
 
@@ -100,6 +102,6 @@ None yet. Key architectural note: Phase 3 (roles + RLS) must be fully complete b
 
 ## Session Continuity
 
-Last session: 2026-03-28T02:26:20.742Z
-Stopped at: Completed 05-03-PLAN.md (tenant dashboard: getTenantApplications query, dashboard with LOI section progress, lease signing status)
+Last session: 2026-03-28T02:29:33.981Z
+Stopped at: Completed 05-02-PLAN.md (landlord dashboard, applications list, application detail with PDF viewer)
 Resume file: None

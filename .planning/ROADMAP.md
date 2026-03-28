@@ -28,7 +28,7 @@
 
 - [ ] **Phase 3: Role Foundation** — Expand the auth system to support all six roles with RLS policies and broker-managed invitations
 - [x] **Phase 4: General Application Flow** — Allow tenants to apply without a specific property and save progress (completed 2026-03-28)
-- [ ] **Phase 5: Landlord and Tenant Portals** — Give both party types authenticated dashboards with deal visibility
+- [x] **Phase 5: Landlord and Tenant Portals** — Give both party types authenticated dashboards with deal visibility (completed 2026-03-28)
 - [ ] **Phase 6: In-Portal LOI Negotiation** — All three parties negotiate LOI sections inside the portal with full history and notifications
 - [ ] **Phase 7: Lease Negotiation and Notifications** — All three parties negotiate lease terms in-portal before DocuSign; complete notification layer wired across all negotiation events
 
@@ -77,7 +77,7 @@ Plans:
   3. Tenant logs in and sees the current status of their application including which stage the deal is at
   4. Tenant can see the current LOI negotiation status and which sections are agreed, countered, or pending
   5. Tenant can see the lease status and DocuSign signing progress for their deal
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md — Shared portal layout infrastructure: PortalSidebar component, landlord and tenant route group layouts
@@ -119,7 +119,7 @@ Plans:
 | 2. Full Pipeline | v1.0 | — | Complete | 2026-03-16 |
 | 3. Role Foundation | 1/3 | In Progress|  | - |
 | 4. General Application Flow | 2/2 | Complete   | 2026-03-28 | - |
-| 5. Landlord and Tenant Portals | 2/3 | In Progress|  | - |
+| 5. Landlord and Tenant Portals | 3/3 | Complete   | 2026-03-28 | - |
 | 6. In-Portal LOI Negotiation | v1.1 | 0/TBD | Not started | - |
 | 7. Lease Negotiation and Notifications | v1.1 | 0/TBD | Not started | - |
 
