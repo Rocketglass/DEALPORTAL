@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Party Portal
 status: executing
-stopped_at: "Completed 05-01-PLAN.md (portal layout infrastructure: PortalSidebar, landlord layout, tenant layout)"
-last_updated: "2026-03-28T02:21:22.455Z"
+stopped_at: "Completed 05-03-PLAN.md (tenant dashboard: getTenantApplications query, dashboard with LOI section progress, lease signing status)"
+last_updated: "2026-03-28T02:26:20.743Z"
 last_activity: "2026-03-28 — Completed plan 03-03 (invitation system: table, API endpoints, email sender)"
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
   percent: 12
 ---
 
@@ -49,6 +49,7 @@ Progress: [███░░] 12% (v1.1 phases 3-7)
 | Phase 04-general-application-flow P04-01 | 3 | 3 tasks | 5 files |
 | Phase 04-general-application-flow P04-02 | 4 | 3 tasks | 3 files |
 | Phase 05-landlord-and-tenant-portals P05-01 | 2 | 2 tasks | 3 files |
+| Phase 05-landlord-and-tenant-portals P05-03 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ From 03-03 (invitation system):
 - [Phase 04-general-application-flow]: Server draft takes priority over localStorage draft when authenticated user returns to /apply
 - [Phase 05-landlord-and-tenant-portals]: PortalSidebar derives settings href from first navItem prefix — keeps component API minimal without a separate settingsHref prop
 - [Phase 05-landlord-and-tenant-portals]: Both portal layouts include broker/admin in requireRole() — brokers need cross-portal access for support use cases
+- [Phase 05-landlord-and-tenant-portals]: Lease-to-application join goes via LOI (leases.loi_id) not direct application_id — matches DB schema
+- [Phase 05-landlord-and-tenant-portals]: Supabase returns related rows as arrays even for FK single joins; handled with Array.isArray guard in tenant query
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ None yet. Key architectural note: Phase 3 (roles + RLS) must be fully complete b
 
 ## Session Continuity
 
-Last session: 2026-03-28T02:21:22.453Z
-Stopped at: Completed 05-01-PLAN.md (portal layout infrastructure: PortalSidebar, landlord layout, tenant layout)
+Last session: 2026-03-28T02:26:20.742Z
+Stopped at: Completed 05-03-PLAN.md (tenant dashboard: getTenantApplications query, dashboard with LOI section progress, lease signing status)
 Resume file: None
