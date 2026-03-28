@@ -61,7 +61,11 @@ Plans:
   2. A tenant can select multiple properties they are interested in within a single application
   3. A tenant can save their in-progress application, log out, return later, and continue from where they left off
   4. A tenant can submit the completed application from within their portal dashboard
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Schema + API: application_properties junction table, application_drafts table, properties list endpoint, draft save/load API
+- [ ] 04-02-PLAN.md — Unified apply page: multi-property selector, server-side draft sync, auth-gated submission, QR redirect update
 
 ### Phase 5: Landlord and Tenant Portals
 **Goal**: Both landlords and tenants have authenticated dashboards that show their relevant deals, documents, and deal status — replacing the current public unauthenticated pages
@@ -97,6 +101,7 @@ Plans:
   3. When any party updates a lease term, the other two parties each receive an email notification and an in-app notification badge updates without a page reload
   4. When all parties have agreed on lease terms, the broker can generate the PDF and send it to DocuSign from the portal
   5. Email notifications fire correctly for both LOI section updates and lease term updates, referencing the correct parties and deal
+
 **Plans**: TBD
 
 ## Progress
@@ -108,7 +113,7 @@ Plans:
 | 1. Foundation | v1.0 | — | Complete | 2026-03-16 |
 | 2. Full Pipeline | v1.0 | — | Complete | 2026-03-16 |
 | 3. Role Foundation | 1/3 | In Progress|  | - |
-| 4. General Application Flow | v1.1 | 0/TBD | Not started | - |
+| 4. General Application Flow | v1.1 | 0/2 | Not started | - |
 | 5. Landlord and Tenant Portals | v1.1 | 0/TBD | Not started | - |
 | 6. In-Portal LOI Negotiation | v1.1 | 0/TBD | Not started | - |
 | 7. Lease Negotiation and Notifications | v1.1 | 0/TBD | Not started | - |
