@@ -44,11 +44,11 @@
   3. Landlord and landlord_agent accounts can log in and reach their portal; tenant and tenant_agent accounts can log in and reach their portal
   4. Broker can send an invitation to a landlord, tenant, or agent and that person can create an account linked to the correct role and associated deal
   5. Landlord agents can act on behalf of their landlord; tenant agents can act on behalf of their tenant
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
-- [ ] 03-01-PLAN.md — Schema migration: expand to 6 roles, add principal_id for agent delegation, update RLS policies
-- [ ] 03-02-PLAN.md — Auth guards + middleware: role-aware routing, new guard functions, invitation-aware auth callback
+- [x] 03-01-PLAN.md — Schema migration: expand to 6 roles, add principal_id for agent delegation, update RLS policies
+- [x] 03-02-PLAN.md — Auth guards + middleware: role-aware routing, new guard functions, invitation-aware auth callback
 - [ ] 03-03-PLAN.md — Invitation system: invitations table, API endpoints, email sending
 
 ### Phase 4: General Application Flow

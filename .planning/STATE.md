@@ -10,24 +10,24 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 3 of 7 (Role Foundation)
-Plan: 1 of 4
+Plan: 2 of 4
 Status: In progress
-Last activity: 2026-03-27 — Completed plan 03-01 (role expansion + agent delegation schema)
+Last activity: 2026-03-27 — Completed plan 03-02 (role-based auth guards, middleware routing, invitation callback)
 
-Progress: [█░░░░] 4% (v1.1 phases 3-7)
+Progress: [██░░░] 8% (v1.1 phases 3-7)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1 (v1.1)
-- Average duration: 7 min
-- Total execution time: 7 min
+- Total plans completed: 2 (v1.1)
+- Average duration: 10 min
+- Total execution time: 19 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 03-role-foundation | 1 | 7 min | 7 min |
+| 03-role-foundation | 2 | 19 min | 10 min |
 
 *Updated after each plan completion*
 
@@ -49,6 +49,11 @@ From 03-01 (role expansion):
 - Agent delegation via get_effective_contact_id() centralizes logic; all tables use this one function
 - users_insert_self unchanged — agent invitations handled in plan 03-03 with a separate policy
 
+From 03-02 (auth guards + routing):
+- Broker/admin can access ALL portals (landlord, tenant, broker) — intentional for support use case
+- invitations table queries use `as any` cast in auth callback until 03-03 adds the typed table to Database type
+- Service client (src/lib/supabase/service.ts) created for RLS bypass in trusted server contexts
+
 ### Pending Todos
 
 None yet.
@@ -60,5 +65,5 @@ None yet. Key architectural note: Phase 3 (roles + RLS) must be fully complete b
 ## Session Continuity
 
 Last session: 2026-03-27
-Stopped at: Completed 03-01-PLAN.md (role expansion + agent delegation schema and TypeScript types)
+Stopped at: Completed 03-02-PLAN.md (role-based auth guards, middleware routing, invitation callback)
 Resume file: None
