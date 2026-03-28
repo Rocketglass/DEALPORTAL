@@ -299,6 +299,48 @@ export function loiAgreed(data: LoiAgreedData): {
 }
 
 // ---------------------------------------------------------------------------
+// 5b. LOI section update — sent to the two non-actor parties when any party responds
+// ---------------------------------------------------------------------------
+
+interface LoiSectionUpdateData {
+  recipientName: string;
+  actorName: string;
+  actorRole: string;
+  propertyAddress: string;
+  suiteNumber: string;
+  tenantBusinessName: string;
+  sectionsUpdatedCount: number;
+  loiId: string;
+}
+
+export function loiSectionUpdate(data: LoiSectionUpdateData): {
+  subject: string;
+  html: string;
+} {
+  const actorRoleLabel =
+    data.actorRole.charAt(0).toUpperCase() + data.actorRole.slice(1).replace('_', ' ');
+
+  const sectionWord = data.sectionsUpdatedCount === 1 ? 'section' : 'sections';
+
+  return {
+    subject: `LOI Update: ${data.propertyAddress} — ${actorRoleLabel} responded`,
+    html: layout(`
+      ${heading('LOI Section Updated')}
+      ${paragraph(`Dear ${data.recipientName},`)}
+      ${paragraph(`<strong>${data.actorName}</strong> (${actorRoleLabel}) has responded to ${data.sectionsUpdatedCount} ${sectionWord} of the Letter of Intent for ${data.propertyAddress}, ${data.suiteNumber}.`)}
+      ${detailsTable(`
+        ${detailRow('Property', `${data.propertyAddress}, ${data.suiteNumber}`)}
+        ${detailRow('Tenant', data.tenantBusinessName)}
+        ${detailRow('Responded By', `${data.actorName} (${actorRoleLabel})`)}
+        ${detailRow('Sections Updated', String(data.sectionsUpdatedCount))}
+      `)}
+      ${paragraph('Log in to the portal to review the updated terms and respond.')}
+      ${ctaButton('View LOI Negotiations', `${PORTAL_URL}/lois/${data.loiId}`)}
+    `),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // 6. Lease ready for signature
 // ---------------------------------------------------------------------------
 

@@ -14,6 +14,7 @@ import {
   loiSentToLandlord,
   loiCountered,
   loiAgreed,
+  loiSectionUpdate,
   leaseReadyForSignature,
   leaseExecuted,
   invoiceSent,
@@ -182,6 +183,34 @@ export async function notifyLoiAgreed(
         propertyAddress: loi.propertyAddress,
         suiteNumber: loi.suiteNumber,
         tenantBusinessName: loi.tenantBusinessName,
+        loiId: loi.id,
+      });
+      return sendEmail({ to: email, subject, html });
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 5b. LOI section update — sent to the two non-actor parties when any party responds
+// ---------------------------------------------------------------------------
+
+export async function notifyLoiSectionUpdate(
+  loi: LoiForNotification,
+  actorName: string,
+  actorRole: string,
+  recipients: PartyForNotification[],
+): Promise<void> {
+  const sectionsUpdatedCount = loi.sectionsCountered?.length ?? 1;
+  await Promise.all(
+    recipients.map(({ email, name }) => {
+      const { subject, html } = loiSectionUpdate({
+        recipientName: name,
+        actorName,
+        actorRole,
+        propertyAddress: loi.propertyAddress,
+        suiteNumber: loi.suiteNumber,
+        tenantBusinessName: loi.tenantBusinessName,
+        sectionsUpdatedCount,
         loiId: loi.id,
       });
       return sendEmail({ to: email, subject, html });

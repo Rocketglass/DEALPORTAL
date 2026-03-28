@@ -1,13 +1,16 @@
 /**
  * POST /api/lois/[id]/respond
  *
- * Public endpoint — no authentication required. Used by landlords who
- * click the review link sent to them by email.
+ * Authenticated endpoint — requires an active session.
+ * Accessible to broker, admin, landlord, landlord_agent, tenant, tenant_agent.
+ * Non-parties receive 403.
  *
- * Accepts the landlord's section-by-section responses and:
- *   1. Updates each loi_section with the landlord's response/action.
- *   2. Inserts a loi_negotiations row recording the action.
+ * Accepts section-by-section responses and:
+ *   1. Updates each loi_section with the response/action and last_updated_by = caller's role.
+ *   2. Inserts a loi_negotiations row recording the action with created_by = caller's role.
  *   3. Updates the LOI status to 'in_negotiation' (or 'agreed' if all accepted).
+ *   4. Sends email notifications to the OTHER TWO parties (not the actor).
+ *   5. Inserts in-app notification rows for each non-actor party.
  *
  * Body:
  * {
@@ -16,22 +19,17 @@
  *     action: 'accept' | 'counter' | 'reject';
  *     value?: string;   // counter-proposal text (required when action='counter')
  *     note?: string;    // rejection reason (optional when action='reject')
+ *     updatedAt?: string; // ISO timestamp for optimistic locking
  *   }>
  * }
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { requireAuthForApi } from '@/lib/security/auth-guard';
+import { createClient as createServiceClient } from '@/lib/supabase/service';
 import type { LoiSectionStatus } from '@/types/database';
-import { notifyLoiCountered, notifyLoiAgreed } from '@/lib/email/notifications';
+import { notifyLoiSectionUpdate, notifyLoiAgreed } from '@/lib/email/notifications';
 import { sanitizeHtml, sanitizeUuid } from '@/lib/security/sanitize';
-
-function getServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Supabase not configured');
-  return createClient(url, key);
-}
 
 const ACTION_TO_STATUS: Record<string, LoiSectionStatus> = {
   accept: 'accepted',
@@ -54,6 +52,14 @@ export async function POST(
   try {
     const { id: loiId } = await params;
 
+    // 1. Authenticate the request — throws if no session
+    let user;
+    try {
+      user = await requireAuthForApi();
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     let body: { responses: SectionResponse[] };
     try {
       body = await request.json();
@@ -66,12 +72,14 @@ export async function POST(
       return NextResponse.json({ error: 'responses array is required' }, { status: 400 });
     }
 
-    const supabase = getServiceClient();
+    // Service client for all DB operations — auth enforced above
+    const supabase = await createServiceClient();
 
-    // Verify the LOI exists and is in a reviewable state
+    // 2. Fetch the LOI to verify existence, state, and party membership
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: loi, error: loiError } = await supabase
       .from('lois')
-      .select('id, status, expires_at')
+      .select('id, status, expires_at, landlord_contact_id, tenant_contact_id, broker_contact_id')
       .eq('id', loiId)
       .single();
 
@@ -79,17 +87,43 @@ export async function POST(
       return NextResponse.json({ error: 'LOI not found' }, { status: 404 });
     }
 
-    if (!['sent', 'in_negotiation'].includes(loi.status)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const loiRow = loi as any;
+
+    // 3. Authorization: verify the caller is a party to this LOI
+    const { role, contactId, principalId } = user;
+    const effectiveContactId = contactId ?? principalId;
+
+    const isBrokerOrAdmin = role === 'broker' || role === 'admin';
+    const isLandlord = role === 'landlord' || role === 'landlord_agent';
+    const isTenant = role === 'tenant' || role === 'tenant_agent';
+
+    if (!isBrokerOrAdmin) {
+      if (isLandlord) {
+        if (!effectiveContactId || effectiveContactId !== loiRow.landlord_contact_id) {
+          return NextResponse.json({ error: 'Forbidden: not a party to this LOI' }, { status: 403 });
+        }
+      } else if (isTenant) {
+        if (!effectiveContactId || effectiveContactId !== loiRow.tenant_contact_id) {
+          return NextResponse.json({ error: 'Forbidden: not a party to this LOI' }, { status: 403 });
+        }
+      } else {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
+    // 4. Verify the LOI is in a respondable state
+    if (!['sent', 'in_negotiation'].includes(loiRow.status)) {
       return NextResponse.json(
-        { error: `LOI is not currently open for responses (status: ${loi.status})` },
+        { error: `LOI is not currently open for responses (status: ${loiRow.status})` },
         { status: 400 },
       );
     }
 
-    // Enforce LOI expiration
-    if (loi.expires_at && new Date(loi.expires_at) < new Date()) {
-      // Mark as expired in the database
-      await supabase
+    // 5. Enforce LOI expiration
+    if (loiRow.expires_at && new Date(loiRow.expires_at) < new Date()) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any)
         .from('lois')
         .update({ status: 'expired', updated_at: new Date().toISOString() })
         .eq('id', loiId);
@@ -102,7 +136,7 @@ export async function POST(
 
     const now = new Date().toISOString();
 
-    // Process each section response
+    // 6. Process each section response
     for (const resp of responses) {
       const { sectionId, action } = resp;
       // Sanitize user-provided text to prevent stored XSS
@@ -136,21 +170,25 @@ export async function POST(
       // When accepting, copy the proposed_value to agreed_value
       let agreedValue: string | null = null;
       if (action === 'accept') {
-        const { data: sectionData } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: sectionData } = await (supabase as any)
           .from('loi_sections')
           .select('proposed_value')
           .eq('id', sectionId)
           .single();
-        agreedValue = sectionData?.proposed_value ?? null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        agreedValue = (sectionData as any)?.proposed_value ?? null;
       }
 
-      // Update the section status and landlord response
-      let query = supabase
+      // Update the section status, response, last_updated_by
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query = (supabase as any)
         .from('loi_sections')
         .update({
           status: newStatus,
           landlord_response: action === 'counter' ? (value ?? null) : (note ?? null),
           agreed_value: agreedValue,
+          last_updated_by: role,
           updated_at: now,
         })
         .eq('id', sectionId)
@@ -179,13 +217,14 @@ export async function POST(
         );
       }
 
-      // Insert negotiation history entry
-      const { error: negError } = await supabase.from('loi_negotiations').insert({
+      // Insert negotiation history entry with actual role as created_by
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: negError } = await (supabase as any).from('loi_negotiations').insert({
         loi_section_id: sectionId,
         action: action === 'accept' ? 'accept' : action === 'counter' ? 'counter' : 'reject',
         value: action === 'counter' ? (value ?? null) : null,
         note: note ?? null,
-        created_by: 'landlord',
+        created_by: role,
         created_at: now,
       });
 
@@ -195,8 +234,9 @@ export async function POST(
       }
     }
 
-    // Re-check all sections to see if the LOI has reached full agreement
-    const { data: allSections } = await supabase
+    // 7. Re-check all sections to determine new LOI status
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: allSections } = await (supabase as any)
       .from('loi_sections')
       .select('status')
       .eq('loi_id', loiId);
@@ -204,28 +244,27 @@ export async function POST(
     const allAgreed =
       allSections != null &&
       allSections.length > 0 &&
-      allSections.every((s) => s.status === 'accepted');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (allSections as any[]).every((s: any) => s.status === 'accepted');
 
-    const hasRejected = allSections?.some((s) => s.status === 'rejected');
+    const newLoiStatus = allAgreed ? 'agreed' : 'in_negotiation';
 
-    const newLoiStatus = allAgreed
-      ? 'agreed'
-      : hasRejected
-        ? 'in_negotiation'
-        : 'in_negotiation';
-
-    await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
       .from('lois')
       .update({ status: newLoiStatus, updated_at: now })
       .eq('id', loiId);
 
-    // Notify parties about the landlord's response (fire-and-forget)
+    // 8. Notify the OTHER TWO parties about this update (fire-and-forget)
     void (async () => {
       try {
         const { data: loiFull } = await supabase
           .from('lois')
           .select(`
             id,
+            landlord_contact_id,
+            tenant_contact_id,
+            broker_contact_id,
             property:properties(address, city, state),
             unit:units(suite_number),
             tenant:contacts!lois_tenant_contact_id_fkey(email, first_name, last_name, company_name),
@@ -238,68 +277,195 @@ export async function POST(
         if (!loiFull) return;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const broker = loiFull.broker as any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const landlord = loiFull.landlord as any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const tenant = loiFull.tenant as any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const property = loiFull.property as any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const unit = loiFull.unit as any;
-
-        if (!broker?.email) return;
+        const loiFullData = loiFull as any;
+        const brokerContact = loiFullData.broker;
+        const landlordContact = loiFullData.landlord;
+        const tenantContact = loiFullData.tenant;
+        const property = loiFullData.property;
+        const unit = loiFullData.unit;
 
         const brokerName =
-          (broker.company_name
-          ?? [broker.first_name, broker.last_name].filter(Boolean).join(' '))
+          (brokerContact?.company_name ??
+          [brokerContact?.first_name, brokerContact?.last_name].filter(Boolean).join(' '))
           || 'Broker';
 
         const landlordName =
-          (landlord?.company_name
-          ?? [landlord?.first_name, landlord?.last_name].filter(Boolean).join(' '))
+          (landlordContact?.company_name ??
+          [landlordContact?.first_name, landlordContact?.last_name].filter(Boolean).join(' '))
           || 'Landlord';
 
         const tenantBusinessName =
-          (tenant?.company_name
-          ?? [tenant?.first_name, tenant?.last_name].filter(Boolean).join(' '))
+          (tenantContact?.company_name ??
+          [tenantContact?.first_name, tenantContact?.last_name].filter(Boolean).join(' '))
           || 'Tenant';
 
         const propertyAddress = property
           ? `${property.address}, ${property.city}, ${property.state}`
           : 'Unknown property';
 
+        const suiteNumber = unit?.suite_number ?? '';
+
+        // Determine actor's display name
+        let actorName: string;
+        if (isBrokerOrAdmin) {
+          actorName = brokerName;
+        } else if (isLandlord) {
+          actorName = landlordName;
+        } else {
+          actorName = tenantBusinessName;
+        }
+
         const loiNotification = {
-          id: loiFull.id,
+          id: loiId,
           tenantBusinessName,
           propertyAddress,
-          suiteNumber: unit?.suite_number ?? '',
+          suiteNumber,
           brokerName,
           landlordName,
+          sectionsCountered: responses
+            .filter((r) => r.action === 'counter' || r.action === 'reject')
+            .map((r) => r.sectionId),
         };
 
         if (newLoiStatus === 'agreed') {
-          // LOI fully agreed — notify all parties
+          // LOI fully agreed — notify all 3 parties
           const parties = [
-            broker?.email && { email: broker.email, name: brokerName },
-            landlord?.email && { email: landlord.email, name: landlordName },
-            tenant?.email && { email: tenant.email, name: tenantBusinessName },
+            brokerContact?.email && { email: brokerContact.email, name: brokerName },
+            landlordContact?.email && { email: landlordContact.email, name: landlordName },
+            tenantContact?.email && { email: tenantContact.email, name: tenantBusinessName },
           ].filter(Boolean) as { email: string; name: string }[];
 
           await notifyLoiAgreed(loiNotification, parties);
         } else {
-          // LOI countered/in-negotiation — notify broker
-          const sectionsCountered = responses
-            .filter((r) => r.action === 'counter' || r.action === 'reject')
-            .map((r) => r.sectionId);
+          // Determine the two non-actor recipients
+          const recipients: { email: string; name: string }[] = [];
 
-          await notifyLoiCountered(
-            { ...loiNotification, sectionsCountered },
-            broker.email,
-          );
+          if (!isBrokerOrAdmin && brokerContact?.email) {
+            recipients.push({ email: brokerContact.email, name: brokerName });
+          }
+          if (!isLandlord && landlordContact?.email) {
+            recipients.push({ email: landlordContact.email, name: landlordName });
+          }
+          if (!isTenant && tenantContact?.email) {
+            recipients.push({ email: tenantContact.email, name: tenantBusinessName });
+          }
+
+          if (recipients.length > 0) {
+            await notifyLoiSectionUpdate(loiNotification, actorName, role, recipients);
+          }
         }
       } catch (notifyError) {
-        console.error('[LOI respond] Failed to notify:', notifyError);
+        console.error('[LOI respond] Failed to send email notifications:', notifyError);
+      }
+    })();
+
+    // 9. Insert in-app notification rows for each non-actor party (fire-and-forget)
+    void (async () => {
+      try {
+        const { data: loiFull } = await supabase
+          .from('lois')
+          .select(`
+            landlord_contact_id,
+            tenant_contact_id,
+            broker_contact_id,
+            property:properties(address, city, state),
+            unit:units(suite_number),
+            tenant:contacts!lois_tenant_contact_id_fkey(company_name, first_name, last_name),
+            landlord:contacts!lois_landlord_contact_id_fkey(company_name, first_name, last_name),
+            broker:contacts!lois_broker_contact_id_fkey(company_name, first_name, last_name)
+          `)
+          .eq('id', loiId)
+          .single();
+
+        if (!loiFull) return;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const loiFullData = loiFull as any;
+        const property = loiFullData.property;
+        const unit = loiFullData.unit;
+        const brokerContact = loiFullData.broker;
+        const landlordContact = loiFullData.landlord;
+        const tenantContact = loiFullData.tenant;
+
+        const propertyAddress = property
+          ? `${property.address}, ${property.city}, ${property.state}`
+          : 'Unknown property';
+
+        const actionLabel = responses.some((r) => r.action === 'reject')
+          ? 'rejected terms'
+          : responses.some((r) => r.action === 'counter')
+            ? 'countered'
+            : 'accepted terms';
+
+        const sectionLabel = responses.length === 1 ? '1 section' : `${responses.length} sections`;
+        const roleLabel = role.charAt(0).toUpperCase() + role.slice(1).replace('_', ' ');
+
+        // Determine which contact IDs belong to non-actor parties
+        interface NonActorParty {
+          contactId: string;
+          linkUrl: string;
+        }
+
+        const nonActorParties: NonActorParty[] = [];
+
+        if (!isBrokerOrAdmin && loiFullData.broker_contact_id) {
+          nonActorParties.push({
+            contactId: loiFullData.broker_contact_id,
+            linkUrl: `/lois/${loiId}`,
+          });
+        }
+        if (!isLandlord && loiFullData.landlord_contact_id) {
+          nonActorParties.push({
+            contactId: loiFullData.landlord_contact_id,
+            linkUrl: `/landlord/lois/${loiId}`,
+          });
+        }
+        if (!isTenant && loiFullData.tenant_contact_id) {
+          nonActorParties.push({
+            contactId: loiFullData.tenant_contact_id,
+            linkUrl: `/tenant/lois/${loiId}`,
+          });
+        }
+
+        // Look up user_id for each non-actor contact and insert notification row
+        for (const party of nonActorParties) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: targetUser } = await (supabase as any)
+              .from('users')
+              .select('id')
+              .eq('contact_id', party.contactId)
+              .eq('is_active', true)
+              .single();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (!(targetUser as any)?.id) continue; // user not in system yet — skip
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase as any).from('notifications').insert({
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              user_id: (targetUser as any).id,
+              type: 'loi_section_update',
+              title: 'LOI Section Updated',
+              message: `${roleLabel} ${actionLabel} on ${sectionLabel} for ${propertyAddress}`,
+              link_url: party.linkUrl,
+              read: false,
+              email_sent: true,
+              email_sent_at: now,
+            });
+          } catch (insertError) {
+            console.error('[LOI respond] Failed to insert in-app notification for contact', party.contactId, insertError);
+            // Non-fatal — notification failure never blocks the response
+          }
+        }
+
+        // Suppress unused variable warnings
+        void brokerContact;
+        void landlordContact;
+        void tenantContact;
+        void unit;
+      } catch (notifyError) {
+        console.error('[LOI respond] Failed to send in-app notifications:', notifyError);
       }
     })();
 
