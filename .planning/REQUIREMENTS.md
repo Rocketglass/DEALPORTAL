@@ -29,11 +29,11 @@ Requirements for Multi-Party Portal milestone. Each maps to roadmap phases.
 - [ ] **LAND-01**: Landlord can view all applications for their properties
 - [ ] **LAND-02**: Landlord can view tenant financial documents (tax returns, bank statements, P&L, business license)
 - [ ] **LAND-03**: Landlord can view tenant business information and contact details
-- [ ] **LAND-04**: Landlord has a dashboard showing their properties and deal pipeline
+- [x] **LAND-04**: Landlord has a dashboard showing their properties and deal pipeline
 
 ### Tenant Portal
 
-- [ ] **TNNT-01**: Tenant can view their own application status and deal progress
+- [x] **TNNT-01**: Tenant can view their own application status and deal progress
 - [ ] **TNNT-02**: Tenant can see LOI negotiation status for their deals
 - [ ] **TNNT-03**: Tenant can see lease status and signing progress
 
@@ -102,8 +102,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LAND-01 | Phase 5 | Pending |
 | LAND-02 | Phase 5 | Pending |
 | LAND-03 | Phase 5 | Pending |
-| LAND-04 | Phase 5 | Pending |
-| TNNT-01 | Phase 5 | Pending |
+| LAND-04 | Phase 5 | Complete |
+| TNNT-01 | Phase 5 | Complete |
 | TNNT-02 | Phase 5 | Pending |
 | TNNT-03 | Phase 5 | Pending |
 | LOI-01 | Phase 6 | Pending |

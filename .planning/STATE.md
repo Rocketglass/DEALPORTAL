@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Party Portal
 status: executing
-stopped_at: "Completed 04-02-PLAN.md (unified apply page: 6-step form, multi-property selector, auth draft sync, auth-gated submit, QR redirect update)"
-last_updated: "2026-03-28T02:11:14.799Z"
+stopped_at: "Completed 05-01-PLAN.md (portal layout infrastructure: PortalSidebar, landlord layout, tenant layout)"
+last_updated: "2026-03-28T02:21:22.455Z"
 last_activity: "2026-03-28 — Completed plan 03-03 (invitation system: table, API endpoints, email sender)"
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 8
+  completed_plans: 6
   percent: 12
 ---
 
@@ -48,6 +48,7 @@ Progress: [███░░] 12% (v1.1 phases 3-7)
 *Updated after each plan completion*
 | Phase 04-general-application-flow P04-01 | 3 | 3 tasks | 5 files |
 | Phase 04-general-application-flow P04-02 | 4 | 3 tasks | 3 files |
+| Phase 05-landlord-and-tenant-portals P05-01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,8 @@ From 03-03 (invitation system):
 - [Phase 04-general-application-flow]: STORAGE_KEY changed to rr_application_draft_v2 to avoid collisions with old 5-step draft format
 - [Phase 04-general-application-flow]: QR redirect no longer uses qrCode.portal_url — always routes to /apply?property=UUID
 - [Phase 04-general-application-flow]: Server draft takes priority over localStorage draft when authenticated user returns to /apply
+- [Phase 05-landlord-and-tenant-portals]: PortalSidebar derives settings href from first navItem prefix — keeps component API minimal without a separate settingsHref prop
+- [Phase 05-landlord-and-tenant-portals]: Both portal layouts include broker/admin in requireRole() — brokers need cross-portal access for support use cases
 
 ### Pending Todos
 
@@ -94,6 +97,6 @@ None yet. Key architectural note: Phase 3 (roles + RLS) must be fully complete b
 
 ## Session Continuity
 
-Last session: 2026-03-28T02:10:32.460Z
-Stopped at: Completed 04-02-PLAN.md (unified apply page: 6-step form, multi-property selector, auth draft sync, auth-gated submit, QR redirect update)
+Last session: 2026-03-28T02:21:22.453Z
+Stopped at: Completed 05-01-PLAN.md (portal layout infrastructure: PortalSidebar, landlord layout, tenant layout)
 Resume file: None
