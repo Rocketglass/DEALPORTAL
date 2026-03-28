@@ -157,12 +157,26 @@ export async function updateSession(request: NextRequest) {
     '127.0.0.1';
 
   const pathname = request.nextUrl.pathname;
+
+  // Skip rate limiting for static assets and Next.js internals
+  const isStaticOrInternal =
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/favicon') ||
+    pathname.endsWith('.ico') ||
+    pathname.endsWith('.png') ||
+    pathname.endsWith('.jpg') ||
+    pathname.endsWith('.svg') ||
+    pathname.endsWith('.css') ||
+    pathname.endsWith('.js');
+
   // Timeout after 3s — if Upstash is unresponsive, allow the request
-  const rateLimitResult = await withTimeout(
-    checkRateLimit(clientIp, pathname),
-    3000,
-    RATE_LIMIT_PASS,
-  );
+  const rateLimitResult = isStaticOrInternal
+    ? RATE_LIMIT_PASS
+    : await withTimeout(
+        checkRateLimit(clientIp, pathname),
+        3000,
+        RATE_LIMIT_PASS,
+      );
 
   // CSRF validation for mutation requests
   if (!validateCsrf(request)) {

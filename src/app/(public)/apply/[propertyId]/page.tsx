@@ -618,6 +618,19 @@ export default function TenantApplicationPage() {
 
   const STORAGE_KEY = `rr_application_draft_${propertyId}`;
 
+  const [propertyName, setPropertyName] = useState<string | null>(null);
+
+  // Fetch property name for display
+  useEffect(() => {
+    if (!propertyId) return;
+    fetch(`/api/public/properties/${propertyId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.name) setPropertyName(data.name);
+      })
+      .catch(() => {});
+  }, [propertyId]);
+
   const [currentStep, setCurrentStep] = useState(() => {
     if (typeof window === 'undefined') return 1;
     try {
@@ -1064,7 +1077,7 @@ export default function TenantApplicationPage() {
     <div className="space-y-5">
       <div className="rounded-lg bg-muted px-4 py-3">
         <p className="text-xs text-muted-foreground">Property</p>
-        <p className="mt-0.5 text-sm font-medium text-foreground">Property ID: {propertyId}</p>
+        <p className="mt-0.5 text-sm font-medium text-foreground">{propertyName ?? propertyId}</p>
       </div>
 
       <div>

@@ -59,7 +59,7 @@ function getGeneralLimiter(): Ratelimit | null {
   if (!r) return null;
   generalLimiter = new Ratelimit({
     redis: r,
-    limiter: Ratelimit.slidingWindow(100, '60 s'),
+    limiter: Ratelimit.slidingWindow(200, '60 s'),
     prefix: 'rl:general',
   });
   return generalLimiter;
@@ -71,7 +71,7 @@ function getAuthLimiter(): Ratelimit | null {
   if (!r) return null;
   authLimiter = new Ratelimit({
     redis: r,
-    limiter: Ratelimit.slidingWindow(10, '60 s'),
+    limiter: Ratelimit.slidingWindow(20, '60 s'),
     prefix: 'rl:auth',
   });
   return authLimiter;
@@ -83,7 +83,7 @@ function getPublicApiLimiter(): Ratelimit | null {
   if (!r) return null;
   publicApiLimiter = new Ratelimit({
     redis: r,
-    limiter: Ratelimit.slidingWindow(30, '60 s'),
+    limiter: Ratelimit.slidingWindow(60, '60 s'),
     prefix: 'rl:public',
   });
   return publicApiLimiter;

@@ -25,15 +25,13 @@ function buildContentSecurityPolicy(): string {
       // Supabase project URL for API, Auth, Storage, and Realtime
       ...(supabaseUrl ? [supabaseUrl, supabaseUrl.replace('https://', 'wss://')] : []),
     ],
-    'frame-src': ["'none'"],
+    'frame-src': ['https://maps.google.com', 'https://*.google.com'],
     'object-src': ["'none'"],
     'base-uri': ["'self'"],
     'form-action': ["'self'"],
     'frame-ancestors': ["'none'"],
     'worker-src': ["'self'", 'blob:'],
     'manifest-src': ["'self'"],
-    // Block all plugins
-    'plugin-types': [],
     // Upgrade insecure requests in production
     'upgrade-insecure-requests': [],
   };

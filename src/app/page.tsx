@@ -8,7 +8,7 @@ export default function Home() {
       <PublicHeader />
 
       {/* Hero */}
-      <main className="flex flex-1 flex-col items-center justify-center px-4">
+      <main className="flex flex-1 flex-col items-center px-4 pt-16 sm:justify-center sm:pt-0">
         <div className="w-full max-w-2xl text-center">
           <h1 className="animate-fade-in-up text-3xl font-semibold tracking-tight sm:text-4xl lg:text-[44px] lg:leading-tight">
             Commercial Leasing,{' '}
@@ -18,7 +18,7 @@ export default function Home() {
             Browse available spaces, submit applications, and manage your entire lease
             lifecycle — all in one place.
           </p>
-          <div className="animate-fade-in-up-delay-2 mt-8 flex justify-center gap-3">
+          <div className="animate-fade-in-up-delay-2 mt-6 flex justify-center gap-3 sm:mt-8">
             <Link
               href="/browse"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-medium text-white transition-all duration-150 hover:bg-primary-light hover:shadow-md hover:shadow-primary/20"
@@ -36,7 +36,7 @@ export default function Home() {
         </div>
 
         {/* Value props */}
-        <div className="animate-fade-in-up-delay-3 mx-auto mt-20 grid w-full max-w-2xl grid-cols-1 gap-6 sm:grid-cols-3">
+        <div className="animate-fade-in-up-delay-3 mx-auto mt-12 grid w-full max-w-2xl grid-cols-1 gap-6 sm:mt-20 sm:grid-cols-3">
           {[
             {
               icon: Zap,

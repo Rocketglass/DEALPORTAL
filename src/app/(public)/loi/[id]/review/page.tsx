@@ -276,6 +276,17 @@ export default function LoiReviewPage() {
           </>
         )}
 
+        {/* Empty state — no sections added yet */}
+        {sections.length === 0 && (
+          <div className="mt-8 rounded-xl bg-white px-6 py-12 text-center shadow-sm">
+            <FileCheck className="mx-auto h-10 w-10 text-muted-foreground/40" />
+            <h2 className="mt-4 text-base font-semibold">No Sections to Review</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The broker has not added any sections to this LOI yet. Please check back later or contact the broker for details.
+            </p>
+          </div>
+        )}
+
         {/* Section cards */}
         <div className="mt-6 space-y-3">
           {sections.map((section) => {
@@ -415,37 +426,39 @@ export default function LoiReviewPage() {
           })}
         </div>
 
-        {/* Submit bar */}
-        <div className="mt-8 rounded-xl bg-white px-5 py-4 shadow-sm">
-          {submitError && (
-            <p className="mb-3 text-sm text-destructive">{submitError}</p>
-          )}
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {allResponded
-                ? 'All sections reviewed. Ready to submit.'
-                : `${sections.length - respondedCount} section(s) remaining.`}
-            </p>
-            <button
-              type="button"
-              disabled={!allResponded || submitting}
-              onClick={handleSubmit}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white',
-                allResponded && !submitting
-                  ? 'bg-primary hover:bg-primary-light'
-                  : 'cursor-not-allowed bg-primary/40',
-              )}
-            >
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-              {submitting ? 'Submitting…' : 'Submit All Responses'}
-            </button>
+        {/* Submit bar — only shown when there are sections to respond to */}
+        {sections.length > 0 && (
+          <div className="mt-8 rounded-xl bg-white px-5 py-4 shadow-sm">
+            {submitError && (
+              <p className="mb-3 text-sm text-destructive">{submitError}</p>
+            )}
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                {allResponded
+                  ? 'All sections reviewed. Ready to submit.'
+                  : `${sections.length - respondedCount} section(s) remaining.`}
+              </p>
+              <button
+                type="button"
+                disabled={!allResponded || submitting}
+                onClick={handleSubmit}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white',
+                  allResponded && !submitting
+                    ? 'bg-primary hover:bg-primary-light'
+                    : 'cursor-not-allowed bg-primary/40',
+                )}
+              >
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                {submitting ? 'Submitting…' : 'Submit All Responses'}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

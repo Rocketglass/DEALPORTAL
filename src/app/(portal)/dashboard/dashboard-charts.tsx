@@ -165,7 +165,7 @@ export default function DashboardCharts({
             <p className="mt-1 text-sm text-[#64748b]">
               Monthly breakdown — earned vs outstanding
             </p>
-            <div className="mt-4 h-72">
+            <div className="mt-4 h-72" style={{ minWidth: 0, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={filteredCommission}
@@ -223,7 +223,7 @@ export default function DashboardCharts({
             <p className="mt-1 text-sm text-[#64748b]">
               Monthly new applications, LOIs, and leases
             </p>
-            <div className="mt-4 h-72">
+            <div className="mt-4 h-72" style={{ minWidth: 0, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={filteredDealFlow}
