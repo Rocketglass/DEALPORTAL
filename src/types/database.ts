@@ -136,6 +136,16 @@ export type Database = {
         Insert: Omit<DealChecklistItem, 'id' | 'created_at' | 'updated_at'> & { id?: string };
         Update: Partial<Omit<DealChecklistItem, 'id'>>;
       };
+      invitations: {
+        Row: Invitation;
+        Insert: Omit<Invitation, 'id' | 'created_at' | 'updated_at' | 'status' | 'accepted_at' | 'accepted_by_user_id'> & {
+          id?: string;
+          status?: InvitationStatus;
+          accepted_at?: string | null;
+          accepted_by_user_id?: string | null;
+        };
+        Update: Partial<Omit<Invitation, 'id'>>;
+      };
     };
   };
 };
@@ -617,6 +627,30 @@ export interface DealChecklistItem {
   file_url: string | null;
   file_name: string | null;
   notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================
+// Invitations
+// ============================================================
+
+export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
+export type InvitableRole = 'landlord' | 'landlord_agent' | 'tenant' | 'tenant_agent' | 'broker';
+
+export interface Invitation {
+  id: string;
+  token: string;
+  email: string;
+  role: InvitableRole;
+  contact_id: string | null;
+  principal_id: string | null;
+  deal_id: string | null;
+  invited_by: string;
+  status: InvitationStatus;
+  accepted_at: string | null;
+  accepted_by_user_id: string | null;
+  expires_at: string;
   created_at: string;
   updated_at: string;
 }
