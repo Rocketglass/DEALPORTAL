@@ -146,6 +146,16 @@ export type Database = {
         };
         Update: Partial<Omit<Invitation, 'id'>>;
       };
+      application_properties: {
+        Row: ApplicationProperty;
+        Insert: Omit<ApplicationProperty, 'id' | 'created_at'> & { id?: string };
+        Update: Partial<Omit<ApplicationProperty, 'id'>>;
+      };
+      application_drafts: {
+        Row: ApplicationDraft;
+        Insert: Omit<ApplicationDraft, 'id' | 'created_at' | 'updated_at'> & { id?: string };
+        Update: Partial<Omit<ApplicationDraft, 'id'>>;
+      };
     };
   };
 };
@@ -686,4 +696,25 @@ export interface LeaseWithRelations extends Lease {
   landlord: Contact;
   broker: Contact;
   escalations: RentEscalation[];
+}
+
+// ============================================================
+// Phase 4: Multi-property applications
+// ============================================================
+
+export interface ApplicationProperty {
+  id: string;
+  application_id: string;
+  property_id: string;
+  created_at: string;
+}
+
+export interface ApplicationDraft {
+  id: string;
+  user_id: string;
+  form_data: Json;
+  selected_property_ids: string[];
+  current_step: number;
+  updated_at: string;
+  created_at: string;
 }
