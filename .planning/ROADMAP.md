@@ -44,7 +44,7 @@
   3. Landlord and landlord_agent accounts can log in and reach their portal; tenant and tenant_agent accounts can log in and reach their portal
   4. Broker can send an invitation to a landlord, tenant, or agent and that person can create an account linked to the correct role and associated deal
   5. Landlord agents can act on behalf of their landlord; tenant agents can act on behalf of their tenant
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 03-01-PLAN.md — Schema migration: expand to 6 roles, add principal_id for agent delegation, update RLS policies
@@ -106,7 +106,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1. Foundation | v1.0 | — | Complete | 2026-03-16 |
 | 2. Full Pipeline | v1.0 | — | Complete | 2026-03-16 |
-| 3. Role Foundation | v1.1 | 0/3 | Planning complete | - |
+| 3. Role Foundation | 1/3 | In Progress|  | - |
 | 4. General Application Flow | v1.1 | 0/TBD | Not started | - |
 | 5. Landlord and Tenant Portals | v1.1 | 0/TBD | Not started | - |
 | 6. In-Portal LOI Negotiation | v1.1 | 0/TBD | Not started | - |

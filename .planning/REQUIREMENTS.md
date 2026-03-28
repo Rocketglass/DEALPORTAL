@@ -16,12 +16,12 @@ Requirements for Multi-Party Portal milestone. Each maps to roadmap phases.
 
 ### Roles & Auth
 
-- [ ] **ROLE-01**: System supports 6 roles: broker, admin, landlord, landlord_agent, tenant, tenant_agent
-- [ ] **ROLE-02**: Broker (Rocket) can see all data across all deals and parties
+- [x] **ROLE-01**: System supports 6 roles: broker, admin, landlord, landlord_agent, tenant, tenant_agent
+- [x] **ROLE-02**: Broker (Rocket) can see all data across all deals and parties
 - [ ] **ROLE-03**: Landlord can log into the portal and access their properties' deals
 - [ ] **ROLE-04**: Tenant can log into the portal and access their own applications/deals
-- [ ] **ROLE-05**: Landlord agent can act on behalf of a landlord
-- [ ] **ROLE-06**: Tenant agent can act on behalf of a tenant
+- [x] **ROLE-05**: Landlord agent can act on behalf of a landlord
+- [x] **ROLE-06**: Tenant agent can act on behalf of a tenant
 - [ ] **ROLE-07**: Broker can invite landlords, tenants, and agents to the portal
 
 ### Landlord Portal
@@ -92,12 +92,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | APP-02 | Phase 4 | Pending |
 | APP-03 | Phase 4 | Pending |
 | APP-04 | Phase 4 | Pending |
-| ROLE-01 | Phase 3 | Pending |
-| ROLE-02 | Phase 3 | Pending |
+| ROLE-01 | Phase 3 | Complete |
+| ROLE-02 | Phase 3 | Complete |
 | ROLE-03 | Phase 3 | Pending |
 | ROLE-04 | Phase 3 | Pending |
-| ROLE-05 | Phase 3 | Pending |
-| ROLE-06 | Phase 3 | Pending |
+| ROLE-05 | Phase 3 | Complete |
+| ROLE-06 | Phase 3 | Complete |
 | ROLE-07 | Phase 3 | Pending |
 | LAND-01 | Phase 5 | Pending |
 | LAND-02 | Phase 5 | Pending |
