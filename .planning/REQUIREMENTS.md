@@ -10,8 +10,8 @@ Requirements for Multi-Party Portal milestone. Each maps to roadmap phases.
 ### Application Flow
 
 - [ ] **APP-01**: QR code leads to a general application page (not property-specific)
-- [ ] **APP-02**: Tenant can indicate interest in multiple properties on one application
-- [ ] **APP-03**: Tenant can save application progress and return later to complete it
+- [x] **APP-02**: Tenant can indicate interest in multiple properties on one application
+- [x] **APP-03**: Tenant can save application progress and return later to complete it
 - [ ] **APP-04**: Tenant can submit the application from within the portal
 
 ### Roles & Auth
@@ -89,8 +89,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | APP-01 | Phase 4 | Pending |
-| APP-02 | Phase 4 | Pending |
-| APP-03 | Phase 4 | Pending |
+| APP-02 | Phase 4 | Complete |
+| APP-03 | Phase 4 | Complete |
 | APP-04 | Phase 4 | Pending |
 | ROLE-01 | Phase 3 | Complete |
 | ROLE-02 | Phase 3 | Complete |

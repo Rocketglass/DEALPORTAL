@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Party Portal
 status: executing
-stopped_at: "Completed 03-03-PLAN.md (invitation system: table, API endpoints, email sender)"
-last_updated: "2026-03-28T01:50:59.336Z"
+stopped_at: "Completed 04-01-PLAN.md (multi-property application data foundation: migration, public properties API, draft save/load API)"
+last_updated: "2026-03-28T02:04:18.212Z"
 last_activity: "2026-03-28 — Completed plan 03-03 (invitation system: table, API endpoints, email sender)"
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
   percent: 12
 ---
 
@@ -46,6 +46,7 @@ Progress: [███░░] 12% (v1.1 phases 3-7)
 | 03-role-foundation | 3 | 24 min | 8 min |
 
 *Updated after each plan completion*
+| Phase 04-general-application-flow P04-01 | 3 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ From 03-03 (invitation system):
 - Resend endpoint refreshes expiry (new 7-day window) if invitation was expired — simplifies broker workflow
 - token is 64-char hex (randomBytes(32).toString('hex')) — cryptographically secure and URL-safe
 - invitations_select_by_token RLS policy added for token-based public lookup safety (service-role bypasses RLS anyway)
+- [Phase 04-general-application-flow]: Service client used for draft API to avoid RLS race window on first insert
+- [Phase 04-general-application-flow]: Junction table insert failure is non-fatal — log but never block the 201 application response
+- [Phase 04-general-application-flow]: application_drafts uses UNIQUE(user_id) — one draft per user, upsert on conflict
 
 ### Pending Todos
 
@@ -86,6 +90,6 @@ None yet. Key architectural note: Phase 3 (roles + RLS) must be fully complete b
 
 ## Session Continuity
 
-Last session: 2026-03-28
-Stopped at: Completed 03-03-PLAN.md (invitation system: table, API endpoints, email sender)
+Last session: 2026-03-28T02:04:18.210Z
+Stopped at: Completed 04-01-PLAN.md (multi-property application data foundation: migration, public properties API, draft save/load API)
 Resume file: None
