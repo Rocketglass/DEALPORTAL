@@ -26,24 +26,24 @@ Requirements for Multi-Party Portal milestone. Each maps to roadmap phases.
 
 ### Landlord Portal
 
-- [ ] **LAND-01**: Landlord can view all applications for their properties
-- [ ] **LAND-02**: Landlord can view tenant financial documents (tax returns, bank statements, P&L, business license)
-- [ ] **LAND-03**: Landlord can view tenant business information and contact details
+- [x] **LAND-01**: Landlord can view all applications for their properties
+- [x] **LAND-02**: Landlord can view tenant financial documents (tax returns, bank statements, P&L, business license)
+- [x] **LAND-03**: Landlord can view tenant business information and contact details
 - [x] **LAND-04**: Landlord has a dashboard showing their properties and deal pipeline
 
 ### Tenant Portal
 
 - [x] **TNNT-01**: Tenant can view their own application status and deal progress
-- [ ] **TNNT-02**: Tenant can see LOI negotiation status for their deals
-- [ ] **TNNT-03**: Tenant can see lease status and signing progress
+- [x] **TNNT-02**: Tenant can see LOI negotiation status for their deals
+- [x] **TNNT-03**: Tenant can see lease status and signing progress
 
 ### LOI Negotiation
 
 - [ ] **LOI-01**: All three parties (broker, landlord, tenant) can view LOI sections in-portal after logging in
 - [ ] **LOI-02**: Landlord can accept, counter, or reject LOI sections from their portal
 - [ ] **LOI-03**: Tenant can accept, counter, or reject LOI sections from their portal
-- [ ] **LOI-04**: When any party updates a section, the other two parties receive notification (email + in-app)
-- [ ] **LOI-05**: Broker can see all negotiation history and respond to counters from either party
+- [x] **LOI-04**: When any party updates a section, the other two parties receive notification (email + in-app)
+- [x] **LOI-05**: Broker can see all negotiation history and respond to counters from either party
 
 ### Lease Negotiation
 
@@ -99,18 +99,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROLE-05 | Phase 3 | Complete |
 | ROLE-06 | Phase 3 | Complete |
 | ROLE-07 | Phase 3 | Complete |
-| LAND-01 | Phase 5 | Pending |
-| LAND-02 | Phase 5 | Pending |
-| LAND-03 | Phase 5 | Pending |
+| LAND-01 | Phase 5 | Complete |
+| LAND-02 | Phase 5 | Complete |
+| LAND-03 | Phase 5 | Complete |
 | LAND-04 | Phase 5 | Complete |
 | TNNT-01 | Phase 5 | Complete |
-| TNNT-02 | Phase 5 | Pending |
-| TNNT-03 | Phase 5 | Pending |
+| TNNT-02 | Phase 5 | Complete |
+| TNNT-03 | Phase 5 | Complete |
 | LOI-01 | Phase 6 | Pending |
 | LOI-02 | Phase 6 | Pending |
 | LOI-03 | Phase 6 | Pending |
-| LOI-04 | Phase 6 | Pending |
-| LOI-05 | Phase 6 | Pending |
+| LOI-04 | Phase 6 | Complete |
+| LOI-05 | Phase 6 | Complete |
 | LEAS-01 | Phase 7 | Pending |
 | LEAS-02 | Phase 7 | Pending |
 | LEAS-03 | Phase 7 | Pending |

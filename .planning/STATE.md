@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Multi-Party Portal
 status: executing
-stopped_at: Completed 05-02-PLAN.md (landlord dashboard, applications list, application detail with PDF viewer)
-last_updated: "2026-03-28T02:30:13.213Z"
+stopped_at: Completed 06-01-PLAN.md (authenticate LOI review-data and respond endpoints, multi-party notifications, in-app notification rows)
+last_updated: "2026-03-28T02:45:32.636Z"
 last_activity: "2026-03-28 — Completed plan 03-03 (invitation system: table, API endpoints, email sender)"
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 10
+  completed_plans: 9
   percent: 12
 ---
 
@@ -51,6 +51,7 @@ Progress: [███░░] 12% (v1.1 phases 3-7)
 | Phase 05-landlord-and-tenant-portals P05-01 | 2 | 2 tasks | 3 files |
 | Phase 05-landlord-and-tenant-portals P05-03 | 3 | 2 tasks | 3 files |
 | Phase 05-landlord-and-tenant-portals P05-02 | 4 | 2 tasks | 6 files |
+| Phase 06-in-portal-loi-negotiation P06-01 | 6 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,8 @@ From 03-03 (invitation system):
 - [Phase 05-landlord-and-tenant-portals]: Lease-to-application join goes via LOI (leases.loi_id) not direct application_id — matches DB schema
 - [Phase 05-landlord-and-tenant-portals]: Supabase returns related rows as arrays even for FK single joins; handled with Array.isArray guard in tenant query
 - [Phase 05-02]: No owner_contact_id on Property — landlord-property relationship derived from lois/leases.landlord_contact_id; service client used for landlord queries with auth at page level via requireRole()
+- [Phase 06-01]: requireAuthForApi() used in API routes (throws) rather than requireAuth() (redirects) — API routes must return JSON 401, not redirect to /login
+- [Phase 06-01]: Service client used for LOI respond writes (bypasses RLS); auth enforced at application layer via requireAuthForApi()
 
 ### Pending Todos
 
@@ -102,6 +105,6 @@ None yet. Key architectural note: Phase 3 (roles + RLS) must be fully complete b
 
 ## Session Continuity
 
-Last session: 2026-03-28T02:29:33.981Z
-Stopped at: Completed 05-02-PLAN.md (landlord dashboard, applications list, application detail with PDF viewer)
+Last session: 2026-03-28T02:45:32.634Z
+Stopped at: Completed 06-01-PLAN.md (authenticate LOI review-data and respond endpoints, multi-party notifications, in-app notification rows)
 Resume file: None
