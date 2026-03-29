@@ -1,6 +1,5 @@
 import { PortalSidebar } from '@/components/layout/portal-sidebar';
 import { Header } from '@/components/layout/header';
-import { MobileNav } from '@/components/layout/mobile-nav';
 import { LayoutDashboard, FileText, FileSignature, ScrollText } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -12,18 +11,13 @@ const tenantNavItems = [
   { href: '/tenant/leases', label: 'Leases', icon: ScrollText },
 ];
 
-export default async function TenantLayout({
+export default function TenantLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Auth is enforced by middleware (TENANT_PORTAL_ROUTES).
-  // Role-based routing in middleware redirects unauthorized users.
-  // No additional server-side auth check needed here.
-
   return (
     <div className="flex min-h-screen">
-      {/* Skip navigation link — first focusable element */}
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-4 focus:left-4 focus:bg-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-lg"
@@ -31,17 +25,12 @@ export default async function TenantLayout({
         Skip to main content
       </a>
 
-      {/* Desktop sidebar — hidden on mobile */}
       <div className="hidden lg:flex">
         <PortalSidebar navItems={tenantNavItems} portalName="Tenant Portal" />
       </div>
 
       <div className="flex flex-1 flex-col">
-        {/* Header with mobile nav toggle */}
         <div className="relative flex items-center bg-white">
-          <div className="pl-4 lg:hidden">
-            <MobileNav />
-          </div>
           <div className="flex-1">
             <Header />
           </div>
