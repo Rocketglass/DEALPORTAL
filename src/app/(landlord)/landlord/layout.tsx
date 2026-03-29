@@ -1,6 +1,4 @@
-// import { PortalSidebar } from '@/components/layout/portal-sidebar';
-// import { Header } from '@/components/layout/header';
-// import { LayoutDashboard, FileText, Building2, FileSignature, ScrollText } from 'lucide-react';
+import { Header } from '@/components/layout/header';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +9,7 @@ export default function LandlordLayout({
 }) {
   return (
     <div>
-      <div style={{ padding: 16, background: '#eef' }}>Landlord Portal</div>
+      <Header />
       <main>{children}</main>
     </div>
   );
