@@ -65,6 +65,9 @@ export async function sendInvitation(params: SendInvitationParams): Promise<Send
     const { sendEmail } = await import('@/lib/email/send');
     const roleLabel = params.role.replace('_', ' ');
 
+    const isTenantRole = params.role === 'tenant' || params.role === 'tenant_agent';
+    const applyUrl = `${appUrl}/apply`;
+
     await sendEmail({
       to: params.email,
       subject: "You've been invited to Rocket Realty Portal",
@@ -74,6 +77,13 @@ export async function sendInvitation(params: SendInvitationParams): Promise<Send
           <p>You've been invited to join the Rocket Realty Deal Flow Portal as a <strong>${roleLabel}</strong>.</p>
           <p>Click the button below to create your account and get started:</p>
           <a href="${inviteUrl}" style="display: inline-block; background: #1e40af; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Accept Invitation</a>
+          ${isTenantRole ? `
+          <div style="margin-top: 24px; padding: 16px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+            <p style="margin: 0 0 8px; font-weight: 600; color: #0f172a;">Ready to apply for a space?</p>
+            <p style="margin: 0 0 12px; color: #475569; font-size: 14px;">After creating your account, you can submit a lease application directly:</p>
+            <a href="${applyUrl}" style="display: inline-block; background: white; color: #1e40af; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; border: 1px solid #1e40af;">Start Application</a>
+          </div>
+          ` : ''}
           <p style="color: #64748b; font-size: 14px; margin-top: 24px;">This invitation expires in 7 days. If you didn't expect this invitation, you can safely ignore this email.</p>
         </div>
       `,
