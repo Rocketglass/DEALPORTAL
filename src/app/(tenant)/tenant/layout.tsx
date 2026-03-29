@@ -1,4 +1,3 @@
-import { requireRole } from '@/lib/security/auth-guard';
 import { PortalSidebar } from '@/components/layout/portal-sidebar';
 import { Header } from '@/components/layout/header';
 import { MobileNav } from '@/components/layout/mobile-nav';
@@ -18,9 +17,9 @@ export default async function TenantLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Auth guard: allow tenants, tenant agents, brokers, and admins.
-  // Brokers/admins can access all portals for support use cases (per project decision).
-  await requireRole('tenant', 'tenant_agent', 'broker', 'admin');
+  // Auth is enforced by middleware (TENANT_PORTAL_ROUTES).
+  // Role-based routing in middleware redirects unauthorized users.
+  // No additional server-side auth check needed here.
 
   return (
     <div className="flex min-h-screen">
