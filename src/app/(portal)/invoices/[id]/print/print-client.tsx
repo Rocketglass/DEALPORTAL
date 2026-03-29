@@ -5,9 +5,27 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDocumentDate } from '@/lib/utils';
 import type { EnrichedInvoice } from '../types';
 
-// ---------------------------------------------------------------------------
-// Print client component
-// ---------------------------------------------------------------------------
+/**
+ * Commission Statement print layout — matches Rocket's original format:
+ *
+ * Commission Statement
+ * INVOICE NUMBER: RR #82
+ * DATE: April 29, 2025
+ * LESSOR: ...
+ * LESSEE: ...
+ * PREMISES: ...
+ * TERM: X months
+ *
+ * [Rent Escalation Schedule Table]
+ * Month 1-12:   $X/mo × N = $Y
+ * Month 13-24:  $X/mo × N = $Y
+ * ...
+ *
+ * TOTAL CONSIDERATION: $X
+ * COMMISSION RATE: X%
+ * TOTAL COMMISSION DUE: $X
+ * Please make checks payable to: ...
+ */
 
 interface InvoicePrintClientProps {
   invoice: EnrichedInvoice;
@@ -15,16 +33,64 @@ interface InvoicePrintClientProps {
 
 export default function InvoicePrintClient({ invoice }: InvoicePrintClientProps) {
   useEffect(() => {
-    // Small delay to ensure the page is fully rendered before triggering print
     const timer = setTimeout(() => {
       window.print();
     }, 500);
     return () => clearTimeout(timer);
   }, []);
 
+  const escalations = invoice.escalations ?? [];
+  const hasEscalations = escalations.length > 0;
+
+  // Build escalation schedule rows for display
+  // Each row: "Month X – Month Y", monthly rate, # of months, annual total
+  const scheduleRows: {
+    label: string;
+    monthly: number;
+    months: number;
+    annual: number;
+  }[] = [];
+
+  if (hasEscalations) {
+    let monthStart = 1;
+    for (let i = 0; i < escalations.length; i++) {
+      const esc = escalations[i];
+      const nextEsc = escalations[i + 1];
+      // Determine how many months this rate covers
+      let monthsAtRate: number;
+      if (nextEsc) {
+        // Duration until next escalation
+        const startDate = new Date(esc.effective_date);
+        const endDate = new Date(nextEsc.effective_date);
+        monthsAtRate = Math.round(
+          (endDate.getTime() - startDate.getTime()) / (30.44 * 24 * 60 * 60 * 1000),
+        );
+        if (monthsAtRate < 1) monthsAtRate = 12;
+      } else {
+        // Last escalation — fill to end of term
+        const remaining = (invoice.lease_term_months ?? 0) - monthStart + 1;
+        monthsAtRate = remaining > 0 ? remaining : 12;
+      }
+
+      const monthEnd = monthStart + monthsAtRate - 1;
+      const label =
+        monthsAtRate === 1
+          ? `Month ${monthStart}`
+          : `Month ${monthStart} – Month ${monthEnd}`;
+
+      scheduleRows.push({
+        label,
+        monthly: esc.monthly_amount,
+        months: monthsAtRate,
+        annual: esc.monthly_amount * monthsAtRate,
+      });
+
+      monthStart = monthEnd + 1;
+    }
+  }
+
   return (
     <>
-      {/* Print-specific styles */}
       <style>{`
         @media print {
           @page {
@@ -52,157 +118,115 @@ export default function InvoicePrintClient({ invoice }: InvoicePrintClientProps)
           </Button>
         </div>
 
-        {/* Invoice header */}
-        <div className="mb-8 flex items-start justify-between border-b-2 border-[#1e40af] pb-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#1e40af]">
-              ROCKET REALTY
-            </h1>
-            <p className="mt-0.5 text-sm text-[#64748b]">
-              Commercial Real Estate Brokerage
-            </p>
+        {/* === COMMISSION STATEMENT HEADER === */}
+        <div className="text-center mb-10">
+          <h1 className="text-2xl font-bold tracking-wide text-[#0f172a]">
+            Commission Statement
+          </h1>
+        </div>
+
+        {/* Invoice metadata */}
+        <div className="mb-8 space-y-2 text-[15px]">
+          <div className="flex">
+            <span className="w-48 font-semibold text-[#0f172a]">INVOICE NUMBER:</span>
+            <span className="text-[#0f172a]">{invoice.invoice_number}</span>
           </div>
-          <div className="text-right">
-            <h2 className="text-xl font-bold text-[#0f172a]">
-              COMMISSION INVOICE
-            </h2>
-            <p className="mt-1 text-sm font-medium text-[#64748b]">
-              #{invoice.invoice_number}
-            </p>
+          <div className="flex">
+            <span className="w-48 font-semibold text-[#0f172a]">DATE:</span>
+            <span className="text-[#0f172a]">{formatDocumentDate(invoice.created_at)}</span>
+          </div>
+          <div className="flex">
+            <span className="w-48 font-semibold text-[#0f172a]">LESSOR:</span>
+            <span className="text-[#0f172a]">{invoice.lessor_name || invoice.payee_name}</span>
+          </div>
+          <div className="flex">
+            <span className="w-48 font-semibold text-[#0f172a]">LESSEE:</span>
+            <span className="text-[#0f172a]">{invoice.lessee_name || '—'}</span>
+          </div>
+          <div className="flex">
+            <span className="w-48 font-semibold text-[#0f172a]">PREMISES:</span>
+            <span className="text-[#0f172a]">{invoice.premises_full || invoice.property_address}</span>
+          </div>
+          <div className="flex">
+            <span className="w-48 font-semibold text-[#0f172a]">TERM:</span>
+            <span className="text-[#0f172a]">{invoice.lease_term_months} months</span>
           </div>
         </div>
 
-        {/* Dates */}
-        <div className="mb-8 flex gap-12 text-sm">
-          <div>
-            <span className="text-[#64748b]">Invoice Date:</span>{' '}
-            <span className="font-medium text-[#0f172a]">
-              {formatDocumentDate(invoice.created_at)}
-            </span>
-          </div>
-          {invoice.due_date && (
-            <div>
-              <span className="text-[#64748b]">Due Date:</span>{' '}
-              <span className="font-medium text-[#0f172a]">
-                {formatDocumentDate(invoice.due_date)}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* From / To */}
-        <div className="mb-8 grid grid-cols-2 gap-8">
-          <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[#64748b]">
-              From
-            </p>
-            <p className="font-medium text-[#0f172a]">{invoice.broker_name}</p>
-            <p className="text-sm text-[#64748b]">{invoice.broker_company}</p>
-            <p className="text-sm text-[#64748b]">{invoice.broker_license}</p>
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[#64748b]">
-              Bill To
-            </p>
-            <p className="font-medium text-[#0f172a]">{invoice.payee_name}</p>
-            <p className="text-sm text-[#64748b]">{invoice.payee_address}</p>
-            <p className="text-sm text-[#64748b]">
-              {invoice.payee_city_state_zip}
-            </p>
-          </div>
-        </div>
-
-        {/* Line items table */}
-        <table className="mb-8 w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b-2 border-[#e2e8f0]">
-              <th className="pb-2 text-left text-xs font-semibold uppercase tracking-wider text-[#64748b]">
-                Description
-              </th>
-              <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wider text-[#64748b]">
-                Details
-              </th>
-              <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wider text-[#64748b]">
-                Amount
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b border-[#e2e8f0]">
-              <td className="py-3 font-medium text-[#0f172a]">Property</td>
-              <td className="py-3 text-right text-[#64748b]">
-                {invoice.property_address}
-                {invoice.suite_number ? `, ${invoice.suite_number}` : ''}
-              </td>
-              <td className="py-3 text-right text-[#64748b]" />
-            </tr>
-            <tr className="border-b border-[#e2e8f0]">
-              <td className="py-3 font-medium text-[#0f172a]">Lease Term</td>
-              <td className="py-3 text-right text-[#64748b]">
-                {invoice.lease_term_months} months
-              </td>
-              <td className="py-3 text-right text-[#64748b]" />
-            </tr>
-            <tr className="border-b border-[#e2e8f0]">
-              <td className="py-3 font-medium text-[#0f172a]">Monthly Rent</td>
-              <td className="py-3 text-right text-[#64748b]">
-                {formatCurrency(invoice.monthly_rent)} /mo
-              </td>
-              <td className="py-3 text-right text-[#64748b]" />
-            </tr>
-            <tr className="border-b border-[#e2e8f0]">
-              <td className="py-3 font-medium text-[#0f172a]">
-                Total Consideration
-              </td>
-              <td className="py-3 text-right text-[#64748b]">
-                {formatCurrency(invoice.monthly_rent)} x{' '}
-                {invoice.lease_term_months} mo
-              </td>
-              <td className="py-3 text-right font-medium text-[#0f172a]">
-                {formatCurrency(invoice.total_consideration)}
-              </td>
-            </tr>
-            <tr className="border-b border-[#e2e8f0]">
-              <td className="py-3 font-medium text-[#0f172a]">
-                Commission Rate
-              </td>
-              <td className="py-3 text-right text-[#64748b]">
-                {invoice.commission_rate_percent}%
-              </td>
-              <td className="py-3 text-right text-[#64748b]" />
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-[#0f172a]">
-              <td
-                colSpan={2}
-                className="py-4 text-right text-sm font-bold uppercase tracking-wider text-[#0f172a]"
-              >
-                Commission Due
-              </td>
-              <td className="py-4 text-right text-lg font-bold text-[#1e40af]">
-                {formatCurrency(invoice.commission_amount)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-
-        {/* Payment instructions */}
-        {invoice.payment_instructions && (
-          <div className="rounded-lg border border-[#e2e8f0] p-5">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#64748b]">
-              Payment Instructions
-            </p>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-[#0f172a]">
-              {invoice.payment_instructions}
-            </p>
+        {/* === RENT ESCALATION SCHEDULE === */}
+        {hasEscalations && (
+          <div className="mb-8">
+            <table className="w-full border-collapse text-[14px]">
+              <thead>
+                <tr className="border-b-2 border-[#0f172a]">
+                  <th className="pb-2 text-left font-semibold text-[#0f172a]">
+                    {invoice.premises_full || invoice.property_address}
+                  </th>
+                  <th />
+                  <th />
+                  <th />
+                </tr>
+                <tr className="border-b border-[#cbd5e1]">
+                  <th className="py-2 text-left font-medium text-[#64748b]">Term</th>
+                  <th className="py-2 text-right font-medium text-[#64748b]">Monthly</th>
+                  <th className="py-2 text-right font-medium text-[#64748b]"># of Months</th>
+                  <th className="py-2 text-right font-medium text-[#64748b]">Annual</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scheduleRows.map((row, idx) => (
+                  <tr key={idx} className="border-b border-[#e2e8f0]">
+                    <td className="py-2 text-[#0f172a]">{row.label}</td>
+                    <td className="py-2 text-right text-[#0f172a]">
+                      {formatCurrency(row.monthly)}
+                    </td>
+                    <td className="py-2 text-right text-[#0f172a]">{row.months}</td>
+                    <td className="py-2 text-right text-[#0f172a]">
+                      {formatCurrency(row.annual)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
+        {/* === TOTALS === */}
+        <div className="mb-10 space-y-3 text-[15px]">
+          <div className="flex border-t-2 border-[#0f172a] pt-4">
+            <span className="w-64 font-bold text-[#0f172a]">TOTAL CONSIDERATION:</span>
+            <span className="font-bold text-[#0f172a]">
+              {formatCurrency(Number(invoice.total_consideration))}
+            </span>
+          </div>
+          <div className="flex">
+            <span className="w-64 font-bold text-[#0f172a]">COMMISSION RATE:</span>
+            <span className="font-bold text-[#0f172a]">
+              {invoice.commission_rate_percent}%
+            </span>
+          </div>
+          <div className="flex border-t border-[#cbd5e1] pt-3">
+            <span className="w-64 text-lg font-bold text-[#0f172a]">TOTAL COMMISSION DUE:</span>
+            <span className="text-lg font-bold text-[#0f172a]">
+              {formatCurrency(Number(invoice.commission_amount))}
+            </span>
+          </div>
+        </div>
+
+        {/* === PAYMENT INSTRUCTIONS === */}
+        <div className="text-[15px] text-[#0f172a]">
+          {invoice.payment_instructions ? (
+            <p className="whitespace-pre-line">{invoice.payment_instructions}</p>
+          ) : (
+            <p>
+              Please make checks payable to: <strong>Rocket Realty</strong>
+            </p>
+          )}
+        </div>
+
         {/* Footer */}
-        <div className="mt-12 border-t border-[#e2e8f0] pt-4 text-center text-xs text-[#64748b]">
-          <p>Rocket Realty &middot; Commercial Real Estate Brokerage</p>
-          <p className="mt-0.5">Thank you for your business.</p>
+        <div className="mt-16 border-t border-[#e2e8f0] pt-4 text-center text-xs text-[#64748b]">
+          <p>Rocket Realty &middot; Commercial Real Estate Brokerage &middot; San Diego, CA</p>
         </div>
       </div>
     </>

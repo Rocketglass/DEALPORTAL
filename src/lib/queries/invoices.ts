@@ -18,6 +18,13 @@ export interface InvoiceWithLease extends CommissionInvoice {
   } | null;
 }
 
+export interface RentEscalationRow {
+  year_number: number;
+  monthly_amount: number;
+  effective_date: string;
+  notes: string | null;
+}
+
 export interface InvoiceWithDetail extends CommissionInvoice {
   lease: {
     id: string;
@@ -26,6 +33,7 @@ export interface InvoiceWithDetail extends CommissionInvoice {
     premises_address: string;
     premises_city: string;
     premises_state: string;
+    premises_zip: string | null;
     unit: {
       suite_number: string;
     } | null;
@@ -39,6 +47,7 @@ export interface InvoiceWithDetail extends CommissionInvoice {
       last_name: string | null;
       company_name: string | null;
     } | null;
+    escalations: RentEscalationRow[] | null;
   } | null;
 }
 
@@ -129,12 +138,19 @@ export async function getInvoiceWithDetail(id: string): Promise<{
           premises_address,
           premises_city,
           premises_state,
+          premises_zip,
           unit:units(suite_number),
           property:properties(address, city, state),
           broker:contacts!leases_broker_contact_id_fkey(
             first_name,
             last_name,
             company_name
+          ),
+          escalations:rent_escalations(
+            year_number,
+            monthly_amount,
+            effective_date,
+            notes
           )
         )
       `)
