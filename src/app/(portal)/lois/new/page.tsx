@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   DollarSign,
   Calendar,
@@ -166,6 +166,7 @@ function contactLabel(c: Contact): string {
 
 export default function CreateLoiPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // ----- Dropdown data -----
   const [properties, setProperties] = useState<(Property & { units: Unit[] })[]>([]);
@@ -231,6 +232,86 @@ export default function CreateLoiPage() {
     loadData();
     loadTemplates();
   }, []);
+
+  // ----- Auto-fill from application query param -----
+  const applicationParamHandled = useRef(false);
+
+  useEffect(() => {
+    const applicationId = searchParams.get('application');
+    if (!applicationId || applicationParamHandled.current) return;
+    if (loadingData || properties.length === 0 || contacts.length === 0) return;
+
+    applicationParamHandled.current = true;
+
+    // Fetch the application data and pre-fill the form
+    async function prefillFromApplication(appId: string) {
+      try {
+        const res = await fetch(`/api/lois/dropdown-data/application?id=${appId}`);
+        if (!res.ok) {
+          // Fallback: try fetching from the applications list endpoint filtered by id
+          // If there's no dedicated endpoint, we can fetch the application data via
+          // the existing getApplication server query pattern using a lightweight API.
+          console.warn('[LOI new] Could not fetch application data for prefill');
+          return;
+        }
+        const app = await res.json();
+
+        // Auto-select property
+        if (app.property_id) {
+          const matchedProp = properties.find((p) => p.id === app.property_id);
+          if (matchedProp) {
+            setPropertyId(app.property_id);
+            // Auto-select unit
+            if (app.unit_id) {
+              const matchedUnit = matchedProp.units?.find((u: Unit) => u.id === app.unit_id);
+              if (matchedUnit) {
+                setUnitId(app.unit_id);
+              }
+            }
+          }
+        }
+
+        // Auto-select tenant contact
+        if (app.contact_id) {
+          const matchedContact = contacts.find((c) => c.id === app.contact_id);
+          if (matchedContact) {
+            setTenantContactId(app.contact_id);
+          }
+        }
+
+        // Pre-fill sections from application data
+        const newSections = { ...INITIAL_DATA };
+        if (app.agreed_use) {
+          newSections.agreed_use = { description: app.agreed_use };
+        }
+        if (app.desired_term_months) {
+          const years = Math.floor(app.desired_term_months / 12);
+          const months = app.desired_term_months % 12;
+          newSections.term = {
+            ...INITIAL_DATA.term,
+            years: years > 0 ? years.toString() : '',
+            months: months > 0 ? months.toString() : '',
+          };
+        }
+        if (app.desired_rent_budget) {
+          newSections.base_rent = {
+            ...INITIAL_DATA.base_rent,
+            monthlyAmount: app.desired_rent_budget.toString(),
+          };
+        }
+        setSections(newSections);
+
+        // Expand sections that have been filled
+        const expandedKeys = new Set<LoiSectionKey>(['base_rent', 'term']);
+        if (app.agreed_use) expandedKeys.add('agreed_use');
+        setExpanded(expandedKeys);
+      } catch (err) {
+        console.warn('[LOI new] Error prefilling from application:', err);
+      }
+    }
+
+    prefillFromApplication(applicationId);
+  }, [searchParams, loadingData, properties, contacts]);
 
   // Selected property and its type (for template auto-suggestion)
   const selectedProperty = properties.find((p) => p.id === propertyId);

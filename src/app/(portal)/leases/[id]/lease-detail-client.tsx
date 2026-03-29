@@ -8,6 +8,7 @@ import {
   Pencil,
   Send,
   Download,
+  Printer,
   Share2,
   Building2,
   Users,
@@ -424,7 +425,14 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
                   </Button>
                 )}
                 <Button variant="secondary" icon={Download} onClick={handleDownloadPdf}>
-                  PDF
+                  Download PDF
+                </Button>
+                <Button
+                  variant="secondary"
+                  icon={Printer}
+                  onClick={() => window.open(`/leases/${lease.id}/print`, '_blank')}
+                >
+                  Print / PDF
                 </Button>
                 {lease.status === 'executed' && (
                   <Button variant="secondary" icon={Share2} onClick={handleShareDeal}>

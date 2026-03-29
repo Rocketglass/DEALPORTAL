@@ -229,6 +229,12 @@ function leaseStatusLabel(status: LeaseStatus): string {
 // Application card
 // ---------------------------------------------------------------------------
 
+function getApplicationLink(application: TenantApplicationWithDeal): string {
+  if (application.lease) return `/tenant/leases/${application.lease.id}`;
+  if (application.loi) return `/tenant/lois/${application.loi.id}`;
+  return '/tenant/applications';
+}
+
 function ApplicationCard({
   application,
 }: {
@@ -239,9 +245,10 @@ function ApplicationCard({
   const isInfoRequested = status === 'info_requested';
   const isRejected = status === 'rejected';
   const showDealPipeline = isApproved && (loi !== null || lease !== null);
+  const href = getApplicationLink(application);
 
   return (
-    <div className="rounded-xl bg-white p-6 shadow-sm">
+    <Link href={href} className="block rounded-xl bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
       {/* Header row: business name + status badge */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -395,7 +402,7 @@ function ApplicationCard({
           </div>
         </div>
       )}
-    </div>
+    </Link>
   );
 }
 
