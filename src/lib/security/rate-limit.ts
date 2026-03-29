@@ -71,7 +71,7 @@ function getAuthLimiter(): Ratelimit | null {
   if (!r) return null;
   authLimiter = new Ratelimit({
     redis: r,
-    limiter: Ratelimit.slidingWindow(20, '60 s'),
+    limiter: Ratelimit.slidingWindow(10, '60 s'),
     prefix: 'rl:auth',
   });
   return authLimiter;
@@ -95,7 +95,7 @@ function getEmailLookupLimiter(): Ratelimit | null {
   if (!r) return null;
   emailLookupLimiter = new Ratelimit({
     redis: r,
-    limiter: Ratelimit.slidingWindow(3, '3600 s'), // 3 lookups per hour
+    limiter: Ratelimit.slidingWindow(1, '3600 s'), // 1 lookup per hour
     prefix: 'rl:email-lookup',
   });
   return emailLookupLimiter;
@@ -176,7 +176,7 @@ const emailLookupMap = new Map<string, { count: number; resetAt: number }>();
 function checkEmailRateLimitInMemory(email: string): RateLimitResult {
   const now = Date.now();
   const windowMs = 3_600_000; // 1 hour
-  const maxRequests = 3;
+  const maxRequests = 1;
 
   const entry = emailLookupMap.get(email);
 
@@ -231,6 +231,36 @@ export async function checkRateLimit(
   } catch (err) {
     // If Redis is down, allow the request rather than blocking all traffic
     console.error('[rate-limit] Upstash error, allowing request:', err);
+    return PASS;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Per-email auth limiter (account lockout via rate limiting)
+// ---------------------------------------------------------------------------
+
+let perEmailAuthLimiter: Ratelimit | null = null;
+
+function getPerEmailAuthLimiter(): Ratelimit | null {
+  if (perEmailAuthLimiter) return perEmailAuthLimiter;
+  const r = getRedis();
+  if (!r) return null;
+  perEmailAuthLimiter = new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(5, '900 s'), // 5 attempts per 15 minutes per email
+    prefix: 'rl:auth-email',
+  });
+  return perEmailAuthLimiter;
+}
+
+export async function checkAuthEmailRateLimit(email: string): Promise<RateLimitResult> {
+  const limiter = getPerEmailAuthLimiter();
+  if (!limiter) return PASS;
+  try {
+    const result = await limiter.limit(email);
+    return { success: result.success, limit: result.limit, remaining: result.remaining, reset: result.reset };
+  } catch (err) {
+    console.error('[rate-limit] Upstash error on auth email limit:', err);
     return PASS;
   }
 }

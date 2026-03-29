@@ -8,7 +8,13 @@ export function createClient() {
     throw new Error('Supabase not configured');
   }
 
-  return createBrowserClient(url, key);
+  return createBrowserClient(url, key, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    },
+  });
 }
 
 export function isSupabaseConfigured() {

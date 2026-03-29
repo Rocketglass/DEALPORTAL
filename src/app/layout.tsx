@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { ToastProvider } from '@/components/ui/toast';
+import { SessionTimeout } from '@/components/session-timeout';
 import './globals.css';
 
 const inter = Inter({
@@ -42,6 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
+        <SessionTimeout />
         <ToastProvider>
           {children}
         </ToastProvider>

@@ -1,3 +1,6 @@
+// TODO: Enable MFA/TOTP for broker and admin accounts via Supabase Dashboard
+// Settings → Authentication → Multi-Factor Authentication → Enable TOTP
+
 /**
  * Server-side auth guards for the Rocket Realty Portal.
  *

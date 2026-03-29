@@ -1,3 +1,8 @@
+// NOTE: Password complexity policy (minimum length, uppercase, numbers, special chars)
+// should be configured in the Supabase Dashboard under:
+// Settings → Authentication → Password Policy
+// The client-side minLength=6 below is a fallback; the server enforces the real policy.
+
 'use client';
 
 import { useState } from 'react';

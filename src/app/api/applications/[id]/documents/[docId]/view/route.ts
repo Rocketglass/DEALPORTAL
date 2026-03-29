@@ -26,8 +26,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string; docId: string }> },
 ): Promise<NextResponse> {
   // Auth check
+  let user;
   try {
-    await requireBrokerOrAdminForApi();
+    user = await requireBrokerOrAdminForApi();
   } catch (authError) {
     return NextResponse.json(
       { error: (authError as Error).message },
@@ -68,10 +69,10 @@ export async function GET(
       storagePath = `${applicationId}/${doc.file_name}`;
     }
 
-    // Generate a signed URL (valid for 1 hour)
+    // Generate a signed URL (valid for 15 minutes)
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .createSignedUrl(storagePath, 3600);
+      .createSignedUrl(storagePath, 900);
 
     if (signedUrlError || !signedUrlData?.signedUrl) {
       console.error(
@@ -83,6 +84,18 @@ export async function GET(
         { status: 500 },
       );
     }
+
+    // Fire-and-forget audit log for document access
+    supabase.from('audit_log').insert({
+      user_id: user.id,
+      action: 'document.viewed',
+      entity_type: 'application_document',
+      entity_id: docId,
+      new_value: { application_id: applicationId, file_name: doc.file_name },
+      ip_address: _request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+    }).then(({ error: auditErr }) => {
+      if (auditErr) console.error('[audit_log] Failed to log document view:', auditErr);
+    });
 
     // Return the signed URL as JSON so the client can use it in the PDF viewer
     return NextResponse.json({ url: signedUrlData.signedUrl });
