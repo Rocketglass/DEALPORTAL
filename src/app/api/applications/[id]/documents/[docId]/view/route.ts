@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
+import { requireAuthForApi } from '@/lib/security/auth-guard';
 
 const STORAGE_BUCKET = 'application-documents';
 
@@ -25,15 +25,22 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string; docId: string }> },
 ): Promise<NextResponse> {
-  // Auth check
+  // Auth check — brokers, admins, landlords, and landlord agents can view documents
   let user;
   try {
-    user = await requireBrokerOrAdminForApi();
+    user = await requireAuthForApi();
   } catch (authError) {
     return NextResponse.json(
       { error: (authError as Error).message },
       { status: 401 },
     );
+  }
+
+  const isBrokerOrAdmin = user.role === 'broker' || user.role === 'admin';
+  const isLandlord = user.role === 'landlord' || user.role === 'landlord_agent';
+
+  if (!isBrokerOrAdmin && !isLandlord) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const { id: applicationId, docId } = await params;

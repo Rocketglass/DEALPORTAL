@@ -8,6 +8,7 @@ import { BackButton } from '@/components/ui/back-button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LoiSectionsPanel } from './loi-sections-panel';
 import { LoiActionButtons } from './loi-action-buttons';
+import { AddSectionButton } from './add-section-button';
 import type { Contact, LoiSectionStatus, ComparableTransaction } from '@/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -101,11 +102,16 @@ export default async function LoiDetailPage({ params }: Props) {
       {/* Main content + sidebar */}
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_280px]">
         {/* Sections (client component for interactive history toggles) */}
-        {sections.length > 0 ? (
-          <LoiSectionsPanel sections={sections as Parameters<typeof LoiSectionsPanel>[0]['sections']} />
-        ) : (
-          <p className="text-sm text-muted-foreground">No sections have been added to this LOI yet.</p>
-        )}
+        <div>
+          {sections.length > 0 ? (
+            <LoiSectionsPanel sections={sections as Parameters<typeof LoiSectionsPanel>[0]['sections']} />
+          ) : (
+            <p className="text-sm text-muted-foreground">No sections have been added to this LOI yet.</p>
+          )}
+          <div className="mt-4">
+            <AddSectionButton loiId={id} />
+          </div>
+        </div>
 
         {/* Summary sidebar */}
         <div className="space-y-4 lg:sticky lg:top-8 lg:self-start">

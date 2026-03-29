@@ -81,6 +81,15 @@ const columns = [
       </span>
     ),
   },
+  {
+    key: 'actions',
+    label: '',
+    render: (row: InvoiceWithLease) => (
+      <Link href={`/invoices/${row.id}`} className="text-primary hover:text-primary/80 text-sm font-medium">
+        View
+      </Link>
+    ),
+  },
 ];
 
 interface Props {

@@ -5,18 +5,37 @@
 
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Building2, Loader2 } from 'lucide-react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-muted px-4">
+          <div className="w-full max-w-sm text-center">
+            <Building2 className="mx-auto h-8 w-8 text-primary" />
+            <p className="mt-4 text-sm text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const searchParams = useSearchParams();
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -31,6 +50,12 @@ export default function RegisterPage() {
 
     try {
       const supabase = createClient();
+      const invitationToken = searchParams.get('invitation');
+      const redirectUrl = new URL('/auth/callback', window.location.origin);
+      if (invitationToken) {
+        redirectUrl.searchParams.set('invitation', invitationToken);
+      }
+
       const { error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -38,6 +63,7 @@ export default function RegisterPage() {
           data: {
             full_name: fullName,
           },
+          emailRedirectTo: redirectUrl.toString(),
         },
       });
 

@@ -37,7 +37,12 @@ function LoginForm() {
   const [resetError, setResetError] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/dashboard';
+  const invitationToken = searchParams.get('invitation');
+  const baseRedirect = searchParams.get('redirect') || '/dashboard';
+  // If an invitation token is present, route through the auth callback so it gets processed
+  const redirect = invitationToken
+    ? `/auth/callback?invitation=${encodeURIComponent(invitationToken)}`
+    : baseRedirect;
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

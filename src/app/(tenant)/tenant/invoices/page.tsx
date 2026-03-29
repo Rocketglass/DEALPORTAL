@@ -9,15 +9,6 @@ export const metadata = {
   title: 'Invoices | Tenant Portal',
 };
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '--';
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -38,8 +29,6 @@ const statusBadge: Record<InvoiceStatus, { label: string; className: string }> =
 interface InvoiceRow {
   id: string;
   invoice_number: string;
-  commission_amount: number;
-  total_consideration: number;
   status: string;
   created_at: string;
   due_date: string | null;
@@ -79,8 +68,6 @@ export default async function TenantInvoicesPage() {
       .select(`
         id,
         invoice_number,
-        commission_amount,
-        total_consideration,
         status,
         created_at,
         due_date,
@@ -136,7 +123,6 @@ export default async function TenantInvoicesPage() {
                   <tr className="border-b border-border-subtle bg-muted/30">
                     <th className="px-4 py-3 font-medium text-muted-foreground">Invoice #</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Property</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Amount</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Date</th>
                   </tr>
@@ -153,9 +139,6 @@ export default async function TenantInvoicesPage() {
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {lease?.premises_address ?? '--'}
-                        </td>
-                        <td className="px-4 py-3 tabular-nums text-foreground">
-                          {formatCurrency(invoice.total_consideration)}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}>
