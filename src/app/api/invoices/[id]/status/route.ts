@@ -173,18 +173,21 @@ export async function PATCH(
     // When an invoice is marked as 'sent', notify the payee (landlord)
     if (status === 'sent') {
       // Fetch payee contact and lease details in parallel for the notification
-      const [{ data: payeeContact }, { data: lease }] = await Promise.all([
+      const [{ data: payeeContact }, leaseResult] = await Promise.all([
         supabase
           .from('contacts')
           .select('email, first_name, last_name, company_name')
           .eq('id', updated.payee_contact_id)
           .maybeSingle(),
-        supabase
-          .from('leases')
-          .select('premises_address, unit_id')
-          .eq('id', updated.lease_id)
-          .maybeSingle(),
+        updated.lease_id
+          ? supabase
+              .from('leases')
+              .select('premises_address, unit_id')
+              .eq('id', updated.lease_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
+      const lease = leaseResult?.data ?? null;
 
       // Fetch the unit suite number if we have the lease
       const unitResult = lease?.unit_id

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Building2,
@@ -10,6 +11,7 @@ import {
   FileText,
   FileSpreadsheet,
   FileBadge,
+  FileSignature,
   CheckCircle2,
   XCircle,
   AlertCircle,
@@ -703,6 +705,15 @@ export function ApplicationReviewClient({ application }: Props) {
                     {appStatus === 'info_requested' ? 'Info Requested' : 'Request More Info'}
                   </span>
                 </button>
+                {appStatus === 'approved' && (
+                  <Link
+                    href={`/lois/new?application=${app.id}`}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#1e40af] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#1e40af]/90"
+                  >
+                    <FileSignature className="h-4 w-4" />
+                    Draft LOI
+                  </Link>
+                )}
                 <div className="border-t border-border/50 pt-3">
                   {creditStatus === 'completed' ? (
                     <Button

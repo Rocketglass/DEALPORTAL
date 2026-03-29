@@ -15,7 +15,7 @@ export interface InvoiceWithLease extends CommissionInvoice {
     premises_address: string;
     premises_city: string;
     premises_state: string;
-  };
+  } | null;
 }
 
 export interface InvoiceWithDetail extends CommissionInvoice {
@@ -39,7 +39,7 @@ export interface InvoiceWithDetail extends CommissionInvoice {
       last_name: string | null;
       company_name: string | null;
     } | null;
-  };
+  } | null;
 }
 
 /**

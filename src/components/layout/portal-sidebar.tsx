@@ -11,6 +11,7 @@ import {
   FileText,
   FileSignature,
   ScrollText,
+  Receipt,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -20,6 +21,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Building2,
   FileSignature,
   ScrollText,
+  Receipt,
   Settings,
 };
 import { cn } from '@/lib/utils';

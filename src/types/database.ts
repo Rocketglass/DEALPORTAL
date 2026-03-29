@@ -445,7 +445,7 @@ export interface RentEscalation {
 
 export interface CommissionInvoice {
   id: string;
-  lease_id: string;
+  lease_id: string | null;
   invoice_number: string;
   broker_contact_id: string;
   payee_contact_id: string;

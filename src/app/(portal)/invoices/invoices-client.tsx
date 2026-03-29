@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Receipt, Send, XCircle } from 'lucide-react';
+import { Plus, Receipt, Send, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { DataTable, type BulkAction } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { formatDate, formatCurrency } from '@/lib/utils';
@@ -129,10 +131,19 @@ export function InvoicesClient({ invoices, error }: Props) {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <h1 className="text-2xl font-bold">Commission Invoices</h1>
-      <p className="mt-1 text-muted-foreground">
-        Track commission invoices generated from executed leases.
-      </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Commission Invoices</h1>
+          <p className="mt-1 text-muted-foreground">
+            Track commission invoices generated from executed leases.
+          </p>
+        </div>
+        <Link href="/invoices/new">
+          <Button variant="primary" icon={Plus}>
+            Create Invoice
+          </Button>
+        </Link>
+      </div>
 
       <DataTable
         data={invoices}

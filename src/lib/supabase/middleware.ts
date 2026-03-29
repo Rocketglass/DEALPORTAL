@@ -383,7 +383,9 @@ export async function updateSession(request: NextRequest) {
     // Tenant: view available inspection time slots
     /^\/api\/properties\/[^/]+\/inspection-slots/.test(pathname) ||
     // Tenant: book an inspection tour
-    /^\/api\/properties\/[^/]+\/book-inspection/.test(pathname);
+    /^\/api\/properties\/[^/]+\/book-inspection/.test(pathname) ||
+    // Public: look up invitation details by token
+    pathname === '/api/invitations/accept';
 
   // Protected API routes — return 401 JSON if not authenticated
   // /auth/callback is a public route; it runs before a session exists
