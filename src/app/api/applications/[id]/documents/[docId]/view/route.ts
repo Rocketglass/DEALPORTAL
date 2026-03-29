@@ -48,6 +48,36 @@ export async function GET(
   try {
     const supabase = getServiceClient();
 
+    // Landlord ownership verification: ensure landlord is associated with
+    // this application's property via LOIs or leases before granting access
+    if (isLandlord) {
+      const { data: app } = await supabase
+        .from('applications')
+        .select('property_id')
+        .eq('id', applicationId)
+        .single();
+
+      if (app?.property_id) {
+        const effectiveContactId = user.principalId ?? user.contactId;
+
+        const { count: loiCount } = await supabase
+          .from('lois')
+          .select('id', { count: 'exact', head: true })
+          .eq('property_id', app.property_id)
+          .eq('landlord_contact_id', effectiveContactId);
+
+        const { count: leaseCount } = await supabase
+          .from('leases')
+          .select('id', { count: 'exact', head: true })
+          .eq('property_id', app.property_id)
+          .eq('landlord_contact_id', effectiveContactId);
+
+        if ((loiCount ?? 0) === 0 && (leaseCount ?? 0) === 0) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+      }
+    }
+
     // Look up the document record to get the storage path
     const { data: doc, error: docError } = await supabase
       .from('application_documents')

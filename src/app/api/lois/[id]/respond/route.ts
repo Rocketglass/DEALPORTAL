@@ -42,7 +42,7 @@ interface SectionResponse {
   action: 'accept' | 'counter' | 'reject';
   value?: string;
   note?: string;
-  updatedAt?: string; // ISO timestamp - for optimistic locking
+  updatedAt: string; // ISO timestamp - required for optimistic locking
 }
 
 export async function POST(
@@ -138,7 +138,7 @@ export async function POST(
 
     // 6. Process each section response
     for (const resp of responses) {
-      const { sectionId, action } = resp;
+      const { sectionId, action, updatedAt } = resp;
       // Sanitize user-provided text to prevent stored XSS
       const value = resp.value ? sanitizeHtml(resp.value) : resp.value;
       const note = resp.note ? sanitizeHtml(resp.note) : resp.note;
@@ -146,6 +146,29 @@ export async function POST(
       if (!sectionId || !sanitizeUuid(sectionId) || !action || !ACTION_TO_STATUS[action]) {
         return NextResponse.json(
           { error: 'Invalid section response: sectionId must be a valid UUID and action must be accept, counter, or reject' },
+          { status: 400 },
+        );
+      }
+
+      // updatedAt is required for concurrency control
+      if (!updatedAt) {
+        return NextResponse.json(
+          { error: 'updatedAt is required for concurrency control' },
+          { status: 400 },
+        );
+      }
+
+      // Validate that the section belongs to this LOI (prevents cross-LOI history contamination)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: sectionCheck } = await (supabase as any)
+        .from('loi_sections')
+        .select('id, loi_id')
+        .eq('id', sectionId)
+        .single();
+
+      if (!sectionCheck || sectionCheck.loi_id !== loiId) {
+        return NextResponse.json(
+          { error: 'Section does not belong to this LOI' },
           { status: 400 },
         );
       }
@@ -180,9 +203,9 @@ export async function POST(
         agreedValue = (sectionData as any)?.proposed_value ?? null;
       }
 
-      // Update the section status, response, last_updated_by
+      // Update the section status with mandatory optimistic locking
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let query = (supabase as any)
+      const { data: updated, error: sectionError } = await (supabase as any)
         .from('loi_sections')
         .update({
           status: newStatus,
@@ -192,27 +215,14 @@ export async function POST(
           updated_at: now,
         })
         .eq('id', sectionId)
-        .eq('loi_id', loiId);
+        .eq('loi_id', loiId)
+        .eq('updated_at', updatedAt)
+        .select()
+        .single();
 
-      // Optimistic locking: only update if section hasn't changed since client loaded it
-      if (resp.updatedAt) {
-        query = query.eq('updated_at', resp.updatedAt);
-      }
-
-      const { data: updatedRows, error: sectionError } = await query.select('id');
-
-      if (sectionError) {
-        console.error(`[LOI respond] Error updating section ${sectionId}:`, sectionError);
+      if (sectionError || !updated) {
         return NextResponse.json(
-          { error: `Failed to update section: ${sectionError.message}` },
-          { status: 500 },
-        );
-      }
-
-      // If optimistic locking was used and no rows matched, the section was modified concurrently
-      if (resp.updatedAt && (!updatedRows || updatedRows.length === 0)) {
-        return NextResponse.json(
-          { error: `Section "${sectionId}" was modified by another user. Please refresh and try again.` },
+          { error: 'Section was modified by another party. Please refresh and try again.' },
           { status: 409 },
         );
       }

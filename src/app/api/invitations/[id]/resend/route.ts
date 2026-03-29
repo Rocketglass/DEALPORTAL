@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 import { createClient } from '@supabase/supabase-js';
+import { randomBytes } from 'crypto';
 
 /**
  * POST /api/invitations/:id/resend — Resend an invitation email
@@ -31,19 +32,21 @@ export async function POST(
       return NextResponse.json({ error: 'Invitation not found or already used' }, { status: 404 });
     }
 
-    // Check if expired — if so, generate new expiry
+    // Always generate a new token on resend to invalidate the old one
+    const newToken = randomBytes(32).toString('hex');
     const isExpired = new Date(invitation.expires_at) < new Date();
-    if (isExpired) {
-      const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      await supabase
-        .from('invitations')
-        .update({ expires_at: newExpiry, updated_at: new Date().toISOString() })
-        .eq('id', id);
-    }
+    const newExpiry = isExpired
+      ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      : invitation.expires_at;
 
-    // Resend email
+    await supabase
+      .from('invitations')
+      .update({ token: newToken, expires_at: newExpiry, updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    // Resend email with the new token
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || url.replace('.supabase.co', '.vercel.app');
-    const inviteUrl = `${appUrl}/invite?token=${invitation.token}`;
+    const inviteUrl = `${appUrl}/invite?token=${newToken}`;
 
     try {
       const { sendEmail } = await import('@/lib/email/send');

@@ -101,18 +101,26 @@ export async function POST(
     const sanitizedName = validation.sanitizedName ?? sanitizeFileName(file.name);
 
     // ----------------------------------------------------------------
-    // Verify the application exists before uploading
+    // Verify application exists and is in an uploadable state
     // ----------------------------------------------------------------
     const supabase = getServiceClient();
 
     const { data: app, error: appLookupError } = await supabase
       .from('applications')
-      .select('id')
+      .select('id, status')
       .eq('id', applicationId)
       .maybeSingle();
 
     if (appLookupError || !app) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
+    }
+
+    const uploadableStatuses = ['draft', 'submitted', 'info_requested'];
+    if (!uploadableStatuses.includes(app.status)) {
+      return NextResponse.json(
+        { error: 'Documents can only be uploaded while the application is pending review' },
+        { status: 403 },
+      );
     }
 
     // ----------------------------------------------------------------

@@ -23,6 +23,52 @@ const BUCKET = 'property-photos';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
+/**
+ * Magic-byte signatures for image validation.
+ * Matches the pattern from @/lib/security/sanitize.ts, extended with WebP.
+ */
+const IMAGE_SIGNATURES: Array<{ mime: string; bytes: number[] }> = [
+  // PNG: 0x89 P N G
+  { mime: 'image/png', bytes: [0x89, 0x50, 0x4e, 0x47] },
+  // JPEG: 0xFF 0xD8 0xFF
+  { mime: 'image/jpeg', bytes: [0xff, 0xd8, 0xff] },
+  // WebP: R I F F ... W E B P (bytes 0-3 = RIFF, bytes 8-11 = WEBP)
+  { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46] },
+];
+
+const WEBP_MARKER = [0x57, 0x45, 0x42, 0x50]; // "WEBP" at offset 8
+
+/**
+ * Validate that a file's magic bytes match its declared MIME type.
+ */
+async function validateImageMagicBytes(file: File): Promise<{ valid: boolean; error?: string }> {
+  try {
+    const headerBytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    const signature = IMAGE_SIGNATURES.find((sig) => sig.mime === file.type);
+
+    if (!signature) {
+      return { valid: false, error: `No signature check available for type ${file.type}` };
+    }
+
+    const matchesPrefix = signature.bytes.every((byte, i) => headerBytes[i] === byte);
+    if (!matchesPrefix) {
+      return { valid: false, error: 'File content does not match its declared type. The file may be corrupted or disguised' };
+    }
+
+    // WebP requires an additional check: bytes 8-11 must be "WEBP"
+    if (file.type === 'image/webp') {
+      const matchesWebp = WEBP_MARKER.every((byte, i) => headerBytes[8 + i] === byte);
+      if (!matchesWebp) {
+        return { valid: false, error: 'File content does not match its declared type. The file may be corrupted or disguised' };
+      }
+    }
+
+    return { valid: true };
+  } catch {
+    return { valid: false, error: 'Could not read file content for validation' };
+  }
+}
+
 export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
   try {
     const user = await requireBrokerOrAdminForApi();
@@ -52,7 +98,7 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
       return NextResponse.json({ error: 'No files provided' }, { status: 400 });
     }
 
-    // Validate all files before uploading
+    // Validate all files before uploading (type, size, and magic bytes)
     for (const file of files) {
       if (!ALLOWED_TYPES.includes(file.type)) {
         return NextResponse.json(
@@ -63,6 +109,21 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
       if (file.size > MAX_FILE_SIZE) {
         return NextResponse.json(
           { error: `File "${file.name}" exceeds 5MB limit` },
+          { status: 400 },
+        );
+      }
+      if (file.size === 0) {
+        return NextResponse.json(
+          { error: `File "${file.name}" is empty` },
+          { status: 400 },
+        );
+      }
+
+      // Magic-byte validation: verify file content matches declared MIME type
+      const magicCheck = await validateImageMagicBytes(file);
+      if (!magicCheck.valid) {
+        return NextResponse.json(
+          { error: `File "${file.name}": ${magicCheck.error}` },
           { status: 400 },
         );
       }
