@@ -31,9 +31,10 @@ const statusBadge: Record<LeaseStatus, { label: string; className: string }> = {
 
 export default async function TenantLeasesPage() {
   const user = await requireRole('tenant', 'tenant_agent', 'broker', 'admin');
-  const contactId = user.principalId ?? user.contactId;
+  const isBroker = user.role === 'broker' || user.role === 'admin';
+  const contactId = isBroker ? null : (user.principalId ?? user.contactId);
 
-  if (!contactId) {
+  if (!isBroker && !contactId) {
     return (
       <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
         <div className="mt-12 text-center">
@@ -55,7 +56,7 @@ export default async function TenantLeasesPage() {
     landlord: { id: string; first_name: string | null; last_name: string | null; company_name: string | null }[] | null;
   }
 
-  const { data, error } = await supabase
+  let leaseQuery = supabase
     .from('leases')
     .select(`
       id,
@@ -64,8 +65,13 @@ export default async function TenantLeasesPage() {
       property:properties(id, name),
       landlord:contacts!leases_landlord_contact_id_fkey(id, first_name, last_name, company_name)
     `)
-    .eq('tenant_contact_id', contactId)
     .order('created_at', { ascending: false });
+
+  if (contactId) {
+    leaseQuery = leaseQuery.eq('tenant_contact_id', contactId);
+  }
+
+  const { data, error } = await leaseQuery;
 
   const leases = (data ?? []) as unknown as LeaseRow[];
 

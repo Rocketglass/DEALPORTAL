@@ -10,7 +10,8 @@ export const metadata = {
 
 export default async function LandlordApplicationsPage() {
   const user = await requireRole('landlord', 'landlord_agent', 'broker', 'admin');
-  const contactId = getEffectiveContactId(user);
+  const isBroker = user.role === 'broker' || user.role === 'admin';
+  const contactId = isBroker ? null : getEffectiveContactId(user);
   const { data: applications, error } = await getLandlordApplications(contactId);
 
   return (

@@ -86,7 +86,8 @@ function PropertyCard({ property }: { property: LandlordProperty }) {
 
 export default async function LandlordDashboardPage() {
   const user = await requireRole('landlord', 'landlord_agent', 'broker', 'admin');
-  const contactId = getEffectiveContactId(user);
+  const isBroker = user.role === 'broker' || user.role === 'admin';
+  const contactId = isBroker ? null : getEffectiveContactId(user);
   const { data: properties, error } = await getLandlordProperties(contactId);
 
   return (

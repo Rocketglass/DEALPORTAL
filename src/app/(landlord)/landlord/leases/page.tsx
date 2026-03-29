@@ -32,7 +32,8 @@ const statusBadge: Record<LeaseStatus, { label: string; className: string }> = {
 
 export default async function LandlordLeasesPage() {
   const user = await requireRole('landlord', 'landlord_agent', 'broker', 'admin');
-  const contactId = getEffectiveContactId(user);
+  const isBroker = user.role === 'broker' || user.role === 'admin';
+  const contactId = isBroker ? null : getEffectiveContactId(user);
 
   const supabase = await createClient();
 
@@ -44,7 +45,7 @@ export default async function LandlordLeasesPage() {
     tenant: { id: string; first_name: string | null; last_name: string | null; company_name: string | null }[] | null;
   }
 
-  const { data, error } = await supabase
+  let leaseQuery = supabase
     .from('leases')
     .select(`
       id,
@@ -53,8 +54,13 @@ export default async function LandlordLeasesPage() {
       property:properties(id, name),
       tenant:contacts!leases_tenant_contact_id_fkey(id, first_name, last_name, company_name)
     `)
-    .eq('landlord_contact_id', contactId)
     .order('created_at', { ascending: false });
+
+  if (contactId) {
+    leaseQuery = leaseQuery.eq('landlord_contact_id', contactId);
+  }
+
+  const { data, error } = await leaseQuery;
 
   const leases = (data ?? []) as unknown as LeaseRow[];
 

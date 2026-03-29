@@ -13,7 +13,8 @@ export default async function LandlordApplicationDetailPage({ params }: Props) {
   const { id } = await params;
 
   const user = await requireRole('landlord', 'landlord_agent', 'broker', 'admin');
-  const contactId = getEffectiveContactId(user);
+  const isBroker = user.role === 'broker' || user.role === 'admin';
+  const contactId = isBroker ? null : getEffectiveContactId(user);
   const { data: application, error } = await getLandlordApplication(id, contactId);
 
   if (error || !application) {

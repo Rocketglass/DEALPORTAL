@@ -51,51 +51,62 @@ export function getEffectiveContactId(user: AuthUser): string {
  * consistent view even when the authenticated session RLS has no property
  * policy for them.
  */
-export async function getLandlordProperties(contactId: string): Promise<{
+export async function getLandlordProperties(contactId: string | null): Promise<{
   data: LandlordProperty[] | null;
   error: string | null;
 }> {
   try {
     const supabase = await createClient();
 
-    // Step 1: find all property IDs this landlord is party to via LOIs
-    const { data: loiRows, error: loiError } = await supabase
-      .from('lois')
-      .select('property_id')
-      .eq('landlord_contact_id', contactId);
+    let propertyIds: string[];
 
-    if (loiError) throw loiError;
+    if (contactId) {
+      // Step 1: find all property IDs this landlord is party to via LOIs
+      const { data: loiRows, error: loiError } = await supabase
+        .from('lois')
+        .select('property_id')
+        .eq('landlord_contact_id', contactId);
 
-    // Step 2: find all property IDs via leases
-    const { data: leaseRows, error: leaseError } = await supabase
-      .from('leases')
-      .select('property_id')
-      .eq('landlord_contact_id', contactId);
+      if (loiError) throw loiError;
 
-    if (leaseError) throw leaseError;
+      // Step 2: find all property IDs via leases
+      const { data: leaseRows, error: leaseError } = await supabase
+        .from('leases')
+        .select('property_id')
+        .eq('landlord_contact_id', contactId);
 
-    // Step 3: collect distinct property IDs
-    const propertyIdSet = new Set<string>();
-    for (const row of (loiRows ?? []) as Array<{ property_id: string }>) {
-      if (row.property_id) propertyIdSet.add(row.property_id);
-    }
-    for (const row of (leaseRows ?? []) as Array<{ property_id: string | null }>) {
-      if (row.property_id) propertyIdSet.add(row.property_id);
-    }
+      if (leaseError) throw leaseError;
 
-    const propertyIds = Array.from(propertyIdSet);
+      // Step 3: collect distinct property IDs
+      const propertyIdSet = new Set<string>();
+      for (const row of (loiRows ?? []) as Array<{ property_id: string }>) {
+        if (row.property_id) propertyIdSet.add(row.property_id);
+      }
+      for (const row of (leaseRows ?? []) as Array<{ property_id: string | null }>) {
+        if (row.property_id) propertyIdSet.add(row.property_id);
+      }
 
-    if (propertyIds.length === 0) {
-      return { data: [], error: null };
+      propertyIds = Array.from(propertyIdSet);
+
+      if (propertyIds.length === 0) {
+        return { data: [], error: null };
+      }
+    } else {
+      propertyIds = []; // Broker: fetch all active properties (no ID filter)
     }
 
     // Step 4: fetch properties with their units
-    const { data: properties, error: propError } = await supabase
+    let propQuery = supabase
       .from('properties')
       .select('*, units(*)')
-      .in('id', propertyIds)
       .eq('is_active', true)
       .order('name');
+
+    if (propertyIds.length > 0) {
+      propQuery = propQuery.in('id', propertyIds);
+    }
+
+    const { data: properties, error: propError } = await propQuery;
 
     if (propError) throw propError;
 
@@ -113,20 +124,24 @@ export async function getLandlordProperties(contactId: string): Promise<{
           .eq('property_id', property.id);
 
         // Active LOI count (sent, in_negotiation, or agreed)
-        const { count: loiCount } = await supabase
+        let loiQuery = supabase
           .from('lois')
           .select('id', { count: 'exact', head: true })
           .eq('property_id', property.id)
-          .eq('landlord_contact_id', contactId)
           .in('status', ['sent', 'in_negotiation', 'agreed']);
+        if (contactId) loiQuery = loiQuery.eq('landlord_contact_id', contactId);
+
+        const { count: loiCount } = await loiQuery;
 
         // Active lease count (executed or active)
-        const { count: leaseCount } = await supabase
+        let leaseQuery = supabase
           .from('leases')
           .select('id', { count: 'exact', head: true })
           .eq('property_id', property.id)
-          .eq('landlord_contact_id', contactId)
           .in('status', ['executed', 'active']);
+        if (contactId) leaseQuery = leaseQuery.eq('landlord_contact_id', contactId);
+
+        const { count: leaseCount } = await leaseQuery;
 
         return {
           ...property,
@@ -151,38 +166,14 @@ export async function getLandlordProperties(contactId: string): Promise<{
  * Includes contact (tenant info), property, unit, and documents relations.
  * Ordered by creation date, newest first.
  */
-export async function getLandlordApplications(contactId: string): Promise<{
+export async function getLandlordApplications(contactId: string | null): Promise<{
   data: ApplicationWithRelations[] | null;
   error: string | null;
 }> {
   try {
     const supabase = await createClient();
 
-    // Collect property IDs via lois + leases (same as above)
-    const [{ data: loiRows, error: loiError }, { data: leaseRows, error: leaseError }] =
-      await Promise.all([
-        supabase.from('lois').select('property_id').eq('landlord_contact_id', contactId),
-        supabase.from('leases').select('property_id').eq('landlord_contact_id', contactId),
-      ]);
-
-    if (loiError) throw loiError;
-    if (leaseError) throw leaseError;
-
-    const propertyIdSet = new Set<string>();
-    for (const row of (loiRows ?? []) as Array<{ property_id: string }>) {
-      if (row.property_id) propertyIdSet.add(row.property_id);
-    }
-    for (const row of (leaseRows ?? []) as Array<{ property_id: string | null }>) {
-      if (row.property_id) propertyIdSet.add(row.property_id);
-    }
-
-    const propertyIds = Array.from(propertyIdSet);
-
-    if (propertyIds.length === 0) {
-      return { data: [], error: null };
-    }
-
-    const { data, error } = await supabase
+    let appQuery = supabase
       .from('applications')
       .select(`
         *,
@@ -191,8 +182,38 @@ export async function getLandlordApplications(contactId: string): Promise<{
         contact:contacts!applications_contact_id_fkey(*),
         documents:application_documents(*)
       `)
-      .in('property_id', propertyIds)
       .order('created_at', { ascending: false });
+
+    if (contactId) {
+      // Collect property IDs via lois + leases (same as above)
+      const [{ data: loiRows, error: loiError }, { data: leaseRows, error: leaseError }] =
+        await Promise.all([
+          supabase.from('lois').select('property_id').eq('landlord_contact_id', contactId),
+          supabase.from('leases').select('property_id').eq('landlord_contact_id', contactId),
+        ]);
+
+      if (loiError) throw loiError;
+      if (leaseError) throw leaseError;
+
+      const propertyIdSet = new Set<string>();
+      for (const row of (loiRows ?? []) as Array<{ property_id: string }>) {
+        if (row.property_id) propertyIdSet.add(row.property_id);
+      }
+      for (const row of (leaseRows ?? []) as Array<{ property_id: string | null }>) {
+        if (row.property_id) propertyIdSet.add(row.property_id);
+      }
+
+      const propertyIds = Array.from(propertyIdSet);
+
+      if (propertyIds.length === 0) {
+        return { data: [], error: null };
+      }
+
+      appQuery = appQuery.in('property_id', propertyIds);
+    }
+    // When contactId is null (broker/admin), no property filter — return all applications
+
+    const { data, error } = await appQuery;
 
     if (error) throw error;
     return { data: data as ApplicationWithRelations[], error: null };
@@ -209,7 +230,7 @@ export async function getLandlordApplications(contactId: string): Promise<{
  */
 export async function getLandlordApplication(
   applicationId: string,
-  contactId: string,
+  contactId: string | null,
 ): Promise<{
   data: ApplicationWithRelations | null;
   error: string | null;
@@ -243,7 +264,8 @@ export async function getLandlordApplication(
     const application = data as ApplicationWithRelations;
 
     // Authorization check: verify this landlord has a LOI or lease on this property
-    if (application.property_id) {
+    // Brokers/admins (contactId === null) skip this check — they can see all applications
+    if (contactId && application.property_id) {
       const [{ count: loiCount }, { count: leaseCount }] = await Promise.all([
         supabase
           .from('lois')

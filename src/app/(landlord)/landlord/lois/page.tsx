@@ -31,7 +31,8 @@ const statusBadge: Record<LoiStatus, { label: string; className: string }> = {
 
 export default async function LandlordLoisPage() {
   const user = await requireRole('landlord', 'landlord_agent', 'broker', 'admin');
-  const contactId = getEffectiveContactId(user);
+  const isBroker = user.role === 'broker' || user.role === 'admin';
+  const contactId = isBroker ? null : getEffectiveContactId(user);
 
   const supabase = await createClient();
 
@@ -43,7 +44,7 @@ export default async function LandlordLoisPage() {
     tenant: { id: string; first_name: string | null; last_name: string | null; company_name: string | null }[] | null;
   }
 
-  const { data, error } = await supabase
+  let loiQuery = supabase
     .from('lois')
     .select(`
       id,
@@ -52,8 +53,13 @@ export default async function LandlordLoisPage() {
       property:properties(id, name),
       tenant:contacts!lois_tenant_contact_id_fkey(id, first_name, last_name, company_name)
     `)
-    .eq('landlord_contact_id', contactId)
     .order('created_at', { ascending: false });
+
+  if (contactId) {
+    loiQuery = loiQuery.eq('landlord_contact_id', contactId);
+  }
+
+  const { data, error } = await loiQuery;
 
   const lois = (data ?? []) as unknown as LoiRow[];
 

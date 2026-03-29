@@ -47,7 +47,7 @@ export interface TenantApplicationWithDeal {
  * Avoids N+1 queries by batch-fetching LOIs and leases for all application IDs,
  * then mapping results into the clean TenantApplicationWithDeal shape.
  */
-export async function getTenantApplications(contactId: string): Promise<{
+export async function getTenantApplications(contactId: string | null): Promise<{
   data: TenantApplicationWithDeal[] | null;
   error: string | null;
 }> {
@@ -55,7 +55,7 @@ export async function getTenantApplications(contactId: string): Promise<{
     const supabase = await createClient();
 
     // 1. Fetch applications with property and unit joins
-    const { data: applications, error: appsError } = await supabase
+    let appsQuery = supabase
       .from('applications')
       .select(`
         id,
@@ -67,8 +67,14 @@ export async function getTenantApplications(contactId: string): Promise<{
         property:properties(id, name),
         unit:units(id, suite_number)
       `)
-      .eq('contact_id', contactId)
       .order('created_at', { ascending: false });
+
+    // When contactId is null (broker/admin), skip the contact filter — return all applications
+    if (contactId) {
+      appsQuery = appsQuery.eq('contact_id', contactId);
+    }
+
+    const { data: applications, error: appsError } = await appsQuery;
 
     if (appsError) throw appsError;
     if (!applications || applications.length === 0) {
