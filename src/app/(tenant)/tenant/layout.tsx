@@ -1,14 +1,13 @@
 import { PortalSidebar } from '@/components/layout/portal-sidebar';
 import { Header } from '@/components/layout/header';
-import { LayoutDashboard, FileText, FileSignature, ScrollText } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 const tenantNavItems = [
-  { href: '/tenant/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/tenant/applications', label: 'My Applications', icon: FileText },
-  { href: '/tenant/lois', label: 'LOIs', icon: FileSignature },
-  { href: '/tenant/leases', label: 'Leases', icon: ScrollText },
+  { href: '/tenant/dashboard', label: 'Dashboard', iconName: 'LayoutDashboard' as const },
+  { href: '/tenant/applications', label: 'My Applications', iconName: 'FileText' as const },
+  { href: '/tenant/lois', label: 'LOIs', iconName: 'FileSignature' as const },
+  { href: '/tenant/leases', label: 'Leases', iconName: 'ScrollText' as const },
 ];
 
 export default function TenantLayout({

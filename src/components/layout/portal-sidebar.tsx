@@ -3,7 +3,25 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Building2, Settings, LogOut, type LucideIcon } from 'lucide-react';
+import {
+  Building2,
+  Settings,
+  LogOut,
+  LayoutDashboard,
+  FileText,
+  FileSignature,
+  ScrollText,
+  type LucideIcon,
+} from 'lucide-react';
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  FileText,
+  Building2,
+  FileSignature,
+  ScrollText,
+  Settings,
+};
 import { cn } from '@/lib/utils';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -28,7 +46,7 @@ function getPortalPrefix(navItems: PortalSidebarProps['navItems']): string {
 }
 
 export interface PortalSidebarProps {
-  navItems: { href: string; label: string; icon: LucideIcon }[];
+  navItems: { href: string; label: string; iconName: string }[];
   portalName: string; // e.g. "Landlord Portal", "Tenant Portal"
 }
 
@@ -108,14 +126,19 @@ export function PortalSidebar({ navItems, portalName }: PortalSidebarProps) {
                 {isActive && (
                   <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
                 )}
-                <item.icon
-                  className={cn(
-                    'h-[18px] w-[18px]',
-                    isActive
-                      ? 'text-primary'
-                      : 'text-muted-foreground group-hover:text-foreground'
-                  )}
-                />
+                {(() => {
+                  const Icon = ICON_MAP[item.iconName] ?? FileText;
+                  return (
+                    <Icon
+                      className={cn(
+                        'h-[18px] w-[18px]',
+                        isActive
+                          ? 'text-primary'
+                          : 'text-muted-foreground group-hover:text-foreground'
+                      )}
+                    />
+                  );
+                })()}
                 {item.label}
               </Link>
             );
