@@ -15,7 +15,17 @@ export default async function LandlordApplicationDetailPage({ params }: Props) {
   const user = await requireRole('landlord', 'landlord_agent', 'broker', 'admin');
   const isBroker = user.role === 'broker' || user.role === 'admin';
   const contactId = isBroker ? null : getEffectiveContactId(user);
-  const { data: application, error } = await getLandlordApplication(id, contactId);
+
+  let application: Awaited<ReturnType<typeof getLandlordApplication>>['data'] = null;
+  let error: string | null = null;
+  try {
+    const result = await getLandlordApplication(id, contactId);
+    application = result.data;
+    error = result.error;
+  } catch (err) {
+    console.error('[LandlordApplicationDetail] Error:', err);
+    error = err instanceof Error ? err.message : 'Failed to load application';
+  }
 
   if (error || !application) {
     notFound();

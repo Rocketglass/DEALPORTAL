@@ -46,8 +46,6 @@ export default async function TenantLeasesPage() {
     );
   }
 
-  const supabase = await createClient();
-
   interface LeaseRow {
     id: string;
     status: string;
@@ -56,24 +54,35 @@ export default async function TenantLeasesPage() {
     landlord: { id: string; first_name: string | null; last_name: string | null; company_name: string | null }[] | null;
   }
 
-  let leaseQuery = supabase
-    .from('leases')
-    .select(`
-      id,
-      status,
-      base_rent_monthly,
-      property:properties(id, name),
-      landlord:contacts!leases_landlord_contact_id_fkey(id, first_name, last_name, company_name)
-    `)
-    .order('created_at', { ascending: false });
+  let leases: LeaseRow[] = [];
+  let error: string | null = null;
+  try {
+    const supabase = await createClient();
 
-  if (contactId) {
-    leaseQuery = leaseQuery.eq('tenant_contact_id', contactId);
+    let leaseQuery = supabase
+      .from('leases')
+      .select(`
+        id,
+        status,
+        base_rent_monthly,
+        property:properties(id, name),
+        landlord:contacts!leases_landlord_contact_id_fkey(id, first_name, last_name, company_name)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (contactId) {
+      leaseQuery = leaseQuery.eq('tenant_contact_id', contactId);
+    }
+
+    const { data, error: queryError } = await leaseQuery;
+    if (queryError) {
+      error = queryError.message;
+    }
+    leases = (data ?? []) as unknown as LeaseRow[];
+  } catch (err) {
+    console.error('[TenantLeases] Error:', err);
+    error = err instanceof Error ? err.message : 'Failed to load leases';
   }
-
-  const { data, error } = await leaseQuery;
-
-  const leases = (data ?? []) as unknown as LeaseRow[];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">

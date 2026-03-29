@@ -88,7 +88,17 @@ export default async function LandlordDashboardPage() {
   const user = await requireRole('landlord', 'landlord_agent', 'broker', 'admin');
   const isBroker = user.role === 'broker' || user.role === 'admin';
   const contactId = isBroker ? null : getEffectiveContactId(user);
-  const { data: properties, error } = await getLandlordProperties(contactId);
+
+  let properties: Awaited<ReturnType<typeof getLandlordProperties>>['data'] = null;
+  let error: string | null = null;
+  try {
+    const result = await getLandlordProperties(contactId);
+    properties = result.data;
+    error = result.error;
+  } catch (err) {
+    console.error('[Landlord Dashboard] Error fetching properties:', err);
+    error = err instanceof Error ? err.message : 'Failed to load properties';
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">

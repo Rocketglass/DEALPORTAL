@@ -28,7 +28,16 @@ export default async function TenantDashboardPage() {
     );
   }
 
-  const { data: applications, error } = await getTenantApplications(contactId);
+  let applications: Awaited<ReturnType<typeof getTenantApplications>>['data'] = null;
+  let error: string | null = null;
+  try {
+    const result = await getTenantApplications(contactId);
+    applications = result.data;
+    error = result.error;
+  } catch (err) {
+    console.error('[TenantDashboard] Error:', err);
+    error = err instanceof Error ? err.message : 'Failed to load applications';
+  }
 
   if (error) {
     console.error('[TenantDashboard] Failed to fetch applications:', error);

@@ -34,8 +34,6 @@ export default async function LandlordLoisPage() {
   const isBroker = user.role === 'broker' || user.role === 'admin';
   const contactId = isBroker ? null : getEffectiveContactId(user);
 
-  const supabase = await createClient();
-
   interface LoiRow {
     id: string;
     status: string;
@@ -44,24 +42,35 @@ export default async function LandlordLoisPage() {
     tenant: { id: string; first_name: string | null; last_name: string | null; company_name: string | null }[] | null;
   }
 
-  let loiQuery = supabase
-    .from('lois')
-    .select(`
-      id,
-      status,
-      sent_at,
-      property:properties(id, name),
-      tenant:contacts!lois_tenant_contact_id_fkey(id, first_name, last_name, company_name)
-    `)
-    .order('created_at', { ascending: false });
+  let lois: LoiRow[] = [];
+  let error: string | null = null;
+  try {
+    const supabase = await createClient();
 
-  if (contactId) {
-    loiQuery = loiQuery.eq('landlord_contact_id', contactId);
+    let loiQuery = supabase
+      .from('lois')
+      .select(`
+        id,
+        status,
+        sent_at,
+        property:properties(id, name),
+        tenant:contacts!lois_tenant_contact_id_fkey(id, first_name, last_name, company_name)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (contactId) {
+      loiQuery = loiQuery.eq('landlord_contact_id', contactId);
+    }
+
+    const { data, error: queryError } = await loiQuery;
+    if (queryError) {
+      error = queryError.message;
+    }
+    lois = (data ?? []) as unknown as LoiRow[];
+  } catch (err) {
+    console.error('[LandlordLOIs] Error:', err);
+    error = err instanceof Error ? err.message : 'Failed to load LOIs';
   }
-
-  const { data, error } = await loiQuery;
-
-  const lois = (data ?? []) as unknown as LoiRow[];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
