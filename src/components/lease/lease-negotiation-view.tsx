@@ -148,13 +148,17 @@ function actorRole(createdBy: string | null | undefined): 'broker' | 'landlord' 
   return 'broker';
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '';
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function formatTime(iso: string): string {
+function formatTime(iso: string | null | undefined): string {
+  if (!iso) return '';
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
@@ -213,7 +217,7 @@ function TimelineEntry({
           <div className="flex items-center gap-2">
             <RoleIcon className={cn('h-3.5 w-3.5', labelColor)} />
             <span className={cn('text-xs font-semibold', labelColor)}>
-              {entry.created_by}
+              {actorRole(entry.created_by).charAt(0).toUpperCase() + actorRole(entry.created_by).slice(1)}
             </span>
             <Badge status={config.badgeStatus} size="sm" />
           </div>
@@ -453,7 +457,7 @@ function SectionCard({
               )}
             />
             <span className="text-xs text-[#64748b]">
-              Latest: <span className="font-medium text-[#0f172a]">{latest.created_by}</span>
+              Latest: <span className="font-medium text-[#0f172a]">{actorRole(latest.created_by).charAt(0).toUpperCase() + actorRole(latest.created_by).slice(1)}</span>
               {' '}{ACTION_CONFIG[latest.action as NegotiationAction]?.label.toLowerCase() ?? latest.action}
               {latest.value ? ` — ${latest.value}` : ''}
               <span className="ml-1.5 text-slate-400">{formatDate(latest.created_at)}</span>
