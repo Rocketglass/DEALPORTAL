@@ -400,7 +400,14 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
             ) : (
               <>
                 <Button variant="secondary" icon={Pencil} onClick={() => setIsEditing(true)}>
-                  Edit Lease
+                  Edit
+                </Button>
+                <Button
+                  variant="secondary"
+                  icon={Printer}
+                  onClick={() => window.open(`/leases/${lease.id}/print`, '_blank')}
+                >
+                  Preview
                 </Button>
                 {['draft', 'review'].includes(lease.status) && (
                   <Button
@@ -411,6 +418,11 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
                     disabled={generatingPdf}
                   >
                     {generatingPdf ? 'Generating…' : 'Generate PDF'}
+                  </Button>
+                )}
+                {lease.lease_pdf_url && (
+                  <Button variant="secondary" icon={Download} onClick={handleDownloadPdf}>
+                    Download PDF
                   </Button>
                 )}
                 {['draft', 'review'].includes(lease.status) && (
@@ -424,16 +436,6 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
                     {sending ? 'Sending…' : 'Send for Signature'}
                   </Button>
                 )}
-                <Button variant="secondary" icon={Download} onClick={handleDownloadPdf}>
-                  Download PDF
-                </Button>
-                <Button
-                  variant="secondary"
-                  icon={Printer}
-                  onClick={() => window.open(`/leases/${lease.id}/print`, '_blank')}
-                >
-                  Print / PDF
-                </Button>
                 {lease.status === 'executed' && (
                   <Button variant="secondary" icon={Share2} onClick={handleShareDeal}>
                     {copied ? 'Copied!' : 'Share Deal'}
