@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     const ALLOWED_FIELDS = [
       'name', 'address', 'city', 'state', 'zip', 'property_type',
       'total_sf', 'lot_size_sf', 'year_built', 'parking_spaces',
-      'zoning', 'description', 'photos', 'status',
+      'zoning', 'description', 'photos', 'status', 'is_active',
     ] as const;
 
     const updateFields: Record<string, unknown> = {};

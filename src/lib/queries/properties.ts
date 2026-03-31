@@ -55,10 +55,10 @@ export async function getPropertiesWithUnitCounts(): Promise<{
 }> {
   try {
     const supabase = await createClient();
+    // No is_active filter — brokers see all properties (hidden ones show a badge)
     const { data, error } = await supabase
       .from('properties')
       .select('*, units(*)')
-      .eq('is_active', true)
       .order('name');
 
     if (error) throw error;

@@ -463,7 +463,43 @@ export default function PropertyDetailClient({
         <BackButton href="/properties" label="Back to Properties" />
         <div className="mt-2 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{property.name}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold">{property.name}</h1>
+              <button
+                type="button"
+                onClick={async () => {
+                  const newVal = !property.is_active;
+                  setProperty((prev) => ({ ...prev, is_active: newVal }));
+                  try {
+                    const res = await fetch(`/api/properties/${property.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ is_active: newVal }),
+                    });
+                    if (!res.ok) setProperty((prev) => ({ ...prev, is_active: !newVal }));
+                  } catch {
+                    setProperty((prev) => ({ ...prev, is_active: !newVal }));
+                  }
+                }}
+                className={cn(
+                  'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary/20',
+                  property.is_active ? 'bg-green-500' : 'bg-gray-300',
+                )}
+                role="switch"
+                aria-checked={property.is_active}
+                aria-label="Toggle public visibility"
+              >
+                <span
+                  className={cn(
+                    'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                    property.is_active ? 'translate-x-5' : 'translate-x-0',
+                  )}
+                />
+              </button>
+              <span className={cn('text-xs font-medium', property.is_active ? 'text-green-700' : 'text-muted-foreground')}>
+                {property.is_active ? 'Listed publicly' : 'Hidden from public'}
+              </span>
+            </div>
             <p className="mt-0.5 text-muted-foreground">
               {property.address}, {property.city}, {property.state} {property.zip}
             </p>

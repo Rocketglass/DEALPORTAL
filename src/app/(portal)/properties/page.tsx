@@ -112,7 +112,14 @@ export default async function PropertiesPage() {
                     className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors"
                   >
                     <td className="px-4 py-3">
-                      <div className="font-medium">{property.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{property.name}</span>
+                        {!property.is_active && (
+                          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                            Hidden
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground">{property.address}</div>
                     </td>
                     <td className="px-4 py-3">
