@@ -52,12 +52,12 @@ export async function POST(
   try {
     const { id: loiId } = await params;
 
-    // 1. Authenticate the request — throws if no session
-    let user;
+    // 1. Try to authenticate — allow unauthenticated for public landlord review
+    let user: { role: string; contactId: string | null; principalId: string | null } | null = null;
     try {
       user = await requireAuthForApi();
     } catch {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      // Unauthenticated — allowed for public LOI review
     }
 
     let body: { responses: SectionResponse[] };
@@ -90,25 +90,31 @@ export async function POST(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const loiRow = loi as any;
 
-    // 3. Authorization: verify the caller is a party to this LOI
-    const { role, contactId, principalId } = user;
-    const effectiveContactId = contactId ?? principalId;
+    // 3. Authorization: authenticated users must be a party; public access allowed for sent/in_negotiation
+    let role = 'landlord'; // Default to landlord for public review
+    let isBrokerOrAdmin = false;
+    let isLandlord = true;
+    let isTenant = false;
 
-    const isBrokerOrAdmin = role === 'broker' || role === 'admin';
-    const isLandlord = role === 'landlord' || role === 'landlord_agent';
-    const isTenant = role === 'tenant' || role === 'tenant_agent';
+    if (user) {
+      role = user.role;
+      const effectiveContactId = user.contactId ?? user.principalId;
+      isBrokerOrAdmin = role === 'broker' || role === 'admin';
+      isLandlord = role === 'landlord' || role === 'landlord_agent';
+      isTenant = role === 'tenant' || role === 'tenant_agent';
 
-    if (!isBrokerOrAdmin) {
-      if (isLandlord) {
-        if (!effectiveContactId || effectiveContactId !== loiRow.landlord_contact_id) {
-          return NextResponse.json({ error: 'Forbidden: not a party to this LOI' }, { status: 403 });
+      if (!isBrokerOrAdmin) {
+        if (isLandlord) {
+          if (!effectiveContactId || effectiveContactId !== loiRow.landlord_contact_id) {
+            return NextResponse.json({ error: 'Forbidden: not a party to this LOI' }, { status: 403 });
+          }
+        } else if (isTenant) {
+          if (!effectiveContactId || effectiveContactId !== loiRow.tenant_contact_id) {
+            return NextResponse.json({ error: 'Forbidden: not a party to this LOI' }, { status: 403 });
+          }
+        } else {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
-      } else if (isTenant) {
-        if (!effectiveContactId || effectiveContactId !== loiRow.tenant_contact_id) {
-          return NextResponse.json({ error: 'Forbidden: not a party to this LOI' }, { status: 403 });
-        }
-      } else {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }
 
@@ -211,7 +217,8 @@ export async function POST(
           status: newStatus,
           landlord_response: action === 'counter' ? (value ?? null) : (note ?? null),
           agreed_value: agreedValue,
-          last_updated_by: role,
+          last_updated_by: user?.contactId
+            ?? (isLandlord ? loiRow.landlord_contact_id : isTenant ? loiRow.tenant_contact_id : loiRow.broker_contact_id),
           updated_at: now,
         })
         .eq('id', sectionId)
@@ -227,14 +234,18 @@ export async function POST(
         );
       }
 
-      // Insert negotiation history entry with actual role as created_by
+      // Insert negotiation history entry
+      // created_by references contacts(id) — resolve to the appropriate contact
+      const negotiationCreatedBy = user?.contactId
+        ?? (isLandlord ? loiRow.landlord_contact_id : isTenant ? loiRow.tenant_contact_id : loiRow.broker_contact_id);
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error: negError } = await (supabase as any).from('loi_negotiations').insert({
         loi_section_id: sectionId,
         action: action === 'accept' ? 'accept' : action === 'counter' ? 'counter' : 'reject',
         value: action === 'counter' ? (value ?? null) : null,
         note: note ?? null,
-        created_by: role,
+        created_by: negotiationCreatedBy,
         created_at: now,
       });
 

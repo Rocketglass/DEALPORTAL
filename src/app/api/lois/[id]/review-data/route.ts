@@ -1,12 +1,12 @@
 /**
  * GET /api/lois/[id]/review-data
  *
- * Authenticated endpoint — requires an active session.
- * Accessible to broker, admin, landlord, landlord_agent, tenant, tenant_agent.
- * Non-parties (landlord/tenant that don't match the LOI contacts) receive 403.
+ * Public endpoint for LOI review — allows unauthenticated landlords to
+ * view LOI sections via the email review link. Also supports authenticated
+ * users (broker, admin, landlord, tenant) with party verification.
  *
- * Returns the data all parties need to view and negotiate LOI sections:
- *   - callerRole: the authenticated user's role (so the UI knows which party is viewing)
+ * Returns:
+ *   - callerRole: the authenticated user's role, or 'public' for unauthenticated
  *   - meta: property name, suite, tenant, broker, sent date, contact IDs
  *   - sections: array of { id, sectionKey, label, proposedValue, landlordResponse, agreedValue, status, updatedAt, negotiations }
  */
@@ -20,12 +20,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
-    // 1. Authenticate the request — throws if no session
-    let user;
+    // 1. Try to authenticate — allow unauthenticated access for public review
+    let user: { role: string; contactId: string | null; principalId: string | null } | null = null;
     try {
       user = await requireAuthForApi();
     } catch {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      // Unauthenticated — allowed for public LOI review
     }
 
     const { id: loiId } = await params;
@@ -70,25 +70,35 @@ export async function GET(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const loiData = loi as any;
 
-    // 3. Authorization: verify the caller is a party to this LOI
-    const { role, contactId, principalId } = user;
-    const effectiveContactId = contactId ?? principalId;
+    // 3. Authorization: authenticated users must be a party; unauthenticated allowed for sent/in_negotiation LOIs
+    let role = 'public';
+    if (user) {
+      role = user.role;
+      const effectiveContactId = user.contactId ?? user.principalId;
+      const isBrokerOrAdmin = role === 'broker' || role === 'admin';
+      const isLandlord = role === 'landlord' || role === 'landlord_agent';
+      const isTenant = role === 'tenant' || role === 'tenant_agent';
 
-    const isBrokerOrAdmin = role === 'broker' || role === 'admin';
-    const isLandlord = role === 'landlord' || role === 'landlord_agent';
-    const isTenant = role === 'tenant' || role === 'tenant_agent';
-
-    if (!isBrokerOrAdmin) {
-      if (isLandlord) {
-        if (!effectiveContactId || effectiveContactId !== loiData.landlord_contact_id) {
-          return NextResponse.json({ error: 'Forbidden: not a party to this LOI' }, { status: 403 });
+      if (!isBrokerOrAdmin) {
+        if (isLandlord) {
+          if (!effectiveContactId || effectiveContactId !== loiData.landlord_contact_id) {
+            return NextResponse.json({ error: 'Forbidden: not a party to this LOI' }, { status: 403 });
+          }
+        } else if (isTenant) {
+          if (!effectiveContactId || effectiveContactId !== loiData.tenant_contact_id) {
+            return NextResponse.json({ error: 'Forbidden: not a party to this LOI' }, { status: 403 });
+          }
+        } else {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
-      } else if (isTenant) {
-        if (!effectiveContactId || effectiveContactId !== loiData.tenant_contact_id) {
-          return NextResponse.json({ error: 'Forbidden: not a party to this LOI' }, { status: 403 });
-        }
-      } else {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    } else {
+      // Public access — only allow for LOIs that are open for review
+      if (!['sent', 'in_negotiation'].includes(loiData.status)) {
+        return NextResponse.json(
+          { error: `LOI is not currently open for responses (status: ${loiData.status})` },
+          { status: 400 },
+        );
       }
     }
 

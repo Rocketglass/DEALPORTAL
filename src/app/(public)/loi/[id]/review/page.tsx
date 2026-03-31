@@ -49,6 +49,7 @@ interface LoiSection {
   sectionKey: LoiSectionKey;
   label: string;
   proposedValue: string;
+  updatedAt: string;
 }
 
 interface LoiMeta {
@@ -146,6 +147,7 @@ export default function LoiReviewPage() {
           action: r.action as 'accept' | 'counter' | 'reject',
           value: r.action === 'counter' ? r.counterValue : undefined,
           note: r.action === 'reject' ? r.rejectReason : undefined,
+          updatedAt: s.updatedAt,
         };
       });
 
