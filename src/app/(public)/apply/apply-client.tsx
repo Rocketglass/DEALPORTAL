@@ -940,36 +940,7 @@ export function GeneralApplicationPage() {
           </div>
         ))}
 
-        {!authUser ? (
-          // Auth gate — user must log in or register to submit
-          <div className="rounded-xl border border-border bg-white p-6 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 mb-4">
-              <Shield className="h-6 w-6 text-primary" />
-            </div>
-            <h3 className="text-base font-semibold text-foreground">Create an account to submit</h3>
-            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-              To submit your application, please create an account or log in. Your progress has been saved.
-            </p>
-            <div className="mt-5 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link
-                href="/register?redirect=/apply&draft=restore"
-                className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors"
-              >
-                <UserPlus className="h-4 w-4" />
-                Create Account
-              </Link>
-              <Link
-                href="/login?redirect=/apply&draft=restore"
-                className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-border bg-white px-5 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors"
-              >
-                <LogIn className="h-4 w-4" />
-                Log In
-              </Link>
-            </div>
-          </div>
-        ) : (
-          // Authenticated — show terms + submit
-          <div className="rounded-xl border border-border bg-white p-4">
+        <div className="rounded-xl border border-border bg-white p-4">
             <label className="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" checked={formData.termsAccepted} onChange={(e) => updateField('termsAccepted', e.target.checked)}
                 className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary/20 accent-primary" />
@@ -979,7 +950,6 @@ export function GeneralApplicationPage() {
             </label>
             {errors.termsAccepted && <p className="mt-2 flex items-center gap-1 text-xs text-destructive" role="alert"><AlertCircle className="h-3 w-3 shrink-0" />{errors.termsAccepted}</p>}
           </div>
-        )}
       </div>
     );
   };
@@ -994,7 +964,7 @@ export function GeneralApplicationPage() {
   };
 
   const isLastStep = currentStep === 6;
-  const canSubmit = authUser !== null;
+  const canSubmit = true;
 
   return (
     <div className="min-h-screen bg-muted">
