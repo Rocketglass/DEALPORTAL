@@ -127,6 +127,8 @@ export async function getInvoiceWithDetail(id: string): Promise<{
 }> {
   try {
     const supabase = await createClient();
+    // For manual invoices (lease_id is null), the lease join returns null.
+    // Use maybeSingle to avoid PostgREST errors on empty results.
     const { data, error } = await supabase
       .from('commission_invoices')
       .select(`
@@ -155,9 +157,13 @@ export async function getInvoiceWithDetail(id: string): Promise<{
         )
       `)
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      console.error('getInvoiceWithDetail query error:', error);
+      throw error;
+    }
+    if (!data) return { data: null, error: 'Invoice not found' };
     return { data: data as InvoiceWithDetail, error: null };
   } catch (err) {
     console.error('getInvoiceWithDetail error:', err);
