@@ -96,7 +96,7 @@ export default async function LoiDetailPage({ params }: Props) {
             </span>
           </div>
         </div>
-        <LoiActionButtons loiId={id} />
+        <LoiActionButtons loiId={id} status={loi.status} />
       </div>
 
       {/* Main content + sidebar */}

@@ -2,16 +2,21 @@
 
 import { useState } from 'react';
 import { Send, Copy, Check, Loader2, Printer } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
 interface LoiActionButtonsProps {
   loiId: string;
+  status: string;
 }
 
-export function LoiActionButtons({ loiId }: LoiActionButtonsProps) {
+export function LoiActionButtons({ loiId, status }: LoiActionButtonsProps) {
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [resendResult, setResendResult] = useState<'success' | 'error' | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<'success' | 'error' | null>(null);
+
+  const isDraft = status === 'draft';
 
   async function handleCopyLink() {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
@@ -22,7 +27,6 @@ export function LoiActionButtons({ loiId }: LoiActionButtonsProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback for older browsers
       const textarea = document.createElement('textarea');
       textarea.value = url;
       document.body.appendChild(textarea);
@@ -34,24 +38,31 @@ export function LoiActionButtons({ loiId }: LoiActionButtonsProps) {
     }
   }
 
-  async function handleResend() {
-    setResending(true);
-    setResendResult(null);
+  async function handleSend() {
+    setSending(true);
+    setSendResult(null);
 
     try {
-      const res = await fetch(`/api/lois/${loiId}/resend`, { method: 'POST' });
+      const endpoint = isDraft
+        ? `/api/lois/${loiId}/send`
+        : `/api/lois/${loiId}/resend`;
+      const res = await fetch(endpoint, { method: 'POST' });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error ?? 'Failed to resend');
+        throw new Error(data.error ?? 'Failed to send');
       }
-      setResendResult('success');
-      setTimeout(() => setResendResult(null), 3000);
+      setSendResult('success');
+      if (isDraft) {
+        // Refresh the page to reflect the new 'sent' status
+        setTimeout(() => router.refresh(), 1000);
+      }
+      setTimeout(() => setSendResult(null), 3000);
     } catch (err) {
-      console.error('Resend failed:', err);
-      setResendResult('error');
-      setTimeout(() => setResendResult(null), 3000);
+      console.error('Send failed:', err);
+      setSendResult('error');
+      setTimeout(() => setSendResult(null), 3000);
     } finally {
-      setResending(false);
+      setSending(false);
     }
   }
 
@@ -64,24 +75,28 @@ export function LoiActionButtons({ loiId }: LoiActionButtonsProps) {
       >
         Print / PDF
       </Button>
-      <Button
-        variant="secondary"
-        icon={copied ? Check : Copy}
-        onClick={handleCopyLink}
-      >
-        {copied ? 'Copied!' : 'Copy Link'}
-      </Button>
+      {!isDraft && (
+        <Button
+          variant="secondary"
+          icon={copied ? Check : Copy}
+          onClick={handleCopyLink}
+        >
+          {copied ? 'Copied!' : 'Copy Link'}
+        </Button>
+      )}
       <Button
         variant="primary"
-        icon={resending ? Loader2 : Send}
-        onClick={handleResend}
-        disabled={resending}
+        icon={sending ? Loader2 : Send}
+        onClick={handleSend}
+        disabled={sending}
       >
-        {resendResult === 'success'
+        {sendResult === 'success'
           ? 'Sent!'
-          : resendResult === 'error'
+          : sendResult === 'error'
             ? 'Failed'
-            : 'Resend'}
+            : isDraft
+              ? 'Send to Landlord'
+              : 'Resend'}
       </Button>
     </div>
   );
