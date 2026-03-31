@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, Copy, Check, Loader2, Printer, ScrollText } from 'lucide-react';
+import { Send, Copy, Check, Loader2, Eye, ScrollText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
@@ -71,10 +71,10 @@ export function LoiActionButtons({ loiId, status }: LoiActionButtonsProps) {
     <div className="flex gap-2">
       <Button
         variant="secondary"
-        icon={Printer}
+        icon={Eye}
         onClick={() => window.open(`/lois/${loiId}/print`, '_blank')}
       >
-        Print / PDF
+        Preview
       </Button>
       {!isDraft && (
         <Button

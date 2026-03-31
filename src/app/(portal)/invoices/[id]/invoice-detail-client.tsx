@@ -8,6 +8,7 @@ import {
   Clock,
   FileText,
   CreditCard,
+  Eye,
   Circle,
   X,
   Pencil,
@@ -384,6 +385,13 @@ export default function InvoiceDetailClient({
               {sending ? 'Sending…' : 'Send to Landlord'}
             </Button>
           )}
+          <Button
+            variant="secondary"
+            icon={Eye}
+            onClick={() => window.open(`/invoices/${invoice.id}/print`, '_blank')}
+          >
+            Preview
+          </Button>
           <Button variant="secondary" icon={Download} onClick={handleDownloadPdf}>
             Download PDF
           </Button>
