@@ -97,10 +97,21 @@ export function LeasesClient({ leases, error }: Props) {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <h1 className="text-2xl font-bold">Leases</h1>
-      <p className="mt-1 text-muted-foreground">
-        View and manage all lease agreements.
-      </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Leases</h1>
+          <p className="mt-1 text-muted-foreground">
+            View and manage all lease agreements.
+          </p>
+        </div>
+        <a
+          href="/leases/new"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors"
+        >
+          <ScrollText className="h-4 w-4" />
+          Create Lease
+        </a>
+      </div>
 
       <DataTable
         data={leases}

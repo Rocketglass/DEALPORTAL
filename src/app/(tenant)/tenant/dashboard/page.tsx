@@ -1,5 +1,6 @@
 import { requireRole } from '@/lib/security/auth-guard';
 import { getTenantApplications } from '@/lib/queries/tenant';
+import { getUnreadNotifications, type Notification } from '@/lib/queries/notifications';
 import { TenantDashboardClient } from './dashboard-client';
 
 export const dynamic = 'force-dynamic';
@@ -29,11 +30,16 @@ export default async function TenantDashboardPage() {
   }
 
   let applications: Awaited<ReturnType<typeof getTenantApplications>>['data'] = null;
+  let notifications: Notification[] = [];
   let error: string | null = null;
   try {
-    const result = await getTenantApplications(contactId);
-    applications = result.data;
-    error = result.error;
+    const [appsResult, notifResult] = await Promise.all([
+      getTenantApplications(contactId),
+      getUnreadNotifications(user.id),
+    ]);
+    applications = appsResult.data;
+    error = appsResult.error;
+    notifications = notifResult.data ?? [];
   } catch (err) {
     console.error('[TenantDashboard] Error:', err);
     error = err instanceof Error ? err.message : 'Failed to load applications';
@@ -43,5 +49,10 @@ export default async function TenantDashboardPage() {
     console.error('[TenantDashboard] Failed to fetch applications:', error);
   }
 
-  return <TenantDashboardClient applications={applications ?? []} />;
+  return (
+    <TenantDashboardClient
+      applications={applications ?? []}
+      notifications={notifications}
+    />
+  );
 }
