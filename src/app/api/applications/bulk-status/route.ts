@@ -72,7 +72,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
         status: status as ApplicationStatus,
         updated_at: now,
         reviewed_at: now,
-        reviewed_by: currentUser.contactId ?? currentUser.id,
+        reviewed_by: currentUser.contactId!,
       })
       .in('id', ids as string[])
       .select('id');

@@ -172,10 +172,14 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
     if (!uploadError) {
       // Store the internal storage path (not a public URL) — the
       // /api/leases/[id]/pdf endpoint generates signed URLs on demand.
-      await supabase
+      const { error: pdfUrlError } = await supabase
         .from('leases')
         .update({ executed_pdf_url: fileName })
         .eq('id', lease.id);
+
+      if (pdfUrlError) {
+        console.error('[DocuSign Webhook] Failed to save executed PDF URL:', pdfUrlError);
+      }
     } else {
       console.error('[DocuSign Webhook] PDF upload error:', uploadError);
     }
@@ -184,7 +188,7 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
   }
 
   // Update unit status to occupied
-  await supabase
+  const { error: unitError } = await supabase
     .from('units')
     .update({
       status: 'occupied',
@@ -193,8 +197,12 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
     })
     .eq('id', lease.unit_id);
 
+  if (unitError) {
+    console.error('[DocuSign Webhook] Failed to update unit status:', unitError);
+  }
+
   // Audit log
-  await supabase.from('audit_log').insert({
+  const { error: auditError } = await supabase.from('audit_log').insert({
     action: 'lease_executed',
     entity_type: 'lease',
     entity_id: lease.id,
@@ -208,6 +216,10 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
       })),
     },
   });
+
+  if (auditError) {
+    console.error('[DocuSign Webhook] Failed to insert audit log:', auditError);
+  }
 
   console.log(`[DocuSign Webhook] Lease ${lease.id} marked as executed`);
 
@@ -357,7 +369,7 @@ async function handleRecipientCompleted(payload: DocuSignConnectPayload): Promis
 
   // Move to partially_signed if still in sent_for_signature
   if (lease.status === 'sent_for_signature') {
-    await supabase
+    const { error: updateError } = await supabase
       .from('leases')
       .update({
         status: 'partially_signed',
@@ -365,11 +377,15 @@ async function handleRecipientCompleted(payload: DocuSignConnectPayload): Promis
         updated_at: new Date().toISOString(),
       })
       .eq('id', lease.id);
+
+    if (updateError) {
+      console.error('[DocuSign Webhook] Failed to update lease to partially_signed:', updateError);
+    }
   }
 
   // Audit log
   const latestSigner = completedSigners[completedSigners.length - 1];
-  await supabase.from('audit_log').insert({
+  const { error: auditErr } = await supabase.from('audit_log').insert({
     action: 'docusign_recipient_signed',
     entity_type: 'lease',
     entity_id: lease.id,
@@ -380,6 +396,10 @@ async function handleRecipientCompleted(payload: DocuSignConnectPayload): Promis
       progress: `${completedSigners.length}/${signers.length}`,
     },
   });
+
+  if (auditErr) {
+    console.error('[DocuSign Webhook] Failed to insert recipient audit log:', auditErr);
+  }
 }
 
 // ---------------------------------------------------------------------------

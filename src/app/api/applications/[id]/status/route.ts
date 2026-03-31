@@ -78,7 +78,7 @@ export async function PATCH(
     status: status as ApplicationStatus,
     updated_at: now,
     reviewed_at: now,
-    reviewed_by: currentUser.contactId ?? currentUser.id,
+    reviewed_by: currentUser.contactId!,
   };
 
   if (typeof review_notes === 'string') {

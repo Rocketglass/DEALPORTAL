@@ -438,7 +438,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       broker_contact_id: brokerContactId,
       status: 'draft',
       version: 1,
-      created_by: user.contactId ?? user.id,
+      created_by: user.contactId!,
       notes: `AI-drafted LOI for ${application.business_name}`,
       ai_drafted: true,
       ai_draft_prompt: aiDraftPrompt,

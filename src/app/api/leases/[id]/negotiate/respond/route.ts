@@ -176,7 +176,8 @@ export async function POST(
         counterparty_response: action === 'counter' ? (value ?? null) : undefined,
         agreed_value: agreedValue,
         negotiation_notes: note ?? undefined,
-        last_updated_by: role,
+        last_updated_by: user.contactId
+          ?? (isLandlord ? leaseRow.landlord_contact_id : isTenant ? leaseRow.tenant_contact_id : leaseRow.broker_contact_id),
         updated_at: now,
       })
       .eq('id', sectionId)
@@ -219,7 +220,8 @@ export async function POST(
       action: action === 'accept' ? 'accept' : action === 'counter' ? 'counter' : 'reject',
       value: action === 'counter' ? (value ?? null) : null,
       note: note ?? null,
-      created_by: role,
+      created_by: user.contactId
+        ?? (isLandlord ? leaseRow.landlord_contact_id : isTenant ? leaseRow.tenant_contact_id : leaseRow.broker_contact_id),
       party_role: role,
       created_at: now,
     });

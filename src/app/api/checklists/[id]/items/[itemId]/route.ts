@@ -61,9 +61,9 @@ export async function PATCH(
       updates.is_completed = body.isCompleted;
       if (body.isCompleted) {
         updates.completed_at = new Date().toISOString();
-        // completed_by is set to 'public' since this can be accessed without auth
-        // When accessed by an authenticated user, we try to resolve their identity
-        updates.completed_by = 'public';
+        // Default to null for unauthenticated (public) access
+        // When accessed by an authenticated user, we try to resolve their identity below
+        updates.completed_by = null;
 
         // Attempt to get the authenticated user if available (non-blocking)
         try {
@@ -72,12 +72,12 @@ export async function PATCH(
           if (user) {
             const { data: dbUser } = await authSupabase
               .from('users')
-              .select('id')
+              .select('id, contact_id')
               .eq('auth_provider_id', user.id)
               .eq('is_active', true)
               .maybeSingle();
-            if (dbUser) {
-              updates.completed_by = dbUser.id;
+            if (dbUser?.contact_id) {
+              updates.completed_by = dbUser.contact_id;
             }
           }
         } catch {
@@ -115,7 +115,7 @@ export async function PATCH(
 
     // Audit log (best-effort, non-blocking)
     void supabase.from('audit_log').insert({
-      user_id: updates.completed_by === 'public' ? null : (updates.completed_by as string | undefined) ?? null,
+      user_id: (updates.completed_by as string | undefined) ?? null,
       action: 'checklist_item_updated',
       entity_type: 'deal_checklist_item',
       entity_id: itemId,
