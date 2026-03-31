@@ -73,8 +73,8 @@ interface NegotiationEntry {
   action: string;
   value: string | null;
   note: string | null;
-  created_by: string;
-  created_at: string;
+  createdBy: string;
+  createdAt: string;
 }
 
 interface LoiSectionData {
@@ -181,7 +181,7 @@ function TimelineEntry({
   isLast: boolean;
   contactIds?: { landlord?: string | null; tenant?: string | null; broker?: string | null };
 }) {
-  const role = actorRole(entry.created_by, contactIds);
+  const role = actorRole(entry.createdBy, contactIds);
   const actionKey = entry.action as NegotiationAction;
   const config = ACTION_CONFIG[actionKey] ?? ACTION_CONFIG.propose;
 
@@ -223,15 +223,15 @@ function TimelineEntry({
           <div className="flex items-center gap-2">
             <RoleIcon className={cn('h-3.5 w-3.5', labelColor)} />
             <span className={cn('text-xs font-semibold', labelColor)}>
-              {actorRole(entry.created_by, contactIds).charAt(0).toUpperCase() + actorRole(entry.created_by, contactIds).slice(1)}
+              {actorRole(entry.createdBy, contactIds).charAt(0).toUpperCase() + actorRole(entry.createdBy, contactIds).slice(1)}
             </span>
             <Badge status={config.badgeStatus} size="sm" />
           </div>
           <div className="flex items-center gap-1 text-[11px] text-[#64748b]">
             <Clock className="h-3 w-3" />
-            <span>{formatTimelineDate(entry.created_at)}</span>
+            <span>{formatTimelineDate(entry.createdAt)}</span>
             <span className="text-slate-300">&middot;</span>
-            <span>{formatTimelineTime(entry.created_at)}</span>
+            <span>{formatTimelineTime(entry.createdAt)}</span>
           </div>
         </div>
 
@@ -282,7 +282,7 @@ function SectionCard({
   const StatusIcon = statusCfg.icon;
 
   const sortedNegotiations = [...(section.negotiations ?? [])].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
   const latest = sortedNegotiations[sortedNegotiations.length - 1];
 
@@ -457,18 +457,18 @@ function SectionCard({
             <div
               className={cn(
                 'h-2 w-2 rounded-full',
-                actorRole(latest.created_by, contactIds) === 'broker'
+                actorRole(latest.createdBy, contactIds) === 'broker'
                   ? 'bg-[#1e40af]'
-                  : actorRole(latest.created_by, contactIds) === 'landlord'
+                  : actorRole(latest.createdBy, contactIds) === 'landlord'
                     ? 'bg-amber-500'
                     : 'bg-emerald-500',
               )}
             />
             <span className="text-xs text-[#64748b]">
-              Latest: <span className="font-medium text-[#0f172a]">{actorRole(latest.created_by, contactIds).charAt(0).toUpperCase() + actorRole(latest.created_by, contactIds).slice(1)}</span>
+              Latest: <span className="font-medium text-[#0f172a]">{actorRole(latest.createdBy, contactIds).charAt(0).toUpperCase() + actorRole(latest.createdBy, contactIds).slice(1)}</span>
               {' '}{ACTION_CONFIG[latest.action as NegotiationAction]?.label.toLowerCase() ?? latest.action}
               {latest.value ? ` — ${latest.value}` : ''}
-              <span className="ml-1.5 text-slate-400">{formatTimelineDate(latest.created_at)}</span>
+              <span className="ml-1.5 text-slate-400">{formatTimelineDate(latest.createdAt)}</span>
             </span>
           </div>
         )}
