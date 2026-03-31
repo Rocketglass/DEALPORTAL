@@ -135,10 +135,19 @@ interface LeaseNegotiationViewProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function actorRole(createdBy: string | null | undefined): 'broker' | 'landlord' | 'tenant' {
+function actorRole(
+  createdBy: string | null | undefined,
+  contactIds?: { landlord?: string | null; tenant?: string | null; broker?: string | null },
+): 'broker' | 'landlord' | 'tenant' {
   if (!createdBy) return 'broker';
+  // Match against contact IDs if available (new data stores contact UUIDs)
+  if (contactIds) {
+    if (contactIds.landlord && createdBy === contactIds.landlord) return 'landlord';
+    if (contactIds.tenant && createdBy === contactIds.tenant) return 'tenant';
+    if (contactIds.broker && createdBy === contactIds.broker) return 'broker';
+  }
+  // Fallback: handle legacy role strings stored in created_by
   const lower = createdBy.toLowerCase();
-  // Handle legacy role strings stored in created_by
   if (lower.includes('landlord') || lower.includes('owner') || lower.includes('lessor')) {
     return 'landlord';
   }
@@ -170,12 +179,14 @@ function TimelineEntry({
   entry,
   isFirst,
   isLast,
+  contactIds,
 }: {
   entry: NegotiationEntry;
   isFirst: boolean;
   isLast: boolean;
+  contactIds?: { landlord?: string | null; tenant?: string | null; broker?: string | null };
 }) {
-  const role = actorRole(entry.created_by);
+  const role = actorRole(entry.created_by, contactIds);
   const actionKey = entry.action as NegotiationAction;
   const config = ACTION_CONFIG[actionKey] ?? ACTION_CONFIG.propose;
 
@@ -217,7 +228,7 @@ function TimelineEntry({
           <div className="flex items-center gap-2">
             <RoleIcon className={cn('h-3.5 w-3.5', labelColor)} />
             <span className={cn('text-xs font-semibold', labelColor)}>
-              {actorRole(entry.created_by).charAt(0).toUpperCase() + actorRole(entry.created_by).slice(1)}
+              {actorRole(entry.created_by, contactIds).charAt(0).toUpperCase() + actorRole(entry.created_by, contactIds).slice(1)}
             </span>
             <Badge status={config.badgeStatus} size="sm" />
           </div>
@@ -258,6 +269,7 @@ function SectionCard({
   onAction,
   onUpdateField,
   onSubmit,
+  contactIds,
 }: {
   section: LeaseSectionData;
   response: SectionResponse;
@@ -266,6 +278,7 @@ function SectionCard({
   onAction: (id: string, action: SectionActionType) => void;
   onUpdateField: (id: string, field: 'counterValue' | 'rejectReason', value: string) => void;
   onSubmit: (section: LeaseSectionData) => void;
+  contactIds?: { landlord?: string | null; tenant?: string | null; broker?: string | null };
 }) {
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -449,15 +462,15 @@ function SectionCard({
             <div
               className={cn(
                 'h-2 w-2 rounded-full',
-                actorRole(latest.created_by) === 'broker'
+                actorRole(latest.created_by, contactIds) === 'broker'
                   ? 'bg-[#1e40af]'
-                  : actorRole(latest.created_by) === 'landlord'
+                  : actorRole(latest.created_by, contactIds) === 'landlord'
                     ? 'bg-amber-500'
                     : 'bg-emerald-500',
               )}
             />
             <span className="text-xs text-[#64748b]">
-              Latest: <span className="font-medium text-[#0f172a]">{actorRole(latest.created_by).charAt(0).toUpperCase() + actorRole(latest.created_by).slice(1)}</span>
+              Latest: <span className="font-medium text-[#0f172a]">{actorRole(latest.created_by, contactIds).charAt(0).toUpperCase() + actorRole(latest.created_by, contactIds).slice(1)}</span>
               {' '}{ACTION_CONFIG[latest.action as NegotiationAction]?.label.toLowerCase() ?? latest.action}
               {latest.value ? ` — ${latest.value}` : ''}
               <span className="ml-1.5 text-slate-400">{formatDate(latest.created_at)}</span>
@@ -531,6 +544,7 @@ function SectionCard({
                 entry={entry}
                 isFirst={idx === 0}
                 isLast={idx === sortedNegotiations.length - 1}
+                contactIds={contactIds}
               />
             ))}
           </div>
@@ -959,6 +973,11 @@ export function LeaseNegotiationView({ leaseId, callerRole, portalBasePath }: Le
               onAction={handleAction}
               onUpdateField={handleUpdateField}
               onSubmit={handleSectionSubmit}
+              contactIds={{
+                landlord: data?.landlordContactId,
+                tenant: data?.tenantContactId,
+                broker: data?.brokerContactId,
+              }}
             />
           );
         })}
