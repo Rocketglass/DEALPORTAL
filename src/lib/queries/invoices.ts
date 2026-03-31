@@ -141,7 +141,7 @@ export async function getInvoiceWithDetail(id: string): Promise<{
           premises_city,
           premises_state,
           premises_zip,
-          unit:units(suite_number),
+          unit:units!leases_unit_id_fkey(suite_number),
           property:properties(address, city, state),
           broker:contacts!leases_broker_contact_id_fkey(
             first_name,
