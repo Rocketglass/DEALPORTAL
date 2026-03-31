@@ -176,7 +176,7 @@ const emailLookupMap = new Map<string, { count: number; resetAt: number }>();
 function checkEmailRateLimitInMemory(email: string): RateLimitResult {
   const now = Date.now();
   const windowMs = 3_600_000; // 1 hour
-  const maxRequests = 1;
+  const maxRequests = 10;
 
   const entry = emailLookupMap.get(email);
 
