@@ -94,17 +94,18 @@ interface LoiMeta {
   suite: string | null;
   tenant: string | null;
   broker: string | null;
+  brokerCompany: string | null;
   landlord: string | null;
   sentAt: string | null;
+  landlordContactId: string | null;
+  tenantContactId: string | null;
+  brokerContactId: string | null;
 }
 
 interface ReviewData {
   meta: LoiMeta;
   sections: LoiSectionData[];
   callerRole: string;
-  loiId: string;
-  landlordContactId: string | null;
-  tenantContactId: string | null;
 }
 
 type SectionAction = 'accept' | 'counter' | 'reject' | null;
