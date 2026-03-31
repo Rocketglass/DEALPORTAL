@@ -87,7 +87,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       broker_contact_id: body.broker_contact_id,
       status: body.status ?? 'draft',
       version: 1,
-      created_by: user.id,
+      created_by: user.contactId ?? user.id,
       notes: body.notes ?? null,
       sent_at: body.status === 'sent' ? new Date().toISOString() : null,
       application_id: null,

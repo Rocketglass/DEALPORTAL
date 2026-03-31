@@ -438,7 +438,7 @@ CREATE TABLE qr_codes (
     unit_id             UUID REFERENCES units(id),
     short_code          VARCHAR(20) NOT NULL UNIQUE,
     portal_url          VARCHAR(500) NOT NULL,
-    qr_image_url        VARCHAR(500),
+    qr_image_url        TEXT,
     is_active           BOOLEAN DEFAULT true,
     scan_count          INTEGER DEFAULT 0,
     last_scanned_at     TIMESTAMPTZ,

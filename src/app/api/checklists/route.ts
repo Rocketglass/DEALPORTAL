@@ -89,7 +89,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       lease_id: body.leaseId,
       title: body.title ?? 'Deal Checklist',
       status: 'active',
-      created_by: user.id,
+      created_by: user.contactId ?? user.id,
     };
 
     const { data: checklist, error: checklistError } = await supabase
