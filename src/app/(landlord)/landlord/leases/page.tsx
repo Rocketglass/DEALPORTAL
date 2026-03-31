@@ -39,8 +39,8 @@ export default async function LandlordLeasesPage() {
     id: string;
     status: string;
     base_rent_monthly: number;
-    property: { id: string; name: string }[] | null;
-    tenant: { id: string; first_name: string | null; last_name: string | null; company_name: string | null }[] | null;
+    property: { id: string; name: string }[] | { id: string; name: string } | null;
+    tenant: { id: string; first_name: string | null; last_name: string | null; company_name: string | null }[] | { id: string; first_name: string | null; last_name: string | null; company_name: string | null } | null;
   }
 
   let leases: LeaseRow[] = [];
@@ -114,8 +114,8 @@ export default async function LandlordLeasesPage() {
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
                   {leases.map((lease) => {
-                    const property = lease.property?.[0] ?? null;
-                    const tenant = lease.tenant?.[0] ?? null;
+                    const property = Array.isArray(lease.property) ? lease.property[0] : lease.property;
+                    const tenant = Array.isArray(lease.tenant) ? lease.tenant[0] : lease.tenant;
                     const tenantName = tenant?.company_name
                       || [tenant?.first_name, tenant?.last_name].filter(Boolean).join(' ')
                       || 'Unknown';

@@ -34,12 +34,14 @@ export default async function LandlordLoisPage() {
   const isBroker = user.role === 'broker' || user.role === 'admin';
   const contactId = isBroker ? null : getEffectiveContactId(user);
 
+  interface ContactShape { id: string; first_name: string | null; last_name: string | null; company_name: string | null }
+  interface PropertyShape { id: string; name: string }
   interface LoiRow {
     id: string;
     status: string;
     sent_at: string | null;
-    property: { id: string; name: string }[] | null;
-    tenant: { id: string; first_name: string | null; last_name: string | null; company_name: string | null }[] | null;
+    property: PropertyShape | PropertyShape[] | null;
+    tenant: ContactShape | ContactShape[] | null;
   }
 
   let lois: LoiRow[] = [];
@@ -113,8 +115,8 @@ export default async function LandlordLoisPage() {
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
                   {lois.map((loi) => {
-                    const property = loi.property?.[0] ?? null;
-                    const tenant = loi.tenant?.[0] ?? null;
+                    const property = Array.isArray(loi.property) ? loi.property[0] : loi.property;
+                    const tenant = Array.isArray(loi.tenant) ? loi.tenant[0] : loi.tenant;
                     const tenantName = tenant?.company_name
                       || [tenant?.first_name, tenant?.last_name].filter(Boolean).join(' ')
                       || 'Unknown';

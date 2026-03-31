@@ -36,7 +36,11 @@ interface InvoiceRow {
     id: string;
     lessee_name: string;
     premises_address: string;
-  }[] | null;
+  }[] | {
+    id: string;
+    lessee_name: string;
+    premises_address: string;
+  } | null;
 }
 
 export default async function TenantInvoicesPage() {
@@ -129,7 +133,7 @@ export default async function TenantInvoicesPage() {
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
                   {invoices.map((invoice) => {
-                    const lease = invoice.lease?.[0] ?? null;
+                    const lease = Array.isArray(invoice.lease) ? invoice.lease[0] : invoice.lease;
                     const badge = statusBadge[invoice.status as InvoiceStatus] ?? statusBadge.draft;
 
                     return (

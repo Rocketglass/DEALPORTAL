@@ -49,8 +49,8 @@ export default async function TenantLoisPage() {
     id: string;
     status: string;
     sent_at: string | null;
-    property: { id: string; name: string }[] | null;
-    landlord: { id: string; first_name: string | null; last_name: string | null; company_name: string | null }[] | null;
+    property: { id: string; name: string }[] | { id: string; name: string } | null;
+    landlord: { id: string; first_name: string | null; last_name: string | null; company_name: string | null }[] | { id: string; first_name: string | null; last_name: string | null; company_name: string | null } | null;
   }
 
   let lois: LoiRow[] = [];
@@ -123,8 +123,8 @@ export default async function TenantLoisPage() {
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
                   {lois.map((loi) => {
-                    const property = loi.property?.[0] ?? null;
-                    const landlord = loi.landlord?.[0] ?? null;
+                    const property = Array.isArray(loi.property) ? loi.property[0] : loi.property;
+                    const landlord = Array.isArray(loi.landlord) ? loi.landlord[0] : loi.landlord;
                     const landlordName = landlord?.company_name
                       || [landlord?.first_name, landlord?.last_name].filter(Boolean).join(' ')
                       || 'Unknown';
