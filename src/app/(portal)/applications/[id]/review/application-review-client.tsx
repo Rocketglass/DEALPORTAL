@@ -508,7 +508,7 @@ export function ApplicationReviewClient({ application }: Props) {
             <Badge status={appStatus} />
           </div>
           <p className="mt-1 text-muted-foreground">
-            {property.name}
+            {property?.name ?? 'General Application'}
             {unit?.suite_number && ` — Suite ${unit.suite_number}`}
             <span className="mx-2">·</span>
             Submitted {formatDate(app.submitted_at ?? app.created_at)}
