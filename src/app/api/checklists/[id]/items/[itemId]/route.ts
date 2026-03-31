@@ -56,6 +56,8 @@ export async function PATCH(
 
     // Build update object with only provided fields
     const updates: Record<string, unknown> = {};
+    // Track the users.id for audit logging (separate from contacts.id for FK columns)
+    let resolvedUserId: string | null = null;
 
     if (body.isCompleted !== undefined) {
       updates.is_completed = body.isCompleted;
@@ -79,6 +81,7 @@ export async function PATCH(
             if (dbUser?.contact_id) {
               updates.completed_by = dbUser.contact_id;
             }
+            resolvedUserId = dbUser?.id ?? null;
           }
         } catch {
           // No auth available — that's fine for public access
@@ -114,8 +117,9 @@ export async function PATCH(
     }
 
     // Audit log (best-effort, non-blocking)
+    // user_id references users(id) — use resolvedUserId from the auth check above
     void supabase.from('audit_log').insert({
-      user_id: (updates.completed_by as string | undefined) ?? null,
+      user_id: resolvedUserId,
       action: 'checklist_item_updated',
       entity_type: 'deal_checklist_item',
       entity_id: itemId,

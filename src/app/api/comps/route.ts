@@ -35,7 +35,7 @@ export async function GET(): Promise<NextResponse> {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    await requireBrokerOrAdminForApi();
+    const user = await requireBrokerOrAdminForApi();
     const supabase = await createClient();
     const body = await request.json();
 
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       cap_rate: toNullableNumber(body.cap_rate),
       notes: toNullableString(body.notes),
       source: toNullableString(body.source) ?? 'manual',
-      created_by: toNullableString(body.created_by),
+      created_by: user.contactId ?? null,
     };
 
     const { data: comp, error: insertError } = await supabase
