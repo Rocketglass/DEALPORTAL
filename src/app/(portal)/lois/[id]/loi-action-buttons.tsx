@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, Copy, Check, Loader2, Printer } from 'lucide-react';
+import { Send, Copy, Check, Loader2, Printer, ScrollText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
@@ -17,6 +17,7 @@ export function LoiActionButtons({ loiId, status }: LoiActionButtonsProps) {
   const [sendResult, setSendResult] = useState<'success' | 'error' | null>(null);
 
   const isDraft = status === 'draft';
+  const isAgreed = status === 'agreed';
 
   async function handleCopyLink() {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
@@ -84,20 +85,30 @@ export function LoiActionButtons({ loiId, status }: LoiActionButtonsProps) {
           {copied ? 'Copied!' : 'Copy Link'}
         </Button>
       )}
-      <Button
-        variant="primary"
-        icon={sending ? Loader2 : Send}
-        onClick={handleSend}
-        disabled={sending}
-      >
-        {sendResult === 'success'
-          ? 'Sent!'
-          : sendResult === 'error'
-            ? 'Failed'
-            : isDraft
-              ? 'Send to Landlord'
-              : 'Resend'}
-      </Button>
+      {isAgreed ? (
+        <Button
+          variant="primary"
+          icon={ScrollText}
+          onClick={() => router.push(`/leases/new?loi=${loiId}`)}
+        >
+          Convert to Lease
+        </Button>
+      ) : (
+        <Button
+          variant="primary"
+          icon={sending ? Loader2 : Send}
+          onClick={handleSend}
+          disabled={sending}
+        >
+          {sendResult === 'success'
+            ? 'Sent!'
+            : sendResult === 'error'
+              ? 'Failed'
+              : isDraft
+                ? 'Send to Landlord'
+                : 'Resend'}
+        </Button>
+      )}
     </div>
   );
 }

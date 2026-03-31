@@ -9,6 +9,9 @@ import {
   Building2,
   XCircle,
   Check,
+  Bell,
+  ArrowRight,
+  Inbox,
 } from 'lucide-react';
 import type {
   ApplicationStatus,
@@ -17,6 +20,7 @@ import type {
   LeaseStatus,
 } from '@/types/database';
 import type { TenantApplicationWithDeal } from '@/lib/queries/tenant';
+import type { Notification } from '@/lib/queries/notifications';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -407,15 +411,111 @@ function ApplicationCard({
 }
 
 // ---------------------------------------------------------------------------
+// Notification time formatting
+// ---------------------------------------------------------------------------
+
+function formatNotificationTime(isoDate: string): string {
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60_000);
+  const diffHours = Math.floor(diffMs / 3_600_000);
+  const diffDays = Math.floor(diffMs / 86_400_000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ---------------------------------------------------------------------------
+// Pending Actions
+// ---------------------------------------------------------------------------
+
+function PendingActions({ notifications }: { notifications: Notification[] }) {
+  if (notifications.length === 0) {
+    return (
+      <div className="rounded-xl border border-[var(--border)] bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+            <Inbox className="h-4 w-4 text-[var(--muted-foreground)]" />
+          </div>
+          <div>
+            <h2 className="text-[14px] font-semibold">Pending Actions</h2>
+            <p className="text-[12px] text-[var(--muted-foreground)]">You're all caught up — no pending actions.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-white p-5 shadow-sm">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+          <Bell className="h-4 w-4 text-[var(--primary)]" />
+        </div>
+        <div>
+          <h2 className="text-[14px] font-semibold">Pending Actions</h2>
+          <p className="text-[12px] text-[var(--muted-foreground)]">
+            {notifications.length} {notifications.length === 1 ? 'item needs' : 'items need'} your attention
+          </p>
+        </div>
+      </div>
+
+      <ul className="mt-4 divide-y divide-[var(--border)]">
+        {notifications.map((n) => (
+          <li key={n.id} className="py-3 first:pt-0 last:pb-0">
+            {n.link_url ? (
+              <Link href={n.link_url} className="group flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium group-hover:text-[var(--primary)] transition-colors">
+                    {n.title}
+                  </p>
+                  <p className="mt-0.5 text-[12px] text-[var(--muted-foreground)] line-clamp-1">
+                    {n.message}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2 pt-0.5">
+                  <span className="text-[11px] text-[var(--muted-foreground)] tabular-nums">
+                    {formatNotificationTime(n.created_at)}
+                  </span>
+                  <ArrowRight className="h-3.5 w-3.5 text-[var(--muted-foreground)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </Link>
+            ) : (
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium">{n.title}</p>
+                  <p className="mt-0.5 text-[12px] text-[var(--muted-foreground)] line-clamp-1">
+                    {n.message}
+                  </p>
+                </div>
+                <span className="shrink-0 text-[11px] text-[var(--muted-foreground)] tabular-nums pt-0.5">
+                  {formatNotificationTime(n.created_at)}
+                </span>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main client component
 // ---------------------------------------------------------------------------
 
 interface TenantDashboardClientProps {
   applications: TenantApplicationWithDeal[];
+  notifications?: Notification[];
 }
 
 export function TenantDashboardClient({
   applications,
+  notifications = [],
 }: TenantDashboardClientProps) {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
@@ -425,6 +525,11 @@ export function TenantDashboardClient({
         <p className="mt-0.5 text-[13px] text-muted-foreground">
           Track your applications and deals
         </p>
+      </div>
+
+      {/* Pending Actions */}
+      <div className="mt-6">
+        <PendingActions notifications={notifications} />
       </div>
 
       {/* Applications list */}

@@ -1,4 +1,5 @@
-import { FileText, Handshake, ScrollText, Receipt, DollarSign, TrendingUp, Clock, CheckCircle2, BarChart3 } from 'lucide-react';
+import Link from 'next/link';
+import { FileText, Handshake, ScrollText, Receipt, DollarSign, TrendingUp, Clock, CheckCircle2, BarChart3, Activity, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -12,6 +13,8 @@ import {
   getVacancyIntelligence,
 } from '@/lib/queries/dashboard';
 import { getPropertyAnalytics } from '@/lib/queries/property-analytics';
+import { requireBrokerOrAdmin } from '@/lib/security/auth-guard';
+import { getRecentNotifications, type Notification } from '@/lib/queries/notifications';
 import DashboardCharts from './dashboard-charts';
 import VacancyIntelligenceSection from './vacancy-intelligence';
 import PropertyPerformance from './property-performance';
@@ -114,10 +117,130 @@ function PipelineRow({ stage }: { stage: PipelineStage }) {
 }
 
 // ---------------------------------------------------------------------------
+// Activity Timeline
+// ---------------------------------------------------------------------------
+
+function formatTimelineDate(isoDate: string): string {
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60_000);
+  const diffHours = Math.floor(diffMs / 3_600_000);
+  const diffDays = Math.floor(diffMs / 86_400_000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function ActivityTimeline({ notifications }: { notifications: Notification[] }) {
+  if (notifications.length === 0) {
+    return (
+      <Card className="border border-border-subtle">
+        <CardContent className="p-5 sm:p-6">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-[15px] font-semibold tracking-tight">Activity Timeline</h2>
+          </div>
+          <p className="mt-3 text-[13px] text-muted-foreground">
+            LOI and lease activity will appear here as negotiations progress.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border border-border-subtle">
+      <CardContent className="p-5 sm:p-6">
+        <div className="flex items-center gap-2">
+          <Activity className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-[15px] font-semibold tracking-tight">Activity Timeline</h2>
+        </div>
+        <p className="mt-0.5 text-[12px] text-muted-foreground">
+          Recent LOI and lease negotiation activity
+        </p>
+
+        <div className="mt-5 relative">
+          {/* Timeline line */}
+          <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border-subtle" />
+
+          <ul className="space-y-0">
+            {notifications.map((n, idx) => {
+              const isUnread = !n.read;
+              return (
+                <li key={n.id} className="relative pl-8 pb-5 last:pb-0">
+                  {/* Timeline dot */}
+                  <div
+                    className={cn(
+                      'absolute left-[7px] top-1.5 h-[9px] w-[9px] rounded-full border-2',
+                      isUnread
+                        ? 'border-primary bg-primary'
+                        : 'border-border bg-white'
+                    )}
+                  />
+
+                  {n.link_url ? (
+                    <Link href={n.link_url} className="group block">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className={cn(
+                            'text-[13px] transition-colors',
+                            isUnread ? 'font-semibold text-foreground' : 'font-medium text-foreground/80',
+                            'group-hover:text-primary'
+                          )}>
+                            {n.title}
+                          </p>
+                          <p className="mt-0.5 text-[12px] text-muted-foreground line-clamp-1">
+                            {n.message}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
+                          <span className="text-[11px] text-muted-foreground tabular-nums">
+                            {formatTimelineDate(n.created_at)}
+                          </span>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+                    </Link>
+                  ) : (
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className={cn(
+                          'text-[13px]',
+                          isUnread ? 'font-semibold text-foreground' : 'font-medium text-foreground/80'
+                        )}>
+                          {n.title}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-muted-foreground line-clamp-1">
+                          {n.message}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums pt-0.5">
+                        {formatTimelineDate(n.created_at)}
+                      </span>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
 export default async function DashboardPage() {
+  const user = await requireBrokerOrAdmin();
+
   const [
     { data: stats },
     { data: activity },
@@ -127,6 +250,7 @@ export default async function DashboardPage() {
     { data: dealFlowTimeline },
     { data: vacancy },
     { data: propertyAnalytics },
+    { data: timelineNotifications },
   ] = await Promise.all([
     getDashboardStats(),
     getRecentActivity(),
@@ -136,6 +260,7 @@ export default async function DashboardPage() {
     getDealFlowTimeline(),
     getVacancyIntelligence(),
     getPropertyAnalytics(),
+    getRecentNotifications(user.id),
   ]);
 
   const statCards = [
@@ -196,6 +321,11 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Activity Timeline */}
+      <div className="mt-6">
+        <ActivityTimeline notifications={timelineNotifications ?? []} />
       </div>
 
       {/* Commission Summary */}

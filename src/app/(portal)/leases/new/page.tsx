@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ChevronDown,
   ChevronUp,
@@ -135,9 +135,11 @@ function loiLabel(loi: LoiWithRelations): string {
 
 export default function CreateLeasePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedLoiId = searchParams.get('loi') ?? '';
 
   const [mode, setMode] = useState<'loi' | 'manual'>('loi');
-  const [selectedLoiId, setSelectedLoiId] = useState('');
+  const [selectedLoiId, setSelectedLoiId] = useState(preselectedLoiId);
   const [form, setForm] = useState(getDefaultLeaseForm());
   const [expanded, setExpanded] = useState<Set<string>>(
     new Set(['parties', 'premises', 'base_rent', 'term']),
@@ -178,6 +180,33 @@ export default function CreateLeasePage() {
     }
     loadAgreedLois();
   }, []);
+
+  // Auto-import LOI if preselected via query param
+  useEffect(() => {
+    if (preselectedLoiId && agreedLois.length > 0 && !importedLoi) {
+      const loi = agreedLois.find((l) => l.id === preselectedLoiId);
+      if (loi) {
+        setSelectedLoiId(loi.id);
+        setImportedLoi(loi);
+        // Pre-fill form from LOI sections
+        const sectionMap: Record<string, string> = {};
+        for (const s of (loi.sections ?? [])) {
+          sectionMap[s.section_key] = s.agreed_value ?? s.proposed_value ?? '';
+        }
+        setForm((prev) => ({
+          ...prev,
+          lessee_name: loi.tenant?.company_name ?? '',
+          premises_address: loi.property?.address ?? '',
+          premises_sf: String(loi.unit?.sf ?? ''),
+          base_monthly_rent: sectionMap.base_rent ?? prev.base_monthly_rent,
+          lease_term_months: sectionMap.term ?? prev.lease_term_months,
+          cam_percentage: sectionMap.cam ?? prev.cam_percentage,
+          security_deposit: sectionMap.security_deposit ?? prev.security_deposit,
+          parking_spaces: sectionMap.parking ?? prev.parking_spaces,
+        }));
+      }
+    }
+  }, [preselectedLoiId, agreedLois, importedLoi]);
 
   // ---- Helpers ----
 
