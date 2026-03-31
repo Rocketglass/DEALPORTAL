@@ -130,8 +130,10 @@ interface LoiNegotiationViewProps {
 // ---------------------------------------------------------------------------
 
 /** Determine the actor's party role from the created_by display string */
-function actorRole(createdBy: string): 'broker' | 'landlord' | 'tenant' {
+function actorRole(createdBy: string | null | undefined): 'broker' | 'landlord' | 'tenant' {
+  if (!createdBy) return 'broker';
   const lower = createdBy.toLowerCase();
+  // Handle legacy role strings stored in created_by
   if (lower.includes('landlord') || lower.includes('owner') || lower.includes('lessor')) {
     return 'landlord';
   }
