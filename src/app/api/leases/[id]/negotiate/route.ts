@@ -57,7 +57,7 @@ export async function GET(
         broker_contact_id,
         created_at,
         property:properties(name, address, city, state),
-        unit:units(suite_number),
+        unit:units!leases_unit_id_fkey(suite_number),
         tenant:contacts!leases_tenant_contact_id_fkey(company_name, first_name, last_name),
         landlord:contacts!leases_landlord_contact_id_fkey(company_name, first_name, last_name),
         broker:contacts!leases_broker_contact_id_fkey(company_name, first_name, last_name),

@@ -288,7 +288,7 @@ export async function POST(
             tenant_contact_id,
             broker_contact_id,
             property:properties(address, city, state),
-            unit:units(suite_number),
+            unit:units!leases_unit_id_fkey(suite_number),
             tenant:contacts!leases_tenant_contact_id_fkey(email, first_name, last_name, company_name),
             landlord:contacts!leases_landlord_contact_id_fkey(email, first_name, last_name, company_name),
             broker:contacts!leases_broker_contact_id_fkey(email, first_name, last_name, company_name)
@@ -379,7 +379,7 @@ export async function POST(
             tenant_contact_id,
             broker_contact_id,
             property:properties(address, city, state),
-            unit:units(suite_number),
+            unit:units!leases_unit_id_fkey(suite_number),
             sections:lease_sections!inner(id, section_label)
           `)
           .eq('id', leaseId)
