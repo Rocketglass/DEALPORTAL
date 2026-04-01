@@ -18,14 +18,19 @@ function buildContentSecurityPolicy(): string {
     'default-src': ["'self'"],
     'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
     'style-src': ["'self'", "'unsafe-inline'"],
-    'img-src': ["'self'", 'data:', 'blob:'],
+    'img-src': ["'self'", 'data:', 'blob:', ...(supabaseUrl ? [supabaseUrl] : [])],
     'font-src': ["'self'", 'data:'],
     'connect-src': [
       "'self'",
       // Supabase project URL for API, Auth, Storage, and Realtime
       ...(supabaseUrl ? [supabaseUrl, supabaseUrl.replace('https://', 'wss://')] : []),
     ],
-    'frame-src': ['https://maps.google.com', 'https://*.google.com'],
+    'frame-src': [
+      'https://maps.google.com',
+      'https://*.google.com',
+      // Supabase Storage signed URLs for document viewer iframe
+      ...(supabaseUrl ? [supabaseUrl] : []),
+    ],
     'object-src': ["'none'"],
     'base-uri': ["'self'"],
     'form-action': ["'self'"],
