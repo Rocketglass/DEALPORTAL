@@ -376,13 +376,11 @@ function ApplicationCard({
   const showDealPipeline = isApproved && (loi !== null || lease !== null);
   const href = getApplicationLink(application);
 
-  const Wrapper = isInfoRequested ? 'div' : Link;
-  const wrapperProps = isInfoRequested
-    ? { className: 'block rounded-xl bg-white p-6 shadow-sm' }
-    : { href, className: 'block rounded-xl bg-white p-6 shadow-sm transition-shadow hover:shadow-md' };
+  const cardClass = isInfoRequested
+    ? 'block rounded-xl bg-white p-6 shadow-sm'
+    : 'block rounded-xl bg-white p-6 shadow-sm transition-shadow hover:shadow-md';
 
-  return (
-    <Wrapper {...(wrapperProps as React.ComponentProps<typeof Wrapper>)}>
+  const content = (
       {/* Header row: business name + status badge */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -527,8 +525,13 @@ function ApplicationCard({
           </div>
         </div>
       )}
-    </Wrapper>
+    </>
   );
+
+  if (isInfoRequested) {
+    return <div className={cardClass}>{content}</div>;
+  }
+  return <Link href={href} className={cardClass}>{content}</Link>;
 }
 
 // ---------------------------------------------------------------------------
