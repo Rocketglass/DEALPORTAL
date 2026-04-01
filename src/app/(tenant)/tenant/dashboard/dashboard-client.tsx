@@ -443,7 +443,7 @@ function PendingActions({ notifications }: { notifications: Notification[] }) {
           </div>
           <div>
             <h2 className="text-[14px] font-semibold">Pending Actions</h2>
-            <p className="text-[12px] text-[var(--muted-foreground)]">You're all caught up — no pending actions.</p>
+            <p className="text-[12px] text-[var(--muted-foreground)]">You&apos;re all caught up — no pending actions.</p>
           </div>
         </div>
       </div>

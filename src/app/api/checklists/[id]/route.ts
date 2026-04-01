@@ -16,9 +16,9 @@ export async function GET(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    let user;
+    let _user;
     try {
-      user = await requireBrokerOrAdminForApi();
+      _user = await requireBrokerOrAdminForApi();
     } catch (authError) {
       return NextResponse.json(
         { error: (authError as Error).message },

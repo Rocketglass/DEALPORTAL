@@ -15,8 +15,6 @@ import {
   Shield,
   Building2,
   MapPin,
-  LogIn,
-  UserPlus,
 } from 'lucide-react';
 import { PublicHeader } from '@/components/layout/public-header';
 import { cn } from '@/lib/utils';

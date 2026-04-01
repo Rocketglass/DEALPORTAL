@@ -10,13 +10,6 @@ export const metadata = {
   title: 'LOIs | Tenant Portal',
 };
 
-function formatDate(date: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(date));
-}
 
 const statusBadge: Record<LoiStatus, { label: string; className: string }> = {
   draft: { label: 'Draft', className: 'bg-blue-50 text-blue-700' },

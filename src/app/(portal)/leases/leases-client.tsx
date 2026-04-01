@@ -104,13 +104,13 @@ export function LeasesClient({ leases, error }: Props) {
             View and manage all lease agreements.
           </p>
         </div>
-        <a
+        <Link
           href="/leases/new"
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors"
         >
           <ScrollText className="h-4 w-4" />
           Create Lease
-        </a>
+        </Link>
       </div>
 
       <DataTable
