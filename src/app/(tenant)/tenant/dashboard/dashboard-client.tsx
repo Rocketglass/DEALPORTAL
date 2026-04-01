@@ -244,23 +244,25 @@ function InfoRequestedSection({
   reviewNotes: string | null;
 }) {
   const [files, setFiles] = useState<File[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploaded, setUploaded] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [responseText, setResponseText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setFiles(Array.from(e.target.files));
-      setUploaded(false);
-      setUploadError(null);
+      setSubmitted(false);
+      setSubmitError(null);
     }
   }, []);
 
-  async function handleUpload() {
-    if (files.length === 0) return;
-    setUploading(true);
-    setUploadError(null);
+  async function handleSubmit() {
+    if (!responseText.trim() && files.length === 0) return;
+    setSubmitting(true);
+    setSubmitError(null);
     try {
+      // Upload files if any
       for (const file of files) {
         const formData = new FormData();
         formData.append('file', file);
@@ -274,12 +276,26 @@ function InfoRequestedSection({
           throw new Error(json.error ?? `Failed to upload ${file.name}`);
         }
       }
-      setUploaded(true);
+
+      // Update status back to submitted with the response as review notes
+      if (responseText.trim()) {
+        await fetch(`/api/applications/${applicationId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: 'submitted',
+            review_notes: responseText.trim(),
+          }),
+        });
+      }
+
+      setSubmitted(true);
       setFiles([]);
+      setResponseText('');
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      setSubmitError(err instanceof Error ? err.message : 'Failed to send response');
     } finally {
-      setUploading(false);
+      setSubmitting(false);
     }
   }
 
@@ -302,19 +318,28 @@ function InfoRequestedSection({
             </p>
           )}
 
-          {/* Upload section */}
           <div className="mt-4 space-y-3">
-            {uploaded ? (
+            {submitted ? (
               <div className="flex items-center gap-2 text-sm text-green-700">
                 <CheckCircle2 className="h-4 w-4" />
-                Documents uploaded successfully. Your broker has been notified.
+                Response sent successfully. Your broker has been notified.
               </div>
             ) : (
               <>
+                {/* Written response */}
+                <textarea
+                  rows={3}
+                  value={responseText}
+                  onChange={(e) => setResponseText(e.target.value)}
+                  placeholder="Write your response to the broker..."
+                  className="w-full resize-none rounded-lg border border-orange-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                />
+
+                {/* File upload */}
                 <div className="flex items-center gap-3">
                   <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-orange-300 bg-white px-3 py-2 text-sm font-medium text-orange-800 hover:bg-orange-50 transition-colors">
                     <Upload className="h-4 w-4" />
-                    Choose Files
+                    Attach Files
                     <input
                       type="file"
                       multiple
@@ -329,23 +354,23 @@ function InfoRequestedSection({
                     </span>
                   )}
                 </div>
-                {files.length > 0 && (
-                  <button
-                    onClick={handleUpload}
-                    disabled={uploading}
-                    className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 transition-colors disabled:opacity-60"
-                  >
-                    {uploading ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</>
-                    ) : (
-                      <><Upload className="h-4 w-4" /> Send Additional Info</>
-                    )}
-                  </button>
-                )}
+
+                {/* Submit */}
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting || (!responseText.trim() && files.length === 0)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 transition-colors disabled:opacity-60"
+                >
+                  {submitting ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</>
+                  ) : (
+                    <><ArrowRight className="h-4 w-4" /> Send Response</>
+                  )}
+                </button>
               </>
             )}
-            {uploadError && (
-              <p className="text-sm text-red-600">{uploadError}</p>
+            {submitError && (
+              <p className="text-sm text-red-600">{submitError}</p>
             )}
           </div>
         </div>
