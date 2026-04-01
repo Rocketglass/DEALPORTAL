@@ -137,6 +137,8 @@ function formatTimelineDate(isoDate: string): string {
 }
 
 function ActivityTimeline({ notifications }: { notifications: Notification[] }) {
+  const INITIAL_SHOW = 10;
+
   if (notifications.length === 0) {
     return (
       <Card className="border border-border-subtle">
@@ -156,15 +158,18 @@ function ActivityTimeline({ notifications }: { notifications: Notification[] }) 
   return (
     <Card className="border border-border-subtle">
       <CardContent className="p-5 sm:p-6">
-        <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-[15px] font-semibold tracking-tight">Activity Timeline</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-[15px] font-semibold tracking-tight">Activity Timeline</h2>
+          </div>
+          <span className="text-[11px] text-muted-foreground">{notifications.length} events</span>
         </div>
         <p className="mt-0.5 text-[12px] text-muted-foreground">
-          Recent LOI and lease negotiation activity
+          LOI and lease negotiation activity
         </p>
 
-        <div className="mt-5 relative">
+        <div className="mt-5 relative max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
           {/* Timeline line */}
           <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border-subtle" />
 
@@ -260,7 +265,7 @@ export default async function DashboardPage() {
     getDealFlowTimeline(),
     getVacancyIntelligence(),
     getPropertyAnalytics(),
-    getRecentNotifications(user.id),
+    getRecentNotifications(user.id, 100),
   ]);
 
   const statCards = [
