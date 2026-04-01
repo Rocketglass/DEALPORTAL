@@ -147,7 +147,7 @@ export async function getTenantApplications(contactId: string | null): Promise<{
       return {
         id: app.id,
         businessName: app.business_name,
-        propertyName: property?.name ?? 'Unknown Property',
+        propertyName: property?.name ?? 'General Application',
         suiteName: unit?.suite_number ?? null,
         status: app.status as ApplicationStatus,
         submittedAt: app.submitted_at,

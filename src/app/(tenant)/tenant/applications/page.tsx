@@ -121,7 +121,7 @@ export default async function TenantApplicationsPage() {
                             href="/tenant/dashboard"
                             className="text-[13px] font-medium text-primary hover:text-primary/80 transition-colors"
                           >
-                            View
+                            Details
                           </Link>
                         </td>
                       </tr>
