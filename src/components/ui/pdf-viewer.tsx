@@ -16,8 +16,8 @@ function isImageFile(fileName?: string, url?: string): boolean {
 }
 
 export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
-  const [zoom, setZoom] = useState(100);
   const isImage = isImageFile(fileName, url);
+  const [zoom, setZoom] = useState(isImage ? 50 : 100);
 
   // Close on Escape key
   useEffect(() => {
@@ -138,17 +138,18 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
         {/* Document content */}
         <div className="flex-1 bg-[#f1f5f9] overflow-auto">
           {isImage ? (
-            <div className="flex items-start justify-center p-4 min-h-full">
+            <div className="flex items-start justify-center p-4 min-h-full overflow-auto">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={url}
                 alt={fileName || 'Document'}
                 style={{
-                  width: `${zoom}%`,
-                  maxWidth: 'none',
-                  transition: 'width 0.15s ease',
+                  maxWidth: `${zoom}%`,
+                  width: 'auto',
+                  height: 'auto',
+                  transition: 'max-width 0.15s ease',
                 }}
-                className="rounded shadow-sm"
+                className="rounded shadow-sm object-contain"
               />
             </div>
           ) : (
