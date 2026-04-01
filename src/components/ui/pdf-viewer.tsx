@@ -17,7 +17,16 @@ function isImageFile(fileName?: string, url?: string): boolean {
 
 export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
   const isImage = isImageFile(fileName, url);
-  const [zoom, setZoom] = useState(isImage ? 50 : 100);
+  const [zoom, setZoom] = useState(100);
+  const [initialized, setInitialized] = useState(false);
+
+  // Set initial zoom on client mount to avoid hydration mismatch
+  useEffect(() => {
+    if (!initialized) {
+      setZoom(isImage ? 50 : 100);
+      setInitialized(true);
+    }
+  }, [isImage, initialized]);
 
   // Close on Escape key
   useEffect(() => {
