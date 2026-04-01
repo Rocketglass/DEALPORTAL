@@ -381,6 +381,7 @@ function ApplicationCard({
     : 'block rounded-xl bg-white p-6 shadow-sm transition-shadow hover:shadow-md';
 
   const content = (
+    <>
       {/* Header row: business name + status badge */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
