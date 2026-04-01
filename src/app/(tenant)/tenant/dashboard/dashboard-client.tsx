@@ -361,7 +361,7 @@ function InfoRequestedSection({
 function getApplicationLink(application: TenantApplicationWithDeal): string {
   if (application.lease) return `/tenant/leases/${application.lease.id}`;
   if (application.loi) return `/tenant/lois/${application.loi.id}`;
-  return '/tenant/applications';
+  return `/tenant/applications/${application.id}`;
 }
 
 function ApplicationCard({

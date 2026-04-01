@@ -118,7 +118,7 @@ export default async function TenantApplicationsPage() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <Link
-                            href="/tenant/dashboard"
+                            href={`/tenant/applications/${app.id}`}
                             className="text-[13px] font-medium text-primary hover:text-primary/80 transition-colors"
                           >
                             Details

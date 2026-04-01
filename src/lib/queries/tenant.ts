@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type {
   ApplicationStatus,
+  ApplicationWithRelations,
   LoiStatus,
   LoiSectionStatus,
   LeaseStatus,
@@ -181,6 +182,63 @@ export async function getTenantApplications(contactId: string | null): Promise<{
     return { data: result, error: null };
   } catch (err) {
     console.error('getTenantApplications error:', err);
+    return { data: null, error: (err as Error).message };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Single application detail
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch a single application by ID for the tenant detail page.
+ * Returns the full ApplicationWithRelations shape (with property, unit,
+ * contact, and documents).
+ *
+ * Authorization: when contactId is provided (non-broker), verifies the
+ * application belongs to that contact. Brokers/admins pass null to skip.
+ */
+export async function getTenantApplication(
+  applicationId: string,
+  contactId: string | null,
+): Promise<{
+  data: ApplicationWithRelations | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('applications')
+      .select(`
+        *,
+        property:properties(*),
+        unit:units(*),
+        contact:contacts!applications_contact_id_fkey(*),
+        documents:application_documents(*)
+      `)
+      .eq('id', applicationId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return { data: null, error: null };
+      }
+      throw error;
+    }
+
+    if (!data) return { data: null, error: null };
+
+    const application = data as ApplicationWithRelations;
+
+    // Authorization: tenants can only see their own applications
+    if (contactId && application.contact_id !== contactId) {
+      return { data: null, error: null };
+    }
+
+    return { data: application, error: null };
+  } catch (err) {
+    console.error('getTenantApplication error:', err);
     return { data: null, error: (err as Error).message };
   }
 }
