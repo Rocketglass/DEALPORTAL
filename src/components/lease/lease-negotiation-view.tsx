@@ -101,6 +101,12 @@ interface LeaseMeta {
   lesseeName: string | null;
   commencementDate: string | null;
   expirationDate: string | null;
+  baseMonthlyRent: number | null;
+  camPercentage: number | null;
+  securityDeposit: number | null;
+  parkingSpaces: number | null;
+  agreedUse: string | null;
+  leaseTermMonths: number | null;
   createdAt: string;
 }
 
@@ -949,14 +955,92 @@ export function LeaseNegotiationView({ leaseId, callerRole, portalBasePath }: Le
           </div>
         )}
 
-        {/* Empty state */}
-        {sections.length === 0 && (
-          <div className="rounded-xl bg-white px-6 py-12 text-center shadow-sm">
-            <FileCheck className="mx-auto h-10 w-10 text-[#64748b]/40" />
-            <h2 className="mt-4 text-base font-semibold text-[#0f172a]">No Sections Yet</h2>
-            <p className="mt-1 text-sm text-[#64748b]">
-              No sections have been added to this lease yet. Check back later.
-            </p>
+        {/* Lease Terms Summary — shown when no negotiation sections exist */}
+        {sections.length === 0 && meta && (
+          <div className="rounded-xl bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-[#e2e8f0] px-5 py-4">
+              <h2 className="text-sm font-semibold text-[#0f172a]">Lease Terms</h2>
+            </div>
+            <div className="divide-y divide-[#f1f5f9]">
+              {meta.lessorName && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">Lessor</span>
+                  <span className="text-sm font-medium text-[#0f172a]">{meta.lessorName}</span>
+                </div>
+              )}
+              {meta.lesseeName && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">Lessee</span>
+                  <span className="text-sm font-medium text-[#0f172a]">{meta.lesseeName}</span>
+                </div>
+              )}
+              {meta.propertyAddress && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">Premises</span>
+                  <span className="text-sm font-medium text-[#0f172a]">
+                    {meta.propertyAddress}{meta.suite ? `, Suite ${meta.suite}` : ''}
+                  </span>
+                </div>
+              )}
+              {meta.premisesSf && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">Square Footage</span>
+                  <span className="text-sm font-medium text-[#0f172a]">{meta.premisesSf.toLocaleString()} SF</span>
+                </div>
+              )}
+              {meta.baseMonthlyRent != null && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">Base Monthly Rent</span>
+                  <span className="text-sm font-medium text-[#0f172a]">${meta.baseMonthlyRent.toLocaleString('en-US', { minimumFractionDigits: 2 })}/mo</span>
+                </div>
+              )}
+              {meta.leaseTermMonths != null && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">Lease Term</span>
+                  <span className="text-sm font-medium text-[#0f172a]">{meta.leaseTermMonths} months</span>
+                </div>
+              )}
+              {meta.commencementDate && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">Commencement</span>
+                  <span className="text-sm font-medium text-[#0f172a]">
+                    {new Date(meta.commencementDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+              )}
+              {meta.expirationDate && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">Expiration</span>
+                  <span className="text-sm font-medium text-[#0f172a]">
+                    {new Date(meta.expirationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+              )}
+              {meta.camPercentage != null && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">CAM Share</span>
+                  <span className="text-sm font-medium text-[#0f172a]">{meta.camPercentage}%</span>
+                </div>
+              )}
+              {meta.securityDeposit != null && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">Security Deposit</span>
+                  <span className="text-sm font-medium text-[#0f172a]">${meta.securityDeposit.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              {meta.parkingSpaces != null && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">Parking</span>
+                  <span className="text-sm font-medium text-[#0f172a]">{meta.parkingSpaces} spaces</span>
+                </div>
+              )}
+              {meta.agreedUse && (
+                <div className="flex justify-between px-5 py-3">
+                  <span className="text-sm text-[#64748b]">Agreed Use</span>
+                  <span className="text-sm font-medium text-[#0f172a]">{meta.agreedUse}</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
