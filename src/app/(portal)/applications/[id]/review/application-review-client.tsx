@@ -411,19 +411,25 @@ export function ApplicationReviewClient({ application }: Props) {
   const [statusLoading, setStatusLoading] = useState(false);
   const [notesLoading, setNotesLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showInfoRequestModal, setShowInfoRequestModal] = useState(false);
+  const [infoRequestMessage, setInfoRequestMessage] = useState('');
 
   const creditInfo = creditStatusConfig[creditStatus];
   const CreditIcon = creditInfo.icon;
 
-  async function handleStatusChange(newStatus: ApplicationStatus) {
+  async function handleStatusChange(newStatus: ApplicationStatus, message?: string) {
     if (newStatus === appStatus) return;
     setStatusLoading(true);
     setActionError(null);
     try {
+      const payload: { status: string; review_notes?: string } = { status: newStatus };
+      if (message?.trim()) {
+        payload.review_notes = message.trim();
+      }
       const res = await fetch(`/api/applications/${app.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -691,7 +697,11 @@ export function ApplicationReviewClient({ application }: Props) {
                   </span>
                 </button>
                 <button
-                  onClick={() => handleStatusChange('info_requested')}
+                  onClick={() => {
+                    if (appStatus === 'info_requested') return;
+                    setInfoRequestMessage('');
+                    setShowInfoRequestModal(true);
+                  }}
                   disabled={appStatus === 'info_requested' || statusLoading}
                   className={cn(
                     'w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
@@ -1103,6 +1113,55 @@ export function ApplicationReviewClient({ application }: Props) {
                   Document preview will be available when connected to storage.
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Request More Info Modal */}
+      {showInfoRequestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-label="Request more information" aria-modal="true">
+          <div
+            className="absolute inset-0 bg-black/50"
+            aria-hidden="true"
+            onClick={() => setShowInfoRequestModal(false)}
+          />
+          <div className="relative w-full max-w-lg mx-4 rounded-xl bg-white shadow-xl">
+            <div className="border-b border-border px-5 py-4">
+              <h3 className="text-base font-semibold">Request More Information</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Describe what additional information or documents you need from the applicant. They will be notified via email.
+              </p>
+            </div>
+            <div className="px-5 py-4">
+              <textarea
+                rows={4}
+                value={infoRequestMessage}
+                onChange={(e) => setInfoRequestMessage(e.target.value)}
+                placeholder="e.g. Please provide your most recent 2 years of tax returns and a current bank statement..."
+                className="w-full resize-none rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                autoFocus
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-border px-5 py-4">
+              <button
+                onClick={() => setShowInfoRequestModal(false)}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!infoRequestMessage.trim()) return;
+                  setShowInfoRequestModal(false);
+                  await handleStatusChange('info_requested', infoRequestMessage);
+                  setReviewNotes(infoRequestMessage.trim());
+                }}
+                disabled={!infoRequestMessage.trim() || statusLoading}
+                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
+              >
+                Send Request
+              </button>
             </div>
           </div>
         </div>
