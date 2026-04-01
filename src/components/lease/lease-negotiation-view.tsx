@@ -705,6 +705,134 @@ function BrokerActionsCard({ leaseId }: { leaseId: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Lease Response Actions — Accept or Request Changes (tenant/landlord)
+// ---------------------------------------------------------------------------
+
+function LeaseResponseActions({ leaseId, onRefresh }: { leaseId: string; onRefresh: () => void }) {
+  const [mode, setMode] = useState<'idle' | 'accept' | 'changes' | 'submitted'>('idle');
+  const [changeRequest, setChangeRequest] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleAccept() {
+    setSubmitting(true);
+    try {
+      await fetch(`/api/leases/${leaseId}/negotiate/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept_all' }),
+      });
+      setMode('submitted');
+    } catch {
+      // ignore
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleRequestChanges() {
+    if (!changeRequest.trim()) return;
+    setSubmitting(true);
+    try {
+      await fetch(`/api/leases/${leaseId}/negotiate/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'request_changes', message: changeRequest.trim() }),
+      });
+      setMode('submitted');
+    } catch {
+      // ignore
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (mode === 'submitted') {
+    return (
+      <div className="border-t border-[#e2e8f0] px-5 py-4">
+        <div className="flex items-center gap-2 text-sm text-green-700">
+          <CheckCircle2 className="h-4 w-4" />
+          Your response has been submitted. The broker has been notified.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t border-[#e2e8f0] px-5 py-4 space-y-3">
+      {mode === 'idle' && (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            onClick={() => { setMode('accept'); }}
+            className="flex-1 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Accept Terms
+          </button>
+          <button
+            onClick={() => setMode('changes')}
+            className="flex-1 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800 hover:bg-amber-100 transition-colors flex items-center justify-center gap-2"
+          >
+            <MessageSquare className="h-4 w-4" />
+            Request Changes
+          </button>
+        </div>
+      )}
+
+      {mode === 'accept' && (
+        <div className="space-y-3">
+          <p className="text-sm text-[#64748b]">
+            By accepting, you confirm you agree with all the lease terms above. The broker will proceed with preparing the lease for signature.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={handleAccept}
+              disabled={submitting}
+              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-colors disabled:opacity-60"
+            >
+              {submitting ? 'Submitting...' : 'Confirm Acceptance'}
+            </button>
+            <button
+              onClick={() => setMode('idle')}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-[#64748b] hover:bg-[#f1f5f9] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mode === 'changes' && (
+        <div className="space-y-3">
+          <textarea
+            rows={3}
+            value={changeRequest}
+            onChange={(e) => setChangeRequest(e.target.value)}
+            placeholder="Describe what changes you'd like to the lease terms..."
+            className="w-full resize-none rounded-lg border border-[#e2e8f0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#1e40af] focus:ring-2 focus:ring-[#1e40af]/20"
+            autoFocus
+          />
+          <div className="flex gap-3">
+            <button
+              onClick={handleRequestChanges}
+              disabled={submitting || !changeRequest.trim()}
+              className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 transition-colors disabled:opacity-60"
+            >
+              {submitting ? 'Sending...' : 'Send Request'}
+            </button>
+            <button
+              onClick={() => { setMode('idle'); setChangeRequest(''); }}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-[#64748b] hover:bg-[#f1f5f9] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
@@ -1041,6 +1169,11 @@ export function LeaseNegotiationView({ leaseId, callerRole, portalBasePath }: Le
                 </div>
               )}
             </div>
+
+            {/* Accept / Request Changes — for tenant and landlord only */}
+            {callerRole !== 'broker' && callerRole !== 'admin' && (
+              <LeaseResponseActions leaseId={leaseId} onRefresh={loadData} />
+            )}
           </div>
         )}
 
