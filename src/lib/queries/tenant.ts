@@ -18,6 +18,7 @@ export interface TenantApplicationWithDeal {
   status: ApplicationStatus;
   submittedAt: string | null;
   createdAt: string;
+  reviewNotes: string | null;
   loi: {
     id: string;
     status: LoiStatus;
@@ -64,6 +65,7 @@ export async function getTenantApplications(contactId: string | null): Promise<{
         submitted_at,
         created_at,
         contact_id,
+        review_notes,
         property:properties(id, name),
         unit:units(id, suite_number)
       `)
@@ -152,6 +154,7 @@ export async function getTenantApplications(contactId: string | null): Promise<{
         status: app.status as ApplicationStatus,
         submittedAt: app.submitted_at,
         createdAt: app.created_at,
+        reviewNotes: app.review_notes as string | null ?? null,
         loi: loi
           ? {
               id: loi.id,

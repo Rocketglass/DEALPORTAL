@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import {
   CheckCircle2,
@@ -12,6 +13,8 @@ import {
   Bell,
   ArrowRight,
   Inbox,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import type {
   ApplicationStatus,
@@ -230,6 +233,128 @@ function leaseStatusLabel(status: LeaseStatus): string {
 }
 
 // ---------------------------------------------------------------------------
+// Info Requested Section — upload docs + send to broker
+// ---------------------------------------------------------------------------
+
+function InfoRequestedSection({
+  applicationId,
+  reviewNotes,
+}: {
+  applicationId: string;
+  reviewNotes: string | null;
+}) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFiles(Array.from(e.target.files));
+      setUploaded(false);
+      setUploadError(null);
+    }
+  }, []);
+
+  async function handleUpload() {
+    if (files.length === 0) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('documentType', 'other');
+        const res = await fetch(`/api/applications/${applicationId}/documents`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          throw new Error(json.error ?? `Failed to upload ${file.name}`);
+        }
+      }
+      setUploaded(true);
+      setFiles([]);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="mt-6 rounded-lg border border-orange-200 bg-orange-50 p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-start gap-3">
+        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-orange-600" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-orange-800">
+            Additional information requested
+          </p>
+          {reviewNotes && (
+            <p className="mt-1 text-sm text-orange-700">
+              &ldquo;{reviewNotes}&rdquo;
+            </p>
+          )}
+          {!reviewNotes && (
+            <p className="mt-1 text-sm text-orange-700">
+              Your broker needs more information to proceed.
+            </p>
+          )}
+
+          {/* Upload section */}
+          <div className="mt-4 space-y-3">
+            {uploaded ? (
+              <div className="flex items-center gap-2 text-sm text-green-700">
+                <CheckCircle2 className="h-4 w-4" />
+                Documents uploaded successfully. Your broker has been notified.
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-orange-300 bg-white px-3 py-2 text-sm font-medium text-orange-800 hover:bg-orange-50 transition-colors">
+                    <Upload className="h-4 w-4" />
+                    Choose Files
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                  {files.length > 0 && (
+                    <span className="text-sm text-orange-700">
+                      {files.length} file{files.length > 1 ? 's' : ''} selected
+                    </span>
+                  )}
+                </div>
+                {files.length > 0 && (
+                  <button
+                    onClick={handleUpload}
+                    disabled={uploading}
+                    className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 transition-colors disabled:opacity-60"
+                  >
+                    {uploading ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</>
+                    ) : (
+                      <><Upload className="h-4 w-4" /> Send Additional Info</>
+                    )}
+                  </button>
+                )}
+              </>
+            )}
+            {uploadError && (
+              <p className="text-sm text-red-600">{uploadError}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Application card
 // ---------------------------------------------------------------------------
 
@@ -251,8 +376,13 @@ function ApplicationCard({
   const showDealPipeline = isApproved && (loi !== null || lease !== null);
   const href = getApplicationLink(application);
 
+  const Wrapper = isInfoRequested ? 'div' : Link;
+  const wrapperProps = isInfoRequested
+    ? { className: 'block rounded-xl bg-white p-6 shadow-sm' }
+    : { href, className: 'block rounded-xl bg-white p-6 shadow-sm transition-shadow hover:shadow-md' };
+
   return (
-    <Link href={href} className="block rounded-xl bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
+    <Wrapper {...(wrapperProps as React.ComponentProps<typeof Wrapper>)}>
       {/* Header row: business name + status badge */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -276,21 +406,12 @@ function ApplicationCard({
         <ProgressStepper status={application.status} />
       </div>
 
-      {/* Info requested banner */}
+      {/* Info requested banner with upload */}
       {isInfoRequested && (
-        <div className="mt-6 rounded-lg border border-orange-200 bg-orange-50 p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-orange-600" />
-            <div>
-              <p className="text-sm font-medium text-orange-800">
-                Additional information requested
-              </p>
-              <p className="mt-1 text-sm text-orange-700">
-                Your broker needs more information to proceed. Please contact them directly.
-              </p>
-            </div>
-          </div>
-        </div>
+        <InfoRequestedSection
+          applicationId={application.id}
+          reviewNotes={application.reviewNotes}
+        />
       )}
 
       {/* Approved with no LOI yet banner */}
@@ -406,7 +527,7 @@ function ApplicationCard({
           </div>
         </div>
       )}
-    </Link>
+    </Wrapper>
   );
 }
 
