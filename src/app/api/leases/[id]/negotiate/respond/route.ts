@@ -95,7 +95,8 @@ export async function POST(
 
       if (body.action === 'accept_all') {
         // Update lease negotiation_status to 'accepted'
-        await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
           .from('leases')
           .update({ negotiation_status: 'accepted', updated_at: now })
           .eq('id', leaseId);
