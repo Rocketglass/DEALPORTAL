@@ -39,10 +39,15 @@ export async function POST(
       ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       : invitation.expires_at;
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('invitations')
       .update({ token: newToken, expires_at: newExpiry, updated_at: new Date().toISOString() })
       .eq('id', id);
+
+    if (updateError) {
+      console.error('[Invitations Resend] Failed to update token:', updateError);
+      return NextResponse.json({ error: 'Failed to update invitation' }, { status: 500 });
+    }
 
     // Resend email with the new token
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || url.replace('.supabase.co', '.vercel.app');
