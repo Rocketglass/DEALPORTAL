@@ -21,7 +21,20 @@ export function LoiActionButtons({ loiId, status }: LoiActionButtonsProps) {
 
   async function handleCopyLink() {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
-    const url = `${baseUrl}/loi/${loiId}/review`;
+
+    // Generate a signed review token so the link is secure
+    let tokenParam = '';
+    try {
+      const res = await fetch(`/api/lois/${loiId}/review-token`, { method: 'POST' });
+      if (res.ok) {
+        const { token } = await res.json();
+        tokenParam = `?token=${encodeURIComponent(token)}`;
+      }
+    } catch {
+      // If token generation fails, still copy the URL (it will prompt re-auth on open)
+    }
+
+    const url = `${baseUrl}/loi/${loiId}/review${tokenParam}`;
 
     try {
       await navigator.clipboard.writeText(url);

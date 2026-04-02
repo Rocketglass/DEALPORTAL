@@ -38,8 +38,9 @@ export async function GET(
 
   const isBrokerOrAdmin = user.role === 'broker' || user.role === 'admin';
   const isLandlord = user.role === 'landlord' || user.role === 'landlord_agent';
+  const isTenant = user.role === 'tenant' || user.role === 'tenant_agent';
 
-  if (!isBrokerOrAdmin && !isLandlord) {
+  if (!isBrokerOrAdmin && !isLandlord && !isTenant) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -75,6 +76,20 @@ export async function GET(
         if ((loiCount ?? 0) === 0 && (leaseCount ?? 0) === 0) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
+      }
+    }
+
+    // Tenant ownership verification: ensure the application belongs to this tenant
+    if (isTenant) {
+      const effectiveContactId = user.principalId ?? user.contactId;
+      const { data: app } = await supabase
+        .from('applications')
+        .select('contact_id')
+        .eq('id', applicationId)
+        .single();
+
+      if (!app || app.contact_id !== effectiveContactId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }
 

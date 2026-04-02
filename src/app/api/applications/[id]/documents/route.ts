@@ -101,18 +101,33 @@ export async function POST(
     const sanitizedName = validation.sanitizedName ?? sanitizeFileName(file.name);
 
     // ----------------------------------------------------------------
-    // Verify application exists and is in an uploadable state
+    // Verify application exists, is in an uploadable state, and
+    // optionally verify the contact email matches (if provided).
     // ----------------------------------------------------------------
     const supabase = getServiceClient();
+    const contactEmail = formData.get('email') as string | null;
 
     const { data: app, error: appLookupError } = await supabase
       .from('applications')
-      .select('id, status')
+      .select('id, status, contact_id')
       .eq('id', applicationId)
       .maybeSingle();
 
     if (appLookupError || !app) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
+    }
+
+    // If the caller supplied an email, verify it matches the application's contact
+    if (contactEmail && app.contact_id) {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('email')
+        .eq('id', app.contact_id)
+        .single();
+
+      if (!contact || contact.email.toLowerCase() !== contactEmail.toLowerCase()) {
+        return NextResponse.json({ error: 'Application not found' }, { status: 404 });
+      }
     }
 
     const uploadableStatuses = ['draft', 'submitted', 'info_requested'];
