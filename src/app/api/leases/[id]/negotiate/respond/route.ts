@@ -36,10 +36,11 @@ const ACTION_TO_STATUS: Record<string, LoiSectionStatus> = {
 };
 
 interface RespondBody {
-  sectionId: string;
-  action: 'accept' | 'counter' | 'reject';
+  sectionId?: string;
+  action: 'accept' | 'counter' | 'reject' | 'accept_all' | 'request_changes';
   value?: string;
   note?: string;
+  message?: string;
   updatedAt?: string; // ISO timestamp for optimistic locking
 }
 
@@ -65,12 +66,106 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
 
+    // Handle accept_all and request_changes (whole-lease responses)
+    if (body.action === 'accept_all' || body.action === 'request_changes') {
+      const supabase = await createServiceClient();
+
+      // Fetch lease to verify party membership and get contact IDs
+      const { data: lease, error: leaseError } = await supabase
+        .from('leases')
+        .select('id, status, landlord_contact_id, tenant_contact_id, broker_contact_id, property:properties(address, city, state), unit:units!leases_unit_id_fkey(suite_number), tenant:contacts!leases_tenant_contact_id_fkey(email, first_name, last_name, company_name), landlord:contacts!leases_landlord_contact_id_fkey(email, first_name, last_name, company_name), broker:contacts!leases_broker_contact_id_fkey(email, first_name, last_name, company_name)')
+        .eq('id', leaseId)
+        .single();
+
+      if (leaseError || !lease) {
+        return NextResponse.json({ error: 'Lease not found' }, { status: 404 });
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const leaseData = lease as any;
+
+      // Determine actor role
+      const effectiveContactId = user.contactId ?? user.principalId;
+      const isLandlord = effectiveContactId === leaseData.landlord_contact_id;
+      const isTenant = effectiveContactId === leaseData.tenant_contact_id;
+      const isBrokerOrAdmin = user.role === 'broker' || user.role === 'admin';
+      const actorLabel = isLandlord ? 'Landlord' : isTenant ? 'Tenant' : 'Broker';
+
+      const now = new Date().toISOString();
+
+      if (body.action === 'accept_all') {
+        // Update lease negotiation_status to 'accepted'
+        await supabase
+          .from('leases')
+          .update({ negotiation_status: 'accepted', updated_at: now })
+          .eq('id', leaseId);
+      }
+
+      // Insert a notification for the broker (and other parties)
+      const notificationMessage = body.action === 'accept_all'
+        ? `${actorLabel} accepted all lease terms`
+        : `${actorLabel} requested changes: ${body.message ?? '(no details)'}`;
+
+      // Notify broker
+      const { data: brokerUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('contact_id', leaseData.broker_contact_id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (brokerUser) {
+        await supabase.from('notifications').insert({
+          user_id: brokerUser.id,
+          type: 'lease_response',
+          title: body.action === 'accept_all' ? 'Lease Terms Accepted' : 'Lease Changes Requested',
+          message: notificationMessage,
+          link_url: `/leases/${leaseId}`,
+          read: false,
+        });
+      }
+
+      // Notify the other party (if tenant responded, notify landlord and vice versa)
+      const otherContactId = isTenant ? leaseData.landlord_contact_id : leaseData.tenant_contact_id;
+      if (otherContactId) {
+        const { data: otherUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('contact_id', otherContactId)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (otherUser) {
+          const otherIsLandlord = otherContactId === leaseData.landlord_contact_id;
+          await supabase.from('notifications').insert({
+            user_id: otherUser.id,
+            type: 'lease_response',
+            title: body.action === 'accept_all' ? 'Lease Terms Accepted' : 'Lease Changes Requested',
+            message: notificationMessage,
+            link_url: otherIsLandlord ? `/landlord/leases/${leaseId}` : `/tenant/leases/${leaseId}`,
+            read: false,
+          });
+        }
+      }
+
+      // Audit log
+      await supabase.from('audit_log').insert({
+        user_id: user.id,
+        action: body.action === 'accept_all' ? 'lease_terms_accepted' : 'lease_changes_requested',
+        entity_type: 'lease',
+        entity_id: leaseId,
+        new_value: { actor: actorLabel, message: body.message ?? null },
+      });
+
+      return NextResponse.json({ success: true, action: body.action });
+    }
+
     const { sectionId, action } = body;
     // Sanitize user-provided text to prevent stored XSS
     const value = body.value ? sanitizeHtml(body.value) : body.value;
     const note = body.note ? sanitizeHtml(body.note) : body.note;
 
-    // Validate required fields
+    // Validate required fields for section-level responses
     if (!sectionId || !sanitizeUuid(sectionId)) {
       return NextResponse.json(
         { error: 'sectionId must be a valid UUID' },
