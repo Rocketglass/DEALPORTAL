@@ -115,8 +115,11 @@ export async function POST(
         .eq('is_active', true)
         .maybeSingle();
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+
       if (brokerUser) {
-        await supabase.from('notifications').insert({
+        await db.from('notifications').insert({
           user_id: brokerUser.id,
           type: 'lease_response',
           title: body.action === 'accept_all' ? 'Lease Terms Accepted' : 'Lease Changes Requested',
@@ -129,7 +132,7 @@ export async function POST(
       // Notify the other party (if tenant responded, notify landlord and vice versa)
       const otherContactId = isTenant ? leaseData.landlord_contact_id : leaseData.tenant_contact_id;
       if (otherContactId) {
-        const { data: otherUser } = await supabase
+        const { data: otherUser } = await db
           .from('users')
           .select('id')
           .eq('contact_id', otherContactId)
@@ -138,7 +141,7 @@ export async function POST(
 
         if (otherUser) {
           const otherIsLandlord = otherContactId === leaseData.landlord_contact_id;
-          await supabase.from('notifications').insert({
+          await db.from('notifications').insert({
             user_id: otherUser.id,
             type: 'lease_response',
             title: body.action === 'accept_all' ? 'Lease Terms Accepted' : 'Lease Changes Requested',
@@ -150,7 +153,7 @@ export async function POST(
       }
 
       // Audit log
-      await supabase.from('audit_log').insert({
+      await db.from('audit_log').insert({
         user_id: user.id,
         action: body.action === 'accept_all' ? 'lease_terms_accepted' : 'lease_changes_requested',
         entity_type: 'lease',
