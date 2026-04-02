@@ -2,7 +2,7 @@
  * POST /api/properties/[id]/photos
  *   Upload one or more photos to Supabase Storage (property-photos bucket).
  *   Accepts multipart/form-data with field name "files".
- *   Updates property.photo_urls array.
+ *   Updates property.photos array.
  *   Requires broker/admin auth.
  *
  * DELETE /api/properties/[id]/photos
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     // Verify property exists
     const { data: property, error: fetchError } = await supabase
       .from('properties')
-      .select('id, photo_urls')
+      .select('id, photos')
       .eq('id', id)
       .single();
 
@@ -162,12 +162,12 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     }
 
     // Update property record — append new URLs to existing
-    const existingUrls: string[] = Array.isArray(property.photo_urls) ? property.photo_urls : [];
+    const existingUrls: string[] = Array.isArray(property.photos) ? property.photos : [];
     const updatedUrls = [...existingUrls, ...newUrls];
 
     const { error: updateError } = await supabase
       .from('properties')
-      .update({ photo_urls: updatedUrls })
+      .update({ photos: updatedUrls })
       .eq('id', id);
 
     if (updateError) {
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
       new_value: { added_urls: newUrls } as Record<string, unknown>,
     });
 
-    return NextResponse.json({ photo_urls: updatedUrls }, { status: 200 });
+    return NextResponse.json({ photos: updatedUrls }, { status: 200 });
   } catch (error) {
     console.error('[POST /api/properties/[id]/photos] Unexpected error:', error);
     const message = error instanceof Error ? error.message : 'Internal server error';
@@ -214,7 +214,7 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
     // Verify property exists
     const { data: property, error: fetchError } = await supabase
       .from('properties')
-      .select('id, photo_urls')
+      .select('id, photos')
       .eq('id', id)
       .single();
 
@@ -242,12 +242,12 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
     }
 
     // Update property record — remove the URL
-    const existingUrls: string[] = Array.isArray(property.photo_urls) ? property.photo_urls : [];
+    const existingUrls: string[] = Array.isArray(property.photos) ? property.photos : [];
     const updatedUrls = existingUrls.filter((u) => u !== url);
 
     const { error: updateError } = await supabase
       .from('properties')
-      .update({ photo_urls: updatedUrls })
+      .update({ photos: updatedUrls })
       .eq('id', id);
 
     if (updateError) {
@@ -264,7 +264,7 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
       old_value: { removed_url: url } as Record<string, unknown>,
     });
 
-    return NextResponse.json({ photo_urls: updatedUrls }, { status: 200 });
+    return NextResponse.json({ photos: updatedUrls }, { status: 200 });
   } catch (error) {
     console.error('[DELETE /api/properties/[id]/photos] Unexpected error:', error);
     const message = error instanceof Error ? error.message : 'Internal server error';

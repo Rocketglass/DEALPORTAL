@@ -616,7 +616,7 @@ export default function PropertyDetailClient({
       {/* ================================================================= */}
       {/* Photos Section                                                     */}
       {/* ================================================================= */}
-      <PropertyPhotos propertyId={property.id} initialUrls={property.photo_urls ?? []} />
+      <PropertyPhotos propertyId={property.id} initialUrls={(property.photos as string[] | null) ?? []} />
 
       {/* ================================================================= */}
       {/* Units Table                                                        */}
@@ -1382,7 +1382,7 @@ function PropertyPhotos({ propertyId, initialUrls }: { propertyId: string; initi
       }
 
       const data = await res.json();
-      setPhotoUrls(data.photo_urls);
+      setPhotoUrls(data.photos);
       setUploadProgress(100);
     } catch {
       setError('Upload failed. Please try again.');
@@ -1411,7 +1411,7 @@ function PropertyPhotos({ propertyId, initialUrls }: { propertyId: string; initi
       }
 
       const data = await res.json();
-      setPhotoUrls(data.photo_urls);
+      setPhotoUrls(data.photos);
     } catch {
       setError('Delete failed. Please try again.');
     } finally {
