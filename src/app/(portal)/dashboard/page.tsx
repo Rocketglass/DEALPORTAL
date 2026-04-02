@@ -16,6 +16,7 @@ import { getPropertyAnalytics } from '@/lib/queries/property-analytics';
 import { requireBrokerOrAdmin } from '@/lib/security/auth-guard';
 import { getRecentNotifications, type Notification } from '@/lib/queries/notifications';
 import DashboardCharts from './dashboard-charts';
+import { RefreshButton } from './refresh-button';
 import VacancyIntelligenceSection from './vacancy-intelligence';
 import PropertyPerformance from './property-performance';
 import type { PipelineStage } from '@/lib/queries/dashboard';
@@ -163,7 +164,10 @@ function ActivityTimeline({ notifications }: { notifications: Notification[] }) 
             <Activity className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-[15px] font-semibold tracking-tight">Activity Timeline</h2>
           </div>
-          <span className="text-[11px] text-muted-foreground">{notifications.length} events</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-muted-foreground">{notifications.length} events</span>
+            <RefreshButton />
+          </div>
         </div>
         <p className="mt-0.5 text-[12px] text-muted-foreground">
           LOI and lease negotiation activity
