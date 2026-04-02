@@ -47,31 +47,58 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (user) {
-      // Ensure a public.users row exists for this auth user.
-      // We use upsert so it's idempotent — safe to call on every confirmation,
-      // including OAuth logins and re-sent confirmation emails.
-      const { error: upsertError } = await supabase
+      // Check if a users row already exists for this auth user
+      const { data: existingUser } = await supabase
         .from('users')
-        .upsert(
-          {
+        .select('id, contact_id')
+        .eq('auth_provider_id', user.id)
+        .maybeSingle();
+
+      if (!existingUser) {
+        // New registration — create a contact record from auth metadata
+        const fullName = (user.user_metadata?.full_name as string) ?? '';
+        const nameParts = fullName.trim().split(/\s+/);
+        const firstName = nameParts[0] ?? '';
+        const lastName = nameParts.slice(1).join(' ') ?? '';
+
+        // Create contact record using service client (bypasses RLS)
+        let contactId: string | null = null;
+        try {
+          const { createClient: createServiceClient } = await import('@/lib/supabase/service');
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const serviceDb = (await createServiceClient()) as any;
+
+          const { data: contact } = await serviceDb
+            .from('contacts')
+            .insert({
+              type: 'prospect',
+              first_name: firstName || null,
+              last_name: lastName || null,
+              email: user.email ?? '',
+              tags: [],
+            })
+            .select('id')
+            .single();
+
+          contactId = contact?.id ?? null;
+        } catch (contactErr) {
+          console.error('[Auth Callback] contact creation error:', contactErr);
+        }
+
+        // Create users row with contact_id
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
             auth_provider_id: user.id,
             email: user.email ?? '',
-            role: 'pending', // New registrations get 'pending' — admin must promote to 'broker'/'admin'
+            role: 'pending',
             is_active: true,
-          },
-          {
-            // If a row already exists for this auth user, skip — don't overwrite
-            // any fields that may have been updated elsewhere (e.g. role change).
-            onConflict: 'auth_provider_id',
-            ignoreDuplicates: true,
-          },
-        );
+            contact_id: contactId,
+          });
 
-      if (upsertError) {
-        // Log but don't block — the session is valid; a failed user record
-        // creation should not prevent the authenticated user from reaching
-        // the dashboard. This will surface in server logs for investigation.
-        console.error('[Auth Callback] users upsert error:', upsertError.message);
+        if (insertError) {
+          console.error('[Auth Callback] users insert error:', insertError.message);
+        }
       }
     }
 
