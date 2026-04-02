@@ -30,6 +30,7 @@ import { createClient as createServiceClient } from '@/lib/supabase/service';
 import type { LoiSectionStatus } from '@/types/database';
 import { notifyLoiSectionUpdate, notifyLoiAgreed } from '@/lib/email/notifications';
 import { sanitizeHtml, sanitizeUuid } from '@/lib/security/sanitize';
+import { verifyLoiReviewToken } from '@/lib/security/loi-token';
 
 const ACTION_TO_STATUS: Record<string, LoiSectionStatus> = {
   accept: 'accepted',
@@ -60,7 +61,7 @@ export async function POST(
       // Unauthenticated — allowed for public LOI review
     }
 
-    let body: { responses: SectionResponse[] };
+    let body: { responses: SectionResponse[]; token?: string };
     try {
       body = await request.json();
     } catch {
@@ -90,11 +91,21 @@ export async function POST(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const loiRow = loi as any;
 
-    // 3. Authorization: authenticated users must be a party; public access allowed for sent/in_negotiation
+    // 3. Authorization: authenticated users must be a party; public access requires valid token
     let role = 'landlord'; // Default to landlord for public review
     let isBrokerOrAdmin = false;
     let isLandlord = true;
     let isTenant = false;
+
+    if (!user) {
+      // Public access — require a valid HMAC-signed token
+      if (!body.token || !verifyLoiReviewToken(loiId, body.token)) {
+        return NextResponse.json(
+          { error: 'Invalid or expired review link. Please request a new link from your broker.' },
+          { status: 401 },
+        );
+      }
+    }
 
     if (user) {
       role = user.role;

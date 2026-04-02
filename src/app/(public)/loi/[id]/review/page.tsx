@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
   DollarSign,
   Calendar,
@@ -75,7 +75,9 @@ interface SectionResponse {
 
 export default function LoiReviewPage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const loiId = params.id;
+  const reviewToken = searchParams.get('token');
 
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -94,7 +96,8 @@ export default function LoiReviewPage() {
       setLoading(true);
       setFetchError(null);
       try {
-        const res = await fetch(`/api/lois/${loiId}/review-data`);
+        const tokenParam = reviewToken ? `?token=${encodeURIComponent(reviewToken)}` : '';
+        const res = await fetch(`/api/lois/${loiId}/review-data${tokenParam}`);
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
           setFetchError(json.error ?? 'Failed to load LOI');
@@ -117,7 +120,7 @@ export default function LoiReviewPage() {
     }
 
     void loadLoi();
-  }, [loiId]);
+  }, [loiId, reviewToken]);
 
   function setAction(id: string, action: ResponseAction) {
     setResponses((prev) => ({
@@ -154,7 +157,7 @@ export default function LoiReviewPage() {
       const res = await fetch(`/api/lois/${loiId}/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ responses: payload }),
+        body: JSON.stringify({ responses: payload, ...(reviewToken ? { token: reviewToken } : {}) }),
       });
 
       if (!res.ok) {

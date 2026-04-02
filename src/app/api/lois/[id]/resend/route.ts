@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { notifyLoiSentToLandlord } from '@/lib/email/notifications';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
+import { generateLoiReviewToken } from '@/lib/security/loi-token';
 
 export async function POST(
   _request: NextRequest,
@@ -83,6 +84,8 @@ export async function POST(
       ? `${property.address}, ${property.city}, ${property.state}`
       : 'Unknown property';
 
+    const reviewToken = generateLoiReviewToken(loi.id);
+
     await notifyLoiSentToLandlord(
       {
         id: loi.id,
@@ -91,6 +94,7 @@ export async function POST(
         suiteNumber: unit?.suite_number ?? '',
         brokerName,
         landlordName,
+        reviewToken,
       },
       landlord.email,
     );

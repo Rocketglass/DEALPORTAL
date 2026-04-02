@@ -44,6 +44,7 @@ interface LoiForNotification {
   brokerName: string;
   landlordName: string;
   sectionsCountered?: string[];
+  reviewToken?: string;
 }
 
 interface LeaseForNotification {
@@ -144,6 +145,7 @@ export async function notifyLoiSentToLandlord(
     suiteNumber: loi.suiteNumber,
     brokerName: loi.brokerName,
     loiId: loi.id,
+    reviewToken: loi.reviewToken,
   });
 
   await sendEmail({ to: landlordEmail, subject, html });

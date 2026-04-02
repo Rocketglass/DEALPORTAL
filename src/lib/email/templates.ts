@@ -205,6 +205,7 @@ interface LoiSentToLandlordData {
   suiteNumber: string;
   brokerName: string;
   loiId: string;
+  reviewToken?: string;
 }
 
 export function loiSentToLandlord(data: LoiSentToLandlordData): {
@@ -224,7 +225,7 @@ export function loiSentToLandlord(data: LoiSentToLandlordData): {
         ${detailRow('Broker', data.brokerName)}
       `)}
       ${paragraph('Please review the proposed terms. You can accept, counter, or reject each section individually.')}
-      ${ctaButton('Review LOI', `${PORTAL_URL}/lois/${data.loiId}`)}
+      ${ctaButton('Review LOI', `${PORTAL_URL}/loi/${data.loiId}/review${data.reviewToken ? `?token=${data.reviewToken}` : ''}`)}
     `),
   };
 }

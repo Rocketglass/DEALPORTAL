@@ -14,9 +14,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthForApi } from '@/lib/security/auth-guard';
 import { createClient as createServiceClient } from '@/lib/supabase/service';
+import { verifyLoiReviewToken } from '@/lib/security/loi-token';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
@@ -93,7 +94,16 @@ export async function GET(
         }
       }
     } else {
-      // Public access — only allow for LOIs that are open for review
+      // Public access — require a valid HMAC-signed token from the email link
+      const token = new URL(request.url).searchParams.get('token');
+      if (!token || !verifyLoiReviewToken(loiId, token)) {
+        return NextResponse.json(
+          { error: 'Invalid or expired review link. Please request a new link from your broker.' },
+          { status: 401 },
+        );
+      }
+
+      // Only allow for LOIs that are open for review
       if (!['sent', 'in_negotiation'].includes(loiData.status)) {
         return NextResponse.json(
           { error: `LOI is not currently open for responses (status: ${loiData.status})` },
