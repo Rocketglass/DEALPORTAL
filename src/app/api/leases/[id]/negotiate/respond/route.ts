@@ -108,7 +108,8 @@ export async function POST(
         : `${actorLabel} requested changes: ${body.message ?? '(no details)'}`;
 
       // Notify broker
-      const { data: brokerUser } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: brokerUser } = await (supabase as any)
         .from('users')
         .select('id')
         .eq('contact_id', leaseData.broker_contact_id)
