@@ -76,7 +76,9 @@ const ROLE_COLORS: Record<string, string> = {
 
 const INVITABLE_ROLES = [
   { value: 'landlord', label: 'Landlord' },
+  { value: 'landlord_agent', label: 'Landlord Agent' },
   { value: 'tenant', label: 'Tenant' },
+  { value: 'tenant_agent', label: 'Tenant Agent' },
   { value: 'broker', label: 'Broker' },
 ];
 
@@ -116,6 +118,10 @@ export default function UsersPage() {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('landlord');
+  const [inviteLinkType, setInviteLinkType] = useState<'property' | 'contact'>('property');
+  const [inviteLinkId, setInviteLinkId] = useState('');
+  const [properties, setProperties] = useState<{ id: string; name: string }[]>([]);
+  const [contacts, setContacts] = useState<{ id: string; name: string; type: string }[]>([]);
   const [inviting, setInviting] = useState(false);
 
   // Role change state
@@ -124,9 +130,11 @@ export default function UsersPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [usersRes, invitesRes] = await Promise.all([
+      const [usersRes, invitesRes, propsRes, contactsRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/invitations'),
+        fetch('/api/public/properties'),
+        fetch('/api/users?type=contacts'),
       ]);
 
       if (usersRes.ok) {
@@ -136,6 +144,19 @@ export default function UsersPage() {
       if (invitesRes.ok) {
         const data = await invitesRes.json();
         setInvitations(data.invitations ?? []);
+      }
+      if (propsRes.ok) {
+        const data = await propsRes.json();
+        setProperties((data.properties ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
+      }
+      if (contactsRes.ok) {
+        const data = await contactsRes.json();
+        const allContacts = (data.contacts ?? data.users ?? []) as { id: string; contact_id?: string; email: string; role?: string; contact?: { first_name?: string; last_name?: string; company_name?: string } }[];
+        setContacts(allContacts.map((c) => ({
+          id: c.contact_id ?? c.id,
+          name: c.contact?.company_name ?? [c.contact?.first_name, c.contact?.last_name].filter(Boolean).join(' ') ?? c.email,
+          type: c.role ?? 'unknown',
+        })));
       }
     } catch {
       toast({ title: 'Failed to load users', variant: 'error' });
@@ -157,7 +178,12 @@ export default function UsersPage() {
       const res = await fetch('/api/invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+        body: JSON.stringify({
+          email: inviteEmail.trim(),
+          role: inviteRole,
+          ...(inviteRole.includes('agent') && inviteLinkId ? { principalId: inviteLinkId } : {}),
+          ...(inviteLinkType === 'property' && inviteLinkId ? { propertyId: inviteLinkId } : {}),
+        }),
       });
 
       if (!res.ok) {
@@ -261,36 +287,72 @@ export default function UsersPage() {
             <p className="mt-1 text-xs text-muted-foreground">
               The user will receive an email with a link to create their account.
             </p>
-            <form onSubmit={handleInvite} className="mt-4 flex gap-3">
-              <div className="flex-1">
-                <Input
-                  type="email"
-                  placeholder="email@example.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="w-48">
-                <Select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
+            <form onSubmit={handleInvite} className="mt-4 space-y-3">
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <Input
+                    type="email"
+                    placeholder="email@example.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="w-48">
+                  <Select
+                    value={inviteRole}
+                    onChange={(e) => { setInviteRole(e.target.value); setInviteLinkId(''); }}
+                  >
+                    {INVITABLE_ROLES.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  icon={inviting ? Loader2 : Send}
+                  disabled={inviting}
                 >
-                  {INVITABLE_ROLES.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </Select>
+                  {inviting ? 'Sending...' : 'Send'}
+                </Button>
               </div>
-              <Button
-                type="submit"
-                variant="primary"
-                icon={inviting ? Loader2 : Send}
-                disabled={inviting}
-              >
-                {inviting ? 'Sending...' : 'Send'}
-              </Button>
+              {/* Link to property or principal — shown for landlord/tenant roles */}
+              {inviteRole !== 'broker' && (
+                <div className="flex gap-3 items-center">
+                  {inviteRole.includes('agent') ? (
+                    <>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">Agent for:</span>
+                      <Select
+                        value={inviteLinkId}
+                        onChange={(e) => setInviteLinkId(e.target.value)}
+                      >
+                        <option value="">Select principal...</option>
+                        {contacts
+                          .filter((c) => inviteRole === 'landlord_agent' ? c.type === 'landlord' : c.type === 'tenant')
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                      </Select>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">Link to property:</span>
+                      <Select
+                        value={inviteLinkId}
+                        onChange={(e) => setInviteLinkId(e.target.value)}
+                      >
+                        <option value="">Optional — select property...</option>
+                        {properties.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </Select>
+                    </>
+                  )}
+                </div>
+              )}
             </form>
           </CardContent>
         </Card>
