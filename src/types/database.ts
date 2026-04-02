@@ -191,7 +191,6 @@ export interface Property {
   description: string | null;
   features: Json;
   photos: Json;
-  photo_urls: string[];
   floorplan_url: string | null;
   is_active: boolean;
   created_at: string;
@@ -560,7 +559,7 @@ export interface LoiTemplate {
 // ============================================================
 
 export type ContactType = 'tenant' | 'landlord' | 'broker' | 'prospect' | 'guarantor';
-export type UserRole = 'admin' | 'broker' | 'tenant' | 'landlord' | 'tenant_agent' | 'landlord_agent';
+export type UserRole = 'admin' | 'broker' | 'pending' | 'tenant' | 'landlord' | 'tenant_agent' | 'landlord_agent';
 export type UnitStatus = 'vacant' | 'occupied' | 'pending' | 'maintenance';
 export type ApplicationType = 'general' | 'property';
 export type ApplicationStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'withdrawn' | 'info_requested';

@@ -76,9 +76,7 @@ const ROLE_COLORS: Record<string, string> = {
 
 const INVITABLE_ROLES = [
   { value: 'landlord', label: 'Landlord' },
-  { value: 'landlord_agent', label: 'Landlord Agent' },
   { value: 'tenant', label: 'Tenant' },
-  { value: 'tenant_agent', label: 'Tenant Agent' },
   { value: 'broker', label: 'Broker' },
 ];
 
