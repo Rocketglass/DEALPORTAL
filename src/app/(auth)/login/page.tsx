@@ -26,7 +26,10 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
-  const [email, setEmail] = useState('');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const invitationEmail = searchParams.get('email') || '';
+  const [email, setEmail] = useState(invitationEmail);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,8 +38,6 @@ function LoginForm() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState('');
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const invitationToken = searchParams.get('invitation');
   const baseRedirect = searchParams.get('redirect') || '/dashboard';
   // If an invitation token is present, route through the auth callback so it gets processed

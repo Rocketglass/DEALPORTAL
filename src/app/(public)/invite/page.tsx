@@ -153,14 +153,14 @@ function InviteContent() {
           {/* Actions */}
           <div className="mt-6 space-y-3">
             <Link
-              href={`/register?invitation=${token}`}
+              href={`/register?invitation=${token}&email=${encodeURIComponent(invitation.email)}`}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
             >
               <UserPlus className="h-4 w-4" />
               Create Account
             </Link>
             <Link
-              href={`/login?invitation=${token}`}
+              href={`/login?invitation=${token}&email=${encodeURIComponent(invitation.email)}`}
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-[#f1f5f9]"
             >
               <LogIn className="h-4 w-4" />

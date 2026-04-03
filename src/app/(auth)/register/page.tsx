@@ -29,13 +29,14 @@ export default function RegisterPage() {
 }
 
 function RegisterForm() {
-  const [email, setEmail] = useState('');
+  const searchParams = useSearchParams();
+  const invitationEmail = searchParams.get('email') || '';
+  const [email, setEmail] = useState(invitationEmail);
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const searchParams = useSearchParams();
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
