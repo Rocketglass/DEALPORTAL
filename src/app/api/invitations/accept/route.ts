@@ -22,6 +22,9 @@ export async function GET(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = (await createClient()) as any;
 
+    // Log token prefix for debugging (never log full token in production)
+    console.log('[Invitations Accept] Looking up token prefix:', token.substring(0, 20));
+
     const { data: invitation, error } = await supabase
       .from('invitations')
       .select('id, email, role, status, expires_at, invited_by')
@@ -29,6 +32,19 @@ export async function GET(request: NextRequest) {
       .single() as { data: { id: string; email: string; role: string; status: string; expires_at: string | null; invited_by: string | null } | null; error: unknown };
 
     if (error || !invitation) {
+      console.error('[Invitations Accept] Token lookup failed:', {
+        tokenPrefix: token.substring(0, 20),
+        tokenLength: token.length,
+        error: error,
+        hasData: !!invitation,
+      });
+
+      // Debug: count total invitations to verify table access
+      const { count } = await supabase
+        .from('invitations')
+        .select('*', { count: 'exact', head: true }) as { count: number | null };
+      console.error('[Invitations Accept] Total invitations in table:', count);
+
       return NextResponse.json(
         { error: 'Invitation not found or invalid token' },
         { status: 404 },
