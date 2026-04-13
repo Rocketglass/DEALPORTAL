@@ -283,11 +283,6 @@ export async function POST(
       .eq('id', sectionId)
       .eq('lease_id', leaseId);
 
-    // Optimistic locking: only update if section hasn't changed since client loaded it
-    if (body.updatedAt) {
-      query = query.eq('updated_at', body.updatedAt);
-    }
-
     const { data: updatedRows, error: sectionError } = await query.select('id');
 
     if (sectionError) {
@@ -295,14 +290,6 @@ export async function POST(
       return NextResponse.json(
         { error: `Failed to update section: ${sectionError.message}` },
         { status: 500 },
-      );
-    }
-
-    // If optimistic locking was used and no rows matched, the section was modified concurrently
-    if (body.updatedAt && (!updatedRows || updatedRows.length === 0)) {
-      return NextResponse.json(
-        { error: `Section "${sectionId}" was modified by another user. Please refresh and try again.` },
-        { status: 409 },
       );
     }
 

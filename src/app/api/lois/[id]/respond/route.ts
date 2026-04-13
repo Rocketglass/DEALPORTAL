@@ -220,7 +220,7 @@ export async function POST(
         agreedValue = (sectionData as any)?.proposed_value ?? null;
       }
 
-      // Update the section status with mandatory optimistic locking
+      // Update the section status
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: updated, error: sectionError } = await (supabase as any)
         .from('loi_sections')
@@ -234,14 +234,14 @@ export async function POST(
         })
         .eq('id', sectionId)
         .eq('loi_id', loiId)
-        .eq('updated_at', updatedAt)
         .select()
         .single();
 
       if (sectionError || !updated) {
+        console.error(`[LOI respond] Failed to update section ${sectionId}:`, sectionError);
         return NextResponse.json(
-          { error: 'Section was modified by another party. Please refresh and try again.' },
-          { status: 409 },
+          { error: 'Failed to update section. Please try again.' },
+          { status: 500 },
         );
       }
 
