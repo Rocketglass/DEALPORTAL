@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Building2, Loader2 } from 'lucide-react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { PasswordInput } from '@/components/ui/password-input';
 
 export default function LoginPage() {
   return (
@@ -221,18 +222,16 @@ function LoginForm() {
               />
             </div>
 
-            <div>
-              <label htmlFor="password" className={labelClasses}>Password</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className={inputClasses}
-                placeholder="Enter your password"
-              />
-            </div>
+            <PasswordInput
+              id="password"
+              label="Password"
+              labelClassName={labelClasses}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className={inputClasses}
+              placeholder="Enter your password"
+            />
 
             <button type="submit" disabled={loading} className={primaryBtnClasses}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}

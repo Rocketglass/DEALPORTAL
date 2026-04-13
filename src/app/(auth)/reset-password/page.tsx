@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building2, Loader2 } from 'lucide-react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { PasswordInput } from '@/components/ui/password-input';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -86,36 +87,28 @@ export default function ResetPasswordPage() {
               )}
 
               <div className="space-y-4">
-                <div>
-                  <label htmlFor="new-password" className="mb-1 block text-sm font-medium">
-                    New Password
-                  </label>
-                  <input
-                    id="new-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={8}
-                    className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="At least 8 characters"
-                  />
-                </div>
+                <PasswordInput
+                  id="new-password"
+                  label="New Password"
+                  labelClassName="mb-1 block text-sm font-medium"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="w-full rounded-lg border border-border px-3 py-2 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="At least 8 characters"
+                />
 
-                <div>
-                  <label htmlFor="confirm-password" className="mb-1 block text-sm font-medium">
-                    Confirm Password
-                  </label>
-                  <input
-                    id="confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="Re-enter your new password"
-                  />
-                </div>
+                <PasswordInput
+                  id="confirm-password"
+                  label="Confirm Password"
+                  labelClassName="mb-1 block text-sm font-medium"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-border px-3 py-2 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Re-enter your new password"
+                />
 
                 <button
                   type="submit"

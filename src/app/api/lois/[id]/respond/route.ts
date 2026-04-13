@@ -198,12 +198,7 @@ export async function POST(
         );
       }
 
-      if (action === 'reject' && (!note || !note.trim())) {
-        return NextResponse.json(
-          { error: `Rejection reason is required for section ${sectionId}` },
-          { status: 400 },
-        );
-      }
+      // Rejection reason is optional — landlord may not want to explain
 
       const newStatus = ACTION_TO_STATUS[action];
 

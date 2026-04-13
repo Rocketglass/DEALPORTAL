@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Building2, Loader2 } from 'lucide-react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { PasswordInput } from '@/components/ui/password-input';
 
 export default function RegisterPage() {
   return (
@@ -161,21 +162,17 @@ function RegisterForm() {
               />
             </div>
 
-            <div>
-              <label htmlFor="password" className="mb-1 block text-sm font-medium">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="At least 6 characters"
-              />
-            </div>
+            <PasswordInput
+              id="password"
+              label="Password"
+              labelClassName="mb-1 block text-sm font-medium"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full rounded-lg border border-border px-3 py-2 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="At least 6 characters"
+            />
 
             <button
               type="submit"

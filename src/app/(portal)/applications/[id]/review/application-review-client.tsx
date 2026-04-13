@@ -265,7 +265,7 @@ function CreditCheckDropdown({
             </div>
           )}
 
-          {/* Menu mode — choose upload or manual */}
+          {/* Upload credit report — no manual entry */}
           {(!mode || mode === 'menu') && (
             <div className="p-2">
               <button
@@ -280,16 +280,6 @@ function CreditCheckDropdown({
                 <div>
                   <p className="font-medium text-[#0f172a]">Upload Credit Report</p>
                   <p className="text-xs text-[#64748b]">Upload a PDF credit report</p>
-                </div>
-              </button>
-              <button
-                onClick={() => setMode('manual')}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-left hover:bg-[#f1f5f9] transition-colors"
-              >
-                <PenLine className="h-4 w-4 text-[#64748b]" />
-                <div>
-                  <p className="font-medium text-[#0f172a]">Enter Score Manually</p>
-                  <p className="text-xs text-[#64748b]">Type in the credit score and date</p>
                 </div>
               </button>
             </div>
@@ -329,50 +319,7 @@ function CreditCheckDropdown({
             </div>
           )}
 
-          {/* Manual mode — score + date form */}
-          {mode === 'manual' && (
-            <div className="p-4 space-y-3">
-              <Input
-                label="Credit Score"
-                type="number"
-                min={300}
-                max={850}
-                placeholder="e.g. 720"
-                value={manualScore}
-                onChange={(e) => setManualScore(e.target.value)}
-                hint="Score between 300 and 850"
-              />
-              <Input
-                label="Check Date"
-                type="date"
-                value={manualDate}
-                onChange={(e) => setManualDate(e.target.value)}
-              />
-              <div className="flex gap-2 pt-1">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => {
-                    setMode(null);
-                    setError(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="flex-1"
-                  onClick={handleManualSubmit}
-                  loading={saving}
-                  disabled={saving || !manualScore}
-                >
-                  Save
-                </Button>
-              </div>
-            </div>
-          )}
+          {/* Manual mode removed — credit reports must be uploaded */}
         </div>
       )}
     </div>
