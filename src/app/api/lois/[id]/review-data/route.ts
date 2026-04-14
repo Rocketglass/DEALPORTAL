@@ -33,7 +33,6 @@ export async function GET(
     const supabase = await createServiceClient();
 
     // 2. Fetch the LOI with all related data (service client bypasses RLS — auth enforced above)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: loi, error } = await supabase
       .from('lois')
       .select(`

@@ -20,7 +20,6 @@ import {
   Eye,
   X,
   Upload,
-  PenLine,
   ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -30,7 +29,6 @@ import { Badge } from '@/components/ui/badge';
 import { BackButton } from '@/components/ui/back-button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { PdfViewer } from '@/components/ui/pdf-viewer';
 import type {
   ApplicationDocument,
@@ -130,7 +128,7 @@ function SectionCard({
 
 function CreditCheckDropdown({
   applicationId,
-  onComplete,
+  onComplete: _onComplete,
   disabled,
 }: {
   applicationId: string;
@@ -140,12 +138,7 @@ function CreditCheckDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<'menu' | 'upload' | 'manual' | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [manualScore, setManualScore] = useState('');
-  const [manualDate, setManualDate] = useState(
-    new Date().toISOString().split('T')[0]
-  );
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -196,44 +189,6 @@ function CreditCheckDropdown({
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
-    }
-  }
-
-  async function handleManualSubmit() {
-    const score = parseInt(manualScore, 10);
-    if (isNaN(score) || score < 300 || score > 850) {
-      setError('Score must be between 300 and 850');
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    try {
-      const creditReportUrl =
-        (dropdownRef.current as HTMLDivElement & { _reportUrl?: string })?._reportUrl;
-
-      const res = await fetch(`/api/applications/${applicationId}/credit-check`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          credit_score: score,
-          credit_check_date: manualDate,
-          ...(creditReportUrl ? { credit_report_url: creditReportUrl } : {}),
-        }),
-      });
-
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json.error ?? 'Failed to save credit check');
-      }
-
-      onComplete(score, manualDate);
-      setIsOpen(false);
-      setMode(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
-    } finally {
-      setSaving(false);
     }
   }
 

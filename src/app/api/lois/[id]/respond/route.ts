@@ -77,7 +77,6 @@ export async function POST(
     const supabase = await createServiceClient();
 
     // 2. Fetch the LOI to verify existence, state, and party membership
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: loi, error: loiError } = await supabase
       .from('lois')
       .select('id, status, expires_at, landlord_contact_id, tenant_contact_id, broker_contact_id')

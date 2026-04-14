@@ -176,7 +176,7 @@ function ActivityTimeline({ notifications }: { notifications: Notification[] }) 
           <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border-subtle" />
 
           <ul className="space-y-0">
-            {notifications.map((n, idx) => {
+            {notifications.map((n) => {
               const isUnread = !n.read;
               return (
                 <li key={n.id} className="relative pl-8 pb-5 last:pb-0">

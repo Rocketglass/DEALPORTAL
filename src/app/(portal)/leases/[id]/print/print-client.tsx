@@ -24,7 +24,7 @@ function formatTermDisplay(years: number | null, months: number | null): string 
   return parts.length > 0 ? parts.join(', ') : '---';
 }
 
-function termInMonths(years: number | null, months: number | null): number {
+function _termInMonths(years: number | null, months: number | null): number {
   return (years || 0) * 12 + (months || 0);
 }
 

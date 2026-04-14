@@ -13,7 +13,7 @@ import { notFound } from 'next/navigation';
 import { requireBrokerOrAdmin } from '@/lib/security/auth-guard';
 import { getProperty, getUnits } from '@/lib/queries/properties';
 import { getQrCodesByProperty } from '@/lib/queries/qr-codes';
-import { formatSqft, formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import Image from 'next/image';
 import { PrintActions } from './print-actions';
 
@@ -63,7 +63,7 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
 
   // Find a QR code that links to the public browse page
   const browseQr = qrCodes.find((qr) => qr.portal_url?.includes('/browse/'));
-  const browseUrl = browseQr
+  const _browseUrl = browseQr
     ? browseQr.portal_url
     : `${process.env.NEXT_PUBLIC_SITE_URL || ''}/browse/${property.id}`;
 

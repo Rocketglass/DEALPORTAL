@@ -36,7 +36,6 @@ export async function GET(
     const supabase = await createServiceClient();
 
     // 2. Fetch lease with related data and sections (service client bypasses RLS — auth enforced above)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: lease, error } = await supabase
       .from('leases')
       .select(`

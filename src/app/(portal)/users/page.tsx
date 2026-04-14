@@ -118,7 +118,7 @@ export default function UsersPage() {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('landlord');
-  const [inviteLinkType, setInviteLinkType] = useState<'property' | 'contact'>('property');
+  const [inviteLinkType, _setInviteLinkType] = useState<'property' | 'contact'>('property');
   const [inviteLinkId, setInviteLinkId] = useState('');
   const [properties, setProperties] = useState<{ id: string; name: string }[]>([]);
   const [contacts, setContacts] = useState<{ id: string; name: string; type: string }[]>([]);

@@ -88,7 +88,7 @@ export async function POST(
       const effectiveContactId = user.contactId ?? user.principalId;
       const isLandlord = effectiveContactId === leaseData.landlord_contact_id;
       const isTenant = effectiveContactId === leaseData.tenant_contact_id;
-      const isBrokerOrAdmin = user.role === 'broker' || user.role === 'admin';
+      const _isBrokerOrAdmin = user.role === 'broker' || user.role === 'admin';
       const actorLabel = isLandlord ? 'Landlord' : isTenant ? 'Tenant' : 'Broker';
 
       const now = new Date().toISOString();
@@ -269,7 +269,7 @@ export async function POST(
 
     // 6. Update the section status, response, last_updated_by
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query = (supabase as any)
+    const query = (supabase as any)
       .from('lease_sections')
       .update({
         status: newStatus,

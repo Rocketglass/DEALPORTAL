@@ -735,7 +735,7 @@ function BrokerActionsCard({ leaseId }: { leaseId: string }) {
 // Lease Response Actions — Accept or Request Changes (tenant/landlord)
 // ---------------------------------------------------------------------------
 
-function LeaseResponseActions({ leaseId, onRefresh }: { leaseId: string; onRefresh: () => void }) {
+function LeaseResponseActions({ leaseId, onRefresh: _onRefresh }: { leaseId: string; onRefresh: () => void }) {
   const [mode, setMode] = useState<'idle' | 'accept' | 'changes' | 'submitted'>('idle');
   const [changeRequest, setChangeRequest] = useState('');
   const [submitting, setSubmitting] = useState(false);
