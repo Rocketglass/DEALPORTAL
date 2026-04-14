@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { formatDocumentDate } from '@/lib/utils';
+import { BROKER_CONFIG } from '@/lib/config/broker';
 import type { Contact, LoiWithRelations } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -313,7 +314,7 @@ export default function LoiPrintClient({ loi }: LoiPrintClientProps) {
           </p>
           <p style={{ margin: 0 }}>Rocket Realty</p>
           <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
-            DRE #01234567
+            {BROKER_CONFIG.dreLicense}
           </p>
         </div>
 

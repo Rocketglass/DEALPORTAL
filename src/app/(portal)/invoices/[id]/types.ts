@@ -1,5 +1,6 @@
 import type { CommissionInvoice } from '@/types/database';
 import type { InvoiceWithDetail, RentEscalationRow } from '@/lib/queries/invoices';
+import { BROKER_CONFIG } from '@/lib/config/broker';
 
 /**
  * CommissionInvoice enriched with display fields derived from the
@@ -49,11 +50,11 @@ export function enrichInvoice(data: InvoiceWithDetail): EnrichedInvoice {
   const brokerName = brokerContact
     ? [brokerContact.first_name, brokerContact.last_name]
         .filter(Boolean)
-        .join(' ') || brokerContact.company_name || 'Rocket Glass, CCIM'
-    : 'Rocket Glass, CCIM';
+        .join(' ') || brokerContact.company_name || BROKER_CONFIG.displayName
+    : BROKER_CONFIG.displayName;
 
-  const brokerCompany = brokerContact?.company_name ?? 'Rocket Realty';
-  const brokerLicense = 'DRE #01234567';
+  const brokerCompany = brokerContact?.company_name ?? BROKER_CONFIG.companyName;
+  const brokerLicense = BROKER_CONFIG.dreLicense;
 
   const escalations = (lease?.escalations ?? []).sort(
     (a, b) => a.year_number - b.year_number,

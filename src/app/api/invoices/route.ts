@@ -29,6 +29,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 import { createClient } from '@/lib/supabase/server';
 import { getNextInvoiceNumber } from '@/lib/queries/invoices';
+import { BROKER_CONFIG } from '@/lib/config/broker';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // ------------------------------------------------------------------
@@ -251,9 +252,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payee_name: payee_name as string,
       payee_address: typeof payee_address === 'string' ? payee_address : null,
       payee_city_state_zip: null,
-      payment_instructions:
-        'Please make check payable to:\nRocket Glass, Inc.\n1234 Commercial Blvd, Suite 200\nSan Diego, CA 92101\n\nOr wire to:\nBank: First Republic Bank\nRouting: XXXXXXXXX\nAccount: XXXXXXXXX\nRef: ' +
-        invoiceNumber,
+      payment_instructions: BROKER_CONFIG.paymentInstructions(invoiceNumber),
       status: 'draft',
       sent_date: null,
       due_date: resolvedDueDate,

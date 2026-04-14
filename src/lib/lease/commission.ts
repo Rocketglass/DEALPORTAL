@@ -1,4 +1,5 @@
 import type { Lease, CommissionInvoice, Contact, RentEscalation } from '@/types/database';
+import { BROKER_CONFIG } from '@/lib/config/broker';
 import { calculateTotalConsideration } from './generate';
 
 type CommissionInvoiceInsert = Omit<CommissionInvoice, 'id' | 'created_at' | 'updated_at'> & {
@@ -85,9 +86,7 @@ export function generateCommissionInvoice(
     payee_name: payee ? (payee.company_name || [payee.first_name, payee.last_name].filter(Boolean).join(' ')) : lease.lessor_name,
     payee_address: payeeAddress,
     payee_city_state_zip: payeeCityStateZip || null,
-    payment_instructions:
-      'Please make check payable to:\nRocket Glass, Inc.\n1234 Commercial Blvd, Suite 200\nSan Diego, CA 92101\n\nOr wire to:\nBank: First Republic Bank\nRouting: XXXXXXXXX\nAccount: XXXXXXXXX\nRef: ' +
-      formatInvoiceNumber(nextInvoiceNumber),
+    payment_instructions: BROKER_CONFIG.paymentInstructions(formatInvoiceNumber(nextInvoiceNumber)),
     status: 'draft',
     sent_date: null,
     due_date: dueDate.toISOString().slice(0, 10),

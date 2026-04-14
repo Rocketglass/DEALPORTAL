@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import type { CommissionInvoice } from '@/types/database';
+import { BROKER_CONFIG } from '@/lib/config/broker';
 
 /** Hex color string to pdf-lib RGB */
 function hexToRgb(hex: string) {
@@ -155,14 +156,14 @@ export async function generateInvoicePdf(
   });
 
   y -= 16;
-  drawText('Rocket Glass, Inc.', MARGIN_LEFT, y, { font: helveticaBold, size: 10 });
+  drawText(BROKER_CONFIG.companyName, MARGIN_LEFT, y, { font: helveticaBold, size: 10 });
   drawText(invoice.payee_name ?? '', MARGIN_LEFT + CONTENT_WIDTH / 2, y, {
     font: helveticaBold,
     size: 10,
   });
 
   y -= 14;
-  drawText('1234 Commercial Blvd, Suite 200', MARGIN_LEFT, y, {
+  drawText(BROKER_CONFIG.address.street, MARGIN_LEFT, y, {
     size: 9,
     color: COLORS.muted,
   });
@@ -172,7 +173,7 @@ export async function generateInvoicePdf(
   });
 
   y -= 14;
-  drawText('San Diego, CA 92101', MARGIN_LEFT, y, {
+  drawText(`${BROKER_CONFIG.address.city}, ${BROKER_CONFIG.address.state} ${BROKER_CONFIG.address.zip}`, MARGIN_LEFT, y, {
     size: 9,
     color: COLORS.muted,
   });

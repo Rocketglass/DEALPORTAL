@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /browse
+Allow: /scan
+Allow: /apply
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /landlord/
+Disallow: /tenant/
+Disallow: /settings
+Disallow: /invoices
+Disallow: /leases
+Disallow: /lois
+Disallow: /applications
+Disallow: /users
+Disallow: /auth/
+
+Sitemap: https://rocketrealty.properties/sitemap.xml
