@@ -7,8 +7,11 @@ import { Save } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
+
+type SplitType = 'full' | 'split';
 
 interface FormState {
   payee_name: string;
@@ -22,6 +25,9 @@ interface FormState {
   total_consideration: string;
   due_date: string;
   notes: string;
+  split_type: SplitType;
+  split_percent: string;
+  split_with_agent: string;
 }
 
 function getDefaultDueDate(): string {
@@ -42,6 +48,9 @@ const initialState: FormState = {
   total_consideration: '',
   due_date: getDefaultDueDate(),
   notes: '',
+  split_type: 'full',
+  split_percent: '50',
+  split_with_agent: '',
 };
 
 export default function NewInvoicePage() {
@@ -53,7 +62,30 @@ export default function NewInvoicePage() {
   const [shakeKey, setShakeKey] = useState(0);
 
   function handleChange(field: keyof FormState, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+
+      // Auto-calculate commission amount when rate, total consideration, or split change
+      const rate = parseFloat(field === 'commission_rate_percent' ? value : next.commission_rate_percent);
+      const consideration = parseFloat(field === 'total_consideration' ? value : next.total_consideration);
+      const splitType = field === 'split_type' ? (value as SplitType) : next.split_type;
+      const splitPct = parseFloat(field === 'split_percent' ? value : next.split_percent);
+
+      if (!isNaN(rate) && rate > 0 && !isNaN(consideration) && consideration > 0) {
+        const share = splitType === 'split' && !isNaN(splitPct) && splitPct > 0
+          ? splitPct / 100
+          : 1;
+        const amount = Math.round(consideration * (rate / 100) * share * 100) / 100;
+        next.commission_amount = amount.toFixed(2);
+      }
+
+      // Reset split_with_agent when switching to full
+      if (field === 'split_type' && value === 'full') {
+        next.split_with_agent = '';
+      }
+
+      return next;
+    });
     if (errors[field]) {
       setErrors((prev) => {
         const next = { ...prev };
@@ -112,6 +144,19 @@ export default function NewInvoicePage() {
       if (form.total_consideration.trim()) payload.total_consideration = Number(form.total_consideration);
       if (form.due_date) payload.due_date = form.due_date;
       if (form.notes.trim()) payload.notes = form.notes.trim();
+
+      // Commission split
+      if (form.split_type === 'split') {
+        const pct = Number(form.split_percent);
+        if (!isNaN(pct) && pct > 0 && pct < 100) {
+          payload.commission_split_percent = pct;
+        }
+        if (form.split_with_agent.trim()) {
+          payload.split_with_agent = form.split_with_agent.trim();
+        }
+      } else {
+        payload.commission_split_percent = 100;
+      }
 
       const res = await fetch('/api/invoices', {
         method: 'POST',
@@ -262,6 +307,52 @@ export default function NewInvoicePage() {
                 onChange={(e) => handleChange('due_date', e.target.value)}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Commission Split */}
+        <Card className="mt-6">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Commission Split</h2>
+            <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Select
+                label="Split Type"
+                value={form.split_type}
+                onChange={(e) => handleChange('split_type', e.target.value)}
+              >
+                <option value="full">Full (representing both sides)</option>
+                <option value="split">Split with other agent</option>
+              </Select>
+              {form.split_type === 'split' && (
+                <>
+                  <Input
+                    label="Our Share (%)"
+                    type="number"
+                    step="1"
+                    min="1"
+                    max="99"
+                    value={form.split_percent}
+                    placeholder="e.g. 50"
+                    onChange={(e) => handleChange('split_percent', e.target.value)}
+                  />
+                  <Input
+                    label="Cooperating Agent / Brokerage"
+                    value={form.split_with_agent}
+                    placeholder="e.g. CBRE, Marcus & Millichap"
+                    onChange={(e) => handleChange('split_with_agent', e.target.value)}
+                  />
+                </>
+              )}
+            </div>
+            {form.split_type === 'split' && form.commission_rate_percent && form.total_consideration && (
+              <p className="mt-3 text-sm text-[#64748b]">
+                Total commission: {Number(form.commission_rate_percent)}% of{' '}
+                ${Number(form.total_consideration).toLocaleString()} ={' '}
+                ${(Number(form.total_consideration) * Number(form.commission_rate_percent) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.{' '}
+                Our {form.split_percent}% share ={' '}
+                ${Number(form.commission_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
+              </p>
+            )}
           </CardContent>
         </Card>
 

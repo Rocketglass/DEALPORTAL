@@ -118,7 +118,7 @@ export function LoiActionButtons({ loiId, status }: LoiActionButtonsProps) {
             : sendResult === 'error'
               ? 'Failed'
               : isDraft
-                ? 'Send to Landlord'
+                ? 'Send for Review'
                 : 'Resend'}
         </Button>
       )}

@@ -54,7 +54,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { commission_rate_percent, commission_amount } = body;
+  const { commission_rate_percent, commission_amount, commission_split_percent, split_with_agent } = body;
 
   // Validate required fields
   if (
@@ -101,13 +101,33 @@ export async function PATCH(
 
     const now = new Date().toISOString();
 
+    // Build update payload — only include split fields if provided
+    const updatePayload: Record<string, unknown> = {
+      commission_rate_percent,
+      commission_amount,
+      updated_at: now,
+    };
+
+    if (typeof commission_split_percent === 'number') {
+      if (commission_split_percent < 1 || commission_split_percent > 100) {
+        return NextResponse.json(
+          { error: 'commission_split_percent must be between 1 and 100' },
+          { status: 400 },
+        );
+      }
+      updatePayload.commission_split_percent = commission_split_percent;
+    }
+
+    if (split_with_agent !== undefined) {
+      updatePayload.split_with_agent =
+        typeof split_with_agent === 'string' && split_with_agent.trim()
+          ? split_with_agent.trim()
+          : null;
+    }
+
     const { data: updated, error: updateError } = await supabase
       .from('commission_invoices')
-      .update({
-        commission_rate_percent,
-        commission_amount,
-        updated_at: now,
-      })
+      .update(updatePayload)
       .eq('id', id)
       .select()
       .single();

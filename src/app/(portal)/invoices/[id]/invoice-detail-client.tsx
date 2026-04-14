@@ -400,7 +400,7 @@ export default function InvoiceDetailClient({
               onClick={() => setShowSendConfirm(true)}
               disabled={sending}
             >
-              Send to Landlord
+              Send Invoice
             </Button>
           )}
           <Button
@@ -618,6 +618,22 @@ export default function InvoiceDetailClient({
                   </td>
                   <td className="px-4 py-3 text-right text-[#64748b]" />
                 </tr>
+                {invoice.commission_split_percent < 100 && (
+                  <tr>
+                    <td className="px-4 py-3 font-medium text-[#0f172a]">
+                      Commission Split
+                    </td>
+                    <td className="px-4 py-3 text-right text-[#64748b]">
+                      Our share: {invoice.commission_split_percent}%
+                      {invoice.split_with_agent && (
+                        <span className="block text-xs mt-0.5">
+                          Split with {invoice.split_with_agent}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right text-[#64748b]" />
+                  </tr>
+                )}
               </tbody>
               <tfoot>
                 <tr className="bg-[#f8fafc]">
@@ -695,7 +711,7 @@ export default function InvoiceDetailClient({
 
           {invoice.status === 'draft' && (
             <p className="mt-2 text-center text-sm text-[#64748b]">
-              This invoice has not been sent yet. Click &quot;Send to Landlord&quot; to email it.
+              This invoice has not been sent yet. Click &quot;Send Invoice&quot; to email it.
             </p>
           )}
 

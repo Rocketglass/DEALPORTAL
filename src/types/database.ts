@@ -48,13 +48,19 @@ export type Database = {
       };
       lois: {
         Row: Loi;
-        Insert: Omit<Loi, 'id' | 'created_at' | 'updated_at' | 'ai_drafted' | 'ai_draft_prompt' | 'applicant_docusign_envelope_id' | 'applicant_docusign_status' | 'applicant_signed_at'> & {
+        Insert: Omit<Loi, 'id' | 'created_at' | 'updated_at' | 'ai_drafted' | 'ai_draft_prompt' | 'applicant_docusign_envelope_id' | 'applicant_docusign_status' | 'applicant_signed_at' | 'external_address' | 'external_city' | 'external_state' | 'external_zip' | 'external_property_type' | 'external_suite'> & {
           id?: string;
           ai_drafted?: boolean;
           ai_draft_prompt?: string | null;
           applicant_docusign_envelope_id?: string | null;
           applicant_docusign_status?: string | null;
           applicant_signed_at?: string | null;
+          external_address?: string | null;
+          external_city?: string | null;
+          external_state?: string | null;
+          external_zip?: string | null;
+          external_property_type?: string | null;
+          external_suite?: string | null;
         };
         Update: Partial<Omit<Loi, 'id'>>;
       };
@@ -315,8 +321,8 @@ export interface ApplicationDocument {
 export interface Loi {
   id: string;
   application_id: string | null;
-  property_id: string;
-  unit_id: string;
+  property_id: string | null;
+  unit_id: string | null;
   tenant_contact_id: string;
   landlord_contact_id: string;
   broker_contact_id: string;
@@ -333,6 +339,12 @@ export interface Loi {
   applicant_docusign_envelope_id: string | null;
   applicant_docusign_status: string | null;
   applicant_signed_at: string | null;
+  external_address: string | null;
+  external_city: string | null;
+  external_state: string | null;
+  external_zip: string | null;
+  external_property_type: string | null;
+  external_suite: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -466,6 +478,8 @@ export interface CommissionInvoice {
   payment_reference: string | null;
   pdf_url: string | null;
   notes: string | null;
+  commission_split_percent: number;
+  split_with_agent: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -680,8 +694,8 @@ export interface ApplicationWithRelations extends Application {
 }
 
 export interface LoiWithRelations extends Loi {
-  property: Property;
-  unit: Unit;
+  property: Property | null;
+  unit: Unit | null;
   tenant: Contact;
   landlord: Contact;
   broker: Contact;

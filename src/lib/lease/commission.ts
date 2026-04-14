@@ -33,6 +33,9 @@ export function formatInvoiceNumber(sequence: number): string {
  * @param nextInvoiceNumber The next sequence number for invoice numbering
  * @param payee             The landlord/payee contact for billing
  * @param escalations       Optional escalation schedule for accurate total consideration
+ * @param splitPercent      Our share of the total commission (default 100 = full).
+ *                          E.g. 50 means we get half of the total commission.
+ * @param splitWithAgent    Name of cooperating agent/brokerage (nullable)
  */
 export function generateCommissionInvoice(
   lease: Lease,
@@ -40,6 +43,8 @@ export function generateCommissionInvoice(
   nextInvoiceNumber: number,
   payee?: Contact | null,
   escalations?: EscalationInsert[],
+  splitPercent: number = 100,
+  splitWithAgent?: string | null,
 ): CommissionInvoiceInsert {
   // Calculate total term in months
   const termMonths = (lease.term_years ?? 0) * 12 + (lease.term_months ?? 0);
@@ -51,8 +56,11 @@ export function generateCommissionInvoice(
     escalations,
   );
 
-  // Commission amount
-  const commissionAmount = Math.round(totalConsideration * (commissionRate / 100) * 100) / 100;
+  // Commission amount (apply split percentage)
+  const effectiveSplit = Math.max(0, Math.min(100, splitPercent));
+  const commissionAmount = Math.round(
+    totalConsideration * (commissionRate / 100) * (effectiveSplit / 100) * 100,
+  ) / 100;
 
   // Build payee address fields
   const payeeAddress = payee?.address || null;
@@ -89,6 +97,8 @@ export function generateCommissionInvoice(
     payment_reference: null,
     pdf_url: null,
     notes: null,
+    commission_split_percent: effectiveSplit,
+    split_with_agent: splitWithAgent ?? null,
   };
 
   return invoice;

@@ -68,6 +68,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     monthly_rent,
     due_date,
     notes,
+    commission_split_percent,
+    split_with_agent,
   } = body as Record<string, unknown>;
 
   // Required fields
@@ -110,6 +112,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   ) {
     return NextResponse.json(
       { error: 'commission_rate_percent must be a number between 0 and 100' },
+      { status: 400 },
+    );
+  }
+
+  // Optional commission split validation
+  if (
+    commission_split_percent !== undefined &&
+    commission_split_percent !== null &&
+    (typeof commission_split_percent !== 'number' || commission_split_percent < 1 || commission_split_percent > 100)
+  ) {
+    return NextResponse.json(
+      { error: 'commission_split_percent must be a number between 1 and 100' },
+      { status: 400 },
+    );
+  }
+
+  if (
+    split_with_agent !== undefined &&
+    split_with_agent !== null &&
+    typeof split_with_agent !== 'string'
+  ) {
+    return NextResponse.json(
+      { error: 'split_with_agent must be a string' },
       { status: 400 },
     );
   }
@@ -238,6 +263,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payment_reference: null,
       pdf_url: null,
       notes: typeof notes === 'string' ? `${fullDescription}\n\n${notes}` : fullDescription,
+      commission_split_percent: typeof commission_split_percent === 'number' ? commission_split_percent : 100,
+      split_with_agent: typeof split_with_agent === 'string' ? split_with_agent : null,
     })
     .select()
     .single();

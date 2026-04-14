@@ -31,8 +31,11 @@ export default async function LoiDetailPage({ params }: Props) {
     return parts.join(' ') || '—';
   }
 
-  const propertyName = loi.property?.name ?? '—';
-  const suiteNumber = loi.unit?.suite_number;
+  const propertyName = loi.property?.name
+    ?? (loi.external_address
+      ? [loi.external_address, loi.external_city, loi.external_state, loi.external_zip].filter(Boolean).join(', ')
+      : '—');
+  const suiteNumber = loi.unit?.suite_number ?? loi.external_suite;
   const tenantName = contactName(loi.tenant);
   const landlordName = contactName(loi.landlord);
   const brokerName = contactName(loi.broker);
@@ -59,11 +62,18 @@ export default async function LoiDetailPage({ params }: Props) {
             <h1 className="text-2xl font-bold">{propertyName}</h1>
             <Badge status={loi.status} />
           </div>
-          {suiteNumber && (
-            <p className="mt-1 text-muted-foreground">
-              Suite {suiteNumber} &middot; Version {loi.version}
-            </p>
-          )}
+          <p className="mt-1 text-muted-foreground">
+            {suiteNumber && <>Suite {suiteNumber} &middot; </>}
+            {!loi.property_id && (
+              <>
+                <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  External Property{loi.external_property_type ? ` \u2014 ${loi.external_property_type.charAt(0).toUpperCase() + loi.external_property_type.slice(1)}` : ''}
+                </span>
+                {' '}&middot;{' '}
+              </>
+            )}
+            Version {loi.version}
+          </p>
           <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
             <span>
               Tenant: <span className="font-medium text-foreground">{tenantName}</span>

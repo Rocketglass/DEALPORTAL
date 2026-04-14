@@ -25,6 +25,7 @@ import {
   Briefcase,
   Zap,
   X,
+  MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ const PROPERTY_TYPE_LABELS: Record<string, string> = {
   retail: 'Retail',
   office: 'Office',
   flex: 'Flex',
+  land: 'Land',
 };
 
 // ---------------------------------------------------------------------------
@@ -180,12 +182,24 @@ export default function CreateLoiPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [templateApplied, setTemplateApplied] = useState(false);
 
+  // ----- Property source mode -----
+  type PropertySource = 'system' | 'external';
+  const [propertySource, setPropertySource] = useState<PropertySource>('system');
+
   // ----- Form state -----
   const [propertyId, setPropertyId] = useState('');
   const [unitId, setUnitId] = useState('');
   const [tenantContactId, setTenantContactId] = useState('');
   const [landlordContactId, setLandlordContactId] = useState('');
   const [brokerContactId, setBrokerContactId] = useState('');
+
+  // ----- External address fields -----
+  const [externalAddress, setExternalAddress] = useState('');
+  const [externalCity, setExternalCity] = useState('');
+  const [externalState, setExternalState] = useState('');
+  const [externalZip, setExternalZip] = useState('');
+  const [externalPropertyType, setExternalPropertyType] = useState('');
+  const [externalSuite, setExternalSuite] = useState('');
 
   const [sections, setSections] = useState<SectionData>(INITIAL_DATA);
   const [expanded, setExpanded] = useState<Set<LoiSectionKey>>(new Set(['base_rent', 'term']));
@@ -314,13 +328,17 @@ export default function CreateLoiPage() {
   }, [searchParams, loadingData, properties, contacts]);
 
   // Selected property and its type (for template auto-suggestion)
-  const selectedProperty = properties.find((p) => p.id === propertyId);
+  const selectedProperty = propertySource === 'system'
+    ? properties.find((p) => p.id === propertyId)
+    : undefined;
 
   // Available units filtered by selected property
   const availableUnits = selectedProperty?.units ?? [];
 
-  // Templates filtered by selected property type (if a property is selected)
-  const selectedPropertyType = selectedProperty?.property_type?.toLowerCase() ?? '';
+  // Templates filtered by selected property type (if a property is selected or external type chosen)
+  const selectedPropertyType = propertySource === 'system'
+    ? (selectedProperty?.property_type?.toLowerCase() ?? '')
+    : externalPropertyType;
   const suggestedTemplates = selectedPropertyType
     ? templates.filter((t) => t.property_type === selectedPropertyType)
     : templates;
@@ -467,8 +485,14 @@ export default function CreateLoiPage() {
     const newHeaderErrors: Record<string, string> = {};
     const newSectionErrors = new Set<LoiSectionKey>();
 
-    if (!propertyId) newHeaderErrors.propertyId = 'Property is required';
-    if (!unitId) newHeaderErrors.unitId = 'Suite / unit is required';
+    if (propertySource === 'system') {
+      if (!propertyId) newHeaderErrors.propertyId = 'Property is required';
+      if (!unitId) newHeaderErrors.unitId = 'Suite / unit is required';
+    } else {
+      if (!externalAddress.trim()) newHeaderErrors.externalAddress = 'Address is required';
+      if (!externalCity.trim()) newHeaderErrors.externalCity = 'City is required';
+      if (!externalState.trim()) newHeaderErrors.externalState = 'State is required';
+    }
     if (!tenantContactId) newHeaderErrors.tenantContactId = 'Tenant is required';
     if (!landlordContactId) newHeaderErrors.landlordContactId = 'Landlord is required';
     if (!brokerContactId) newHeaderErrors.brokerContactId = 'Broker is required';
@@ -514,18 +538,30 @@ export default function CreateLoiPage() {
     setSubmitError(null);
 
     try {
+      const payload: Record<string, unknown> = {
+        tenant_contact_id: tenantContactId,
+        landlord_contact_id: landlordContactId,
+        broker_contact_id: brokerContactId,
+        status,
+        sections: buildSectionsPayload(),
+      };
+
+      if (propertySource === 'system') {
+        payload.property_id = propertyId;
+        payload.unit_id = unitId;
+      } else {
+        payload.external_address = externalAddress;
+        payload.external_city = externalCity;
+        payload.external_state = externalState;
+        payload.external_zip = externalZip || null;
+        payload.external_property_type = externalPropertyType || null;
+        payload.external_suite = externalSuite || null;
+      }
+
       const res = await fetch('/api/lois', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          property_id: propertyId,
-          unit_id: unitId,
-          tenant_contact_id: tenantContactId,
-          landlord_contact_id: landlordContactId,
-          broker_contact_id: brokerContactId,
-          status,
-          sections: buildSectionsPayload(),
-        }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
@@ -679,58 +715,190 @@ export default function CreateLoiPage() {
       )}
 
       {/* ------------------------------------------------------------------ */}
+      {/* Property source toggle                                              */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="mt-6">
+        <label className="mb-2 block text-sm font-semibold text-slate-900">Property</label>
+        <div className="inline-flex rounded-lg border border-border bg-gray-50 p-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              setPropertySource('system');
+              setHeaderErrors((prev) => {
+                const next = { ...prev };
+                delete next.externalAddress;
+                delete next.externalCity;
+                delete next.externalState;
+                return next;
+              });
+            }}
+            className={cn(
+              'flex items-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-all',
+              propertySource === 'system'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-muted-foreground hover:text-slate-700',
+            )}
+          >
+            <Building2 className="h-4 w-4" />
+            Select from my properties
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPropertySource('external');
+              setHeaderErrors((prev) => {
+                const next = { ...prev };
+                delete next.propertyId;
+                delete next.unitId;
+                return next;
+              });
+            }}
+            className={cn(
+              'flex items-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-all',
+              propertySource === 'external'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-muted-foreground hover:text-slate-700',
+            )}
+          >
+            <MapPin className="h-4 w-4" />
+            Enter address manually
+          </button>
+        </div>
+      </div>
+
+      {/* ------------------------------------------------------------------ */}
       {/* Header fields                                                       */}
       {/* ------------------------------------------------------------------ */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Property */}
-        <div>
-          <Select
-            label="Property"
-            required
-            value={propertyId}
-            onChange={(e) => {
-              setPropertyId(e.target.value);
-              setUnitId('');
-              clearHeaderError('propertyId');
-            }}
-            error={headerErrors.propertyId}
-            disabled={loadingData}
-          >
-            <option value="">
-              {loadingData ? 'Loading…' : 'Select a property'}
-            </option>
-            {properties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </Select>
-        </div>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* System property mode */}
+        {propertySource === 'system' && (
+          <>
+            {/* Property */}
+            <div>
+              <Select
+                label="Property"
+                required
+                value={propertyId}
+                onChange={(e) => {
+                  setPropertyId(e.target.value);
+                  setUnitId('');
+                  clearHeaderError('propertyId');
+                }}
+                error={headerErrors.propertyId}
+                disabled={loadingData}
+              >
+                <option value="">
+                  {loadingData ? 'Loading\u2026' : 'Select a property'}
+                </option>
+                {properties.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
-        {/* Unit / Suite */}
-        <div>
-          <Select
-            label="Suite"
-            required
-            value={unitId}
-            onChange={(e) => {
-              setUnitId(e.target.value);
-              clearHeaderError('unitId');
-            }}
-            error={headerErrors.unitId}
-            disabled={!propertyId || loadingData}
-          >
-            <option value="">
-              {!propertyId ? 'Select a property first' : 'Select a suite'}
-            </option>
-            {availableUnits.map((u) => (
-              <option key={u.id} value={u.id}>
-                Suite {u.suite_number}
-                {u.sf ? ` — ${u.sf.toLocaleString()} SF` : ''}
-              </option>
-            ))}
-          </Select>
-        </div>
+            {/* Unit / Suite */}
+            <div>
+              <Select
+                label="Suite"
+                required
+                value={unitId}
+                onChange={(e) => {
+                  setUnitId(e.target.value);
+                  clearHeaderError('unitId');
+                }}
+                error={headerErrors.unitId}
+                disabled={!propertyId || loadingData}
+              >
+                <option value="">
+                  {!propertyId ? 'Select a property first' : 'Select a suite'}
+                </option>
+                {availableUnits.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    Suite {u.suite_number}
+                    {u.sf ? ` \u2014 ${u.sf.toLocaleString()} SF` : ''}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </>
+        )}
+
+        {/* External address mode */}
+        {propertySource === 'external' && (
+          <>
+            <div>
+              <Input
+                label="Property Address"
+                required
+                value={externalAddress}
+                onChange={(e) => {
+                  setExternalAddress(e.target.value);
+                  clearHeaderError('externalAddress');
+                }}
+                error={headerErrors.externalAddress}
+                placeholder="e.g. 1234 Main St"
+              />
+            </div>
+            <div>
+              <Input
+                label="City"
+                required
+                value={externalCity}
+                onChange={(e) => {
+                  setExternalCity(e.target.value);
+                  clearHeaderError('externalCity');
+                }}
+                error={headerErrors.externalCity}
+                placeholder="e.g. San Diego"
+              />
+            </div>
+            <div>
+              <Input
+                label="State"
+                required
+                value={externalState}
+                onChange={(e) => {
+                  setExternalState(e.target.value);
+                  clearHeaderError('externalState');
+                }}
+                error={headerErrors.externalState}
+                placeholder="e.g. CA"
+              />
+            </div>
+            <div>
+              <Input
+                label="ZIP"
+                value={externalZip}
+                onChange={(e) => setExternalZip(e.target.value)}
+                placeholder="e.g. 92020"
+              />
+            </div>
+            <div>
+              <Select
+                label="Property Type"
+                value={externalPropertyType}
+                onChange={(e) => setExternalPropertyType(e.target.value)}
+              >
+                <option value="">Select type (optional)</option>
+                <option value="industrial">Industrial</option>
+                <option value="office">Office</option>
+                <option value="retail">Retail</option>
+                <option value="flex">Flex</option>
+                <option value="land">Land</option>
+              </Select>
+            </div>
+            <div>
+              <Input
+                label="Suite / Unit"
+                value={externalSuite}
+                onChange={(e) => setExternalSuite(e.target.value)}
+                placeholder="e.g. Suite 200"
+              />
+            </div>
+          </>
+        )}
 
         {/* Tenant */}
         <div>
@@ -911,7 +1079,7 @@ export default function CreateLoiPage() {
           onClick={() => submit('sent')}
           disabled={submitting || loadingData}
         >
-          Send to Landlord
+          Send for Review
         </Button>
       </div>
     </div>

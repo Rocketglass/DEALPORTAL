@@ -39,10 +39,13 @@ function getServiceClient() {
  * Called automatically by the DocuSign webhook when a lease is executed, and
  * also available via the manual `/api/invoices/generate` route for brokers.
  *
- * @param leaseId       UUID of the executed lease
- * @param overrideRate  Optional commission rate override (e.g. 5.0 for 5%).
- *                      If provided, this is used instead of the default
- *                      property-type-based rate.
+ * @param leaseId        UUID of the executed lease
+ * @param overrideRate   Optional commission rate override (e.g. 5.0 for 5%).
+ *                       If provided, this is used instead of the default
+ *                       property-type-based rate.
+ * @param splitPercent   Our share of the total commission (default 100 = full).
+ *                       E.g. 50 means we get half of the total commission.
+ * @param splitWithAgent Name of the cooperating agent/brokerage (nullable).
  * @returns The created CommissionInvoice row
  *
  * @throws Error if the lease cannot be found, or if the DB insert fails
@@ -50,6 +53,8 @@ function getServiceClient() {
 export async function generateCommissionInvoice(
   leaseId: string,
   overrideRate?: number,
+  splitPercent?: number,
+  splitWithAgent?: string,
 ): Promise<CommissionInvoice> {
   const supabase = getServiceClient();
 
@@ -114,6 +119,8 @@ export async function generateCommissionInvoice(
     nextSequence,
     lease.landlord ?? null,
     lease.escalations ?? [],
+    splitPercent ?? 100,
+    splitWithAgent ?? null,
   );
 
   // ------------------------------------------------------------------

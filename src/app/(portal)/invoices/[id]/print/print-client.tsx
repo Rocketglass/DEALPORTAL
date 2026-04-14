@@ -205,6 +205,19 @@ export default function InvoicePrintClient({ invoice }: InvoicePrintClientProps)
               {invoice.commission_rate_percent}%
             </span>
           </div>
+          {invoice.commission_split_percent < 100 && (
+            <div className="flex">
+              <span className="w-64 font-bold text-[#0f172a]">COMMISSION SPLIT:</span>
+              <span className="font-bold text-[#0f172a]">
+                Our share: {invoice.commission_split_percent}%
+                {invoice.split_with_agent && (
+                  <span className="font-normal text-[#64748b]">
+                    {' '}(split with {invoice.split_with_agent})
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
           <div className="flex border-t border-[#cbd5e1] pt-3">
             <span className="w-64 text-lg font-bold text-[#0f172a]">TOTAL COMMISSION DUE:</span>
             <span className="text-lg font-bold text-[#0f172a]">

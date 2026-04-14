@@ -237,6 +237,13 @@ export default function CreateLeasePage() {
 
     setImportedLoi(loi);
 
+    if (!loi.property || !loi.unit) {
+      // External-address LOIs cannot be auto-mapped to a lease;
+      // the broker must select a system property manually.
+      setImportedLoi(null);
+      return;
+    }
+
     const metadata = {
       property: loi.property,
       unit: loi.unit,

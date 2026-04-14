@@ -42,7 +42,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { leaseId, commissionRate } = body as Record<string, unknown>;
+  const { leaseId, commissionRate, splitPercent, splitWithAgent } = body as Record<string, unknown>;
 
   if (!leaseId || typeof leaseId !== 'string') {
     return NextResponse.json(
@@ -61,6 +61,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
   }
 
+  // Validate optional splitPercent (our share of the commission)
+  if (splitPercent !== undefined && splitPercent !== null) {
+    if (typeof splitPercent !== 'number' || splitPercent < 1 || splitPercent > 100) {
+      return NextResponse.json(
+        { error: 'splitPercent must be a number between 1 and 100' },
+        { status: 400 },
+      );
+    }
+  }
+
+  // Validate optional splitWithAgent
+  if (splitWithAgent !== undefined && splitWithAgent !== null && typeof splitWithAgent !== 'string') {
+    return NextResponse.json(
+      { error: 'splitWithAgent must be a string' },
+      { status: 400 },
+    );
+  }
+
   // ------------------------------------------------------------------
   // Generate invoice
   // ------------------------------------------------------------------
@@ -68,6 +86,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const invoice = await generateCommissionInvoice(
       leaseId,
       typeof commissionRate === 'number' ? commissionRate : undefined,
+      typeof splitPercent === 'number' ? splitPercent : undefined,
+      typeof splitWithAgent === 'string' ? splitWithAgent : undefined,
     );
 
     console.log(

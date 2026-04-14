@@ -124,6 +124,7 @@ type SectionActionType = 'accept' | 'counter' | 'reject' | null;
 interface SectionResponse {
   action: SectionActionType;
   counterValue: string;
+  counterInitialized: boolean; // tracks whether we've pre-filled the counter textarea
   rejectReason: string;
 }
 
@@ -274,6 +275,7 @@ function SectionCard({
   successSection,
   onAction,
   onUpdateField,
+  onInitCounter,
   onSubmit,
   contactIds,
 }: {
@@ -283,6 +285,7 @@ function SectionCard({
   successSection: string | null;
   onAction: (id: string, action: SectionActionType) => void;
   onUpdateField: (id: string, field: 'counterValue' | 'rejectReason', value: string) => void;
+  onInitCounter: (id: string, currentText: string) => void;
   onSubmit: (section: LeaseSectionData) => void;
   contactIds?: { landlord?: string | null; tenant?: string | null; broker?: string | null };
 }) {
@@ -339,18 +342,18 @@ function SectionCard({
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div>
             <p className="text-xs font-medium text-[#64748b]">Proposed</p>
-            <p className="mt-0.5 text-sm text-[#0f172a]">{section.proposedValue}</p>
+            <p className="mt-0.5 whitespace-pre-wrap text-sm text-[#0f172a]">{section.proposedValue}</p>
           </div>
           {section.counterpartyResponse && (
             <div>
               <p className="text-xs font-medium text-[#64748b]">Counter-Proposal</p>
-              <p className="mt-0.5 text-sm text-[#0f172a]">{section.counterpartyResponse}</p>
+              <p className="mt-0.5 whitespace-pre-wrap text-sm text-[#0f172a]">{section.counterpartyResponse}</p>
             </div>
           )}
           {section.agreedValue && (
             <div>
               <p className="text-xs font-medium text-[#64748b]">Agreed</p>
-              <p className="mt-0.5 text-sm font-medium text-green-700">{section.agreedValue}</p>
+              <p className="mt-0.5 whitespace-pre-wrap text-sm font-medium text-green-700">{section.agreedValue}</p>
             </div>
           )}
         </div>
@@ -373,7 +376,14 @@ function SectionCard({
             </button>
             <button
               type="button"
-              onClick={() => onAction(section.id, 'counter')}
+              onClick={() => {
+                onAction(section.id, 'counter');
+                // Pre-fill with current text on first click so the user can edit inline
+                if (!response.counterInitialized && response.action !== 'counter') {
+                  const currentText = section.counterpartyResponse ?? section.proposedValue;
+                  onInitCounter(section.id, currentText);
+                }
+              }}
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
                 isCountered
@@ -400,19 +410,36 @@ function SectionCard({
           </div>
         )}
 
-        {/* Counter textarea */}
+        {/* Counter — inline lease language editing */}
         {isCountered && (
-          <div className="mt-3">
-            <label className="mb-1.5 block text-sm font-medium text-[#0f172a]">
-              Your Counter-Proposal
-            </label>
-            <textarea
-              rows={3}
-              value={response.counterValue}
-              onChange={(e) => onUpdateField(section.id, 'counterValue', e.target.value)}
-              placeholder="Enter your proposed terms and any notes..."
-              className="w-full resize-none rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
+          <div className="mt-3 space-y-3">
+            {/* Original text reference */}
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-[#64748b]">
+                Current Lease Language
+              </p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#334155]">
+                {section.counterpartyResponse ?? section.proposedValue}
+              </p>
+            </div>
+
+            {/* Editable textarea */}
+            <div>
+              <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-[#0f172a]">
+                <FileText className="h-3.5 w-3.5 text-amber-600" />
+                Edit Lease Language
+              </label>
+              <p className="mb-2 text-xs text-[#64748b]">
+                Edit the text below to propose your changes. The original language is shown above for reference.
+              </p>
+              <textarea
+                rows={6}
+                value={response.counterValue}
+                onChange={(e) => onUpdateField(section.id, 'counterValue', e.target.value)}
+                placeholder="Edit the lease language to reflect your proposed changes..."
+                className="w-full resize-y rounded-lg border border-amber-200 bg-white px-4 py-3 text-sm leading-relaxed outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              />
+            </div>
           </div>
         )}
 
@@ -913,7 +940,7 @@ export function LeaseNegotiationView({ leaseId, callerRole, portalBasePath }: Le
       // Initialise per-section response state
       const init: Record<string, SectionResponse> = {};
       sections.forEach((s) => {
-        init[s.id] = { action: null, counterValue: '', rejectReason: '' };
+        init[s.id] = { action: null, counterValue: '', counterInitialized: false, rejectReason: '' };
       });
       setResponses(init);
     } catch {
@@ -939,6 +966,13 @@ export function LeaseNegotiationView({ leaseId, callerRole, portalBasePath }: Le
     setResponses((prev) => ({
       ...prev,
       [id]: { ...prev[id], [field]: value },
+    }));
+  }
+
+  function handleInitCounter(id: string, currentText: string) {
+    setResponses((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], counterValue: currentText, counterInitialized: true },
     }));
   }
 
@@ -1179,7 +1213,7 @@ export function LeaseNegotiationView({ leaseId, callerRole, portalBasePath }: Le
 
         {/* Section cards — already sorted by display_order from API */}
         {sections.map((section) => {
-          const response = responses[section.id] ?? { action: null, counterValue: '', rejectReason: '' };
+          const response = responses[section.id] ?? { action: null, counterValue: '', counterInitialized: false, rejectReason: '' };
           return (
             <SectionCard
               key={section.id}
@@ -1189,6 +1223,7 @@ export function LeaseNegotiationView({ leaseId, callerRole, portalBasePath }: Le
               successSection={successSection}
               onAction={handleAction}
               onUpdateField={handleUpdateField}
+              onInitCounter={handleInitCounter}
               onSubmit={handleSectionSubmit}
               contactIds={{
                 landlord: data?.landlordContactId,

@@ -35,14 +35,21 @@ interface LoiSectionPayload extends Omit<LoiSectionInsert, 'loi_id'> {
 }
 
 interface CreateLoiBody {
-  property_id: string;
-  unit_id: string;
+  property_id?: string | null;
+  unit_id?: string | null;
   tenant_contact_id: string;
   landlord_contact_id: string;
   broker_contact_id: string;
   status?: 'draft' | 'sent';
   notes?: string | null;
   sections: LoiSectionPayload[];
+  // External address fields (used when property_id is null)
+  external_address?: string | null;
+  external_city?: string | null;
+  external_state?: string | null;
+  external_zip?: string | null;
+  external_property_type?: string | null;
+  external_suite?: string | null;
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -63,14 +70,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const body: CreateLoiBody = await request.json();
 
     // Basic required field validation
-    const required: (keyof CreateLoiBody)[] = [
-      'property_id',
-      'unit_id',
+    const alwaysRequired: (keyof CreateLoiBody)[] = [
       'tenant_contact_id',
       'landlord_contact_id',
       'broker_contact_id',
     ];
-    for (const field of required) {
+    for (const field of alwaysRequired) {
       if (!body[field]) {
         return NextResponse.json(
           { error: `Missing required field: ${field}` },
@@ -79,9 +84,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Either property_id+unit_id OR external_address must be provided
+    const hasProperty = !!body.property_id && !!body.unit_id;
+    const hasExternalAddress = !!body.external_address;
+    if (!hasProperty && !hasExternalAddress) {
+      return NextResponse.json(
+        { error: 'Either a property/unit or an external address is required' },
+        { status: 400 },
+      );
+    }
+
     const loiData: LoiInsert = {
-      property_id: body.property_id,
-      unit_id: body.unit_id,
+      property_id: body.property_id ?? null,
+      unit_id: body.unit_id ?? null,
       tenant_contact_id: body.tenant_contact_id,
       landlord_contact_id: body.landlord_contact_id,
       broker_contact_id: body.broker_contact_id,
@@ -94,6 +109,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       parent_loi_id: null,
       expires_at: null,
       agreed_at: null,
+      external_address: body.external_address ?? null,
+      external_city: body.external_city ?? null,
+      external_state: body.external_state ?? null,
+      external_zip: body.external_zip ?? null,
+      external_property_type: body.external_property_type ?? null,
+      external_suite: body.external_suite ?? null,
     };
 
     // Insert the LOI row
@@ -140,13 +161,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Notify the landlord when the LOI is sent (status='sent')
     if (loiData.status === 'sent') {
       // Fetch landlord, tenant, broker, and property contacts for the notification
-      const [
-        { data: landlord },
-        { data: tenant },
-        { data: broker },
-        { data: property },
-        { data: unit },
-      ] = await Promise.all([
+      // Build contact fetch promises
+      const contactPromises = [
         supabase
           .from('contacts')
           .select('email, first_name, last_name, company_name')
@@ -162,17 +178,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           .select('first_name, last_name, company_name')
           .eq('id', body.broker_contact_id)
           .maybeSingle(),
-        supabase
-          .from('properties')
-          .select('address, city, state')
-          .eq('id', body.property_id)
-          .maybeSingle(),
-        supabase
-          .from('units')
-          .select('suite_number')
-          .eq('id', body.unit_id)
-          .maybeSingle(),
-      ]);
+      ] as const;
+
+      // Only fetch property/unit if they exist
+      const propertyPromise = body.property_id
+        ? supabase.from('properties').select('address, city, state').eq('id', body.property_id).maybeSingle()
+        : Promise.resolve({ data: null });
+      const unitPromise = body.unit_id
+        ? supabase.from('units').select('suite_number').eq('id', body.unit_id).maybeSingle()
+        : Promise.resolve({ data: null });
+
+      const [
+        { data: landlord },
+        { data: tenant },
+        { data: broker },
+        { data: property },
+        { data: unit },
+      ] = await Promise.all([...contactPromises, propertyPromise, unitPromise]);
 
       if (landlord?.email) {
         const landlordName =
@@ -190,16 +212,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           ?? [broker?.first_name, broker?.last_name].filter(Boolean).join(' '))
           || 'Broker';
 
+        // Use system property address or external address
         const propertyAddress = property
           ? `${property.address}, ${property.city}, ${property.state}`
-          : body.property_id;
+          : body.external_address
+            ? [body.external_address, body.external_city, body.external_state, body.external_zip].filter(Boolean).join(', ')
+            : 'External Property';
 
         void notifyLoiSentToLandlord(
           {
             id: loi.id,
             tenantBusinessName,
             propertyAddress,
-            suiteNumber: unit?.suite_number ?? '',
+            suiteNumber: unit?.suite_number ?? body.external_suite ?? '',
             brokerName,
             landlordName,
           },
