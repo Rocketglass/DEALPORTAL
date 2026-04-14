@@ -35,6 +35,8 @@ import { Badge } from '@/components/ui/badge';
 import { BackButton } from '@/components/ui/back-button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
+import { CollaboratorsPanel } from '@/components/deals/collaborators-panel';
+import { CommentsPanel } from '@/components/deals/comments-panel';
 import type { LeaseWithRelations, RentEscalation } from '@/types/database';
 
 // ============================================================
@@ -942,6 +944,12 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
             </div>
           </Card>
         )}
+      </div>
+
+      {/* Collaborators & Comments */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <CollaboratorsPanel dealType="lease" dealId={lease.id} />
+        <CommentsPanel dealType="lease" dealId={lease.id} />
       </div>
     </div>
   );

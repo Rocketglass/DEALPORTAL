@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { LoiSectionsPanel } from './loi-sections-panel';
 import { LoiActionButtons } from './loi-action-buttons';
 import { AddSectionButton } from './add-section-button';
+import { CollaboratorsPanel } from '@/components/deals/collaborators-panel';
+import { CommentsPanel } from '@/components/deals/comments-panel';
 import type { Contact, LoiSectionStatus } from '@/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -188,6 +190,12 @@ export default async function LoiDetailPage({ params }: Props) {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Collaborators & Comments */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <CollaboratorsPanel dealType="loi" dealId={id} />
+        <CommentsPanel dealType="loi" dealId={id} />
       </div>
 
       {/* Market comps moved to dedicated Comps tab */}
