@@ -8,7 +8,6 @@ const tenantNavItems = [
   { href: '/tenant/applications', label: 'My Applications', iconName: 'FileText' as const },
   { href: '/tenant/lois', label: 'LOIs', iconName: 'FileSignature' as const },
   { href: '/tenant/leases', label: 'Leases', iconName: 'ScrollText' as const },
-  { href: '/tenant/invoices', label: 'Invoices', iconName: 'Receipt' as const },
 ];
 
 export default function TenantLayout({

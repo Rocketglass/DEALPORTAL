@@ -8,7 +8,6 @@ const landlordNavItems = [
   { href: '/landlord/applications', label: 'Applications', iconName: 'FileText' as const },
   { href: '/landlord/lois', label: 'LOIs', iconName: 'FileSignature' as const },
   { href: '/landlord/leases', label: 'Leases', iconName: 'ScrollText' as const },
-  { href: '/landlord/invoices', label: 'Invoices', iconName: 'Receipt' as const },
   { href: '/landlord/properties', label: 'Properties', iconName: 'Building2' as const },
 ];
 

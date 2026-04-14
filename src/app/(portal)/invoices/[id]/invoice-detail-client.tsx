@@ -262,6 +262,8 @@ export default function InvoiceDetailClient({
   const [sending, setSending] = useState(false);
   const [marking, setMarking] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [showSendConfirm, setShowSendConfirm] = useState(false);
+  const [sendResult, setSendResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [editingRate, setEditingRate] = useState(false);
   const [newRate, setNewRate] = useState('');
   const [savingRate, setSavingRate] = useState(false);
@@ -270,16 +272,32 @@ export default function InvoiceDetailClient({
 
   const handleSendToLandlord = async () => {
     setSending(true);
+    setSendResult(null);
     try {
-      const res = await fetch(`/api/invoices/${invoice.id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'sent' }),
+      const res = await fetch(`/api/invoices/${invoice.id}/send`, {
+        method: 'POST',
       });
+      const json = await res.json();
       if (res.ok) {
-        const json = await res.json();
         setInvoice((prev) => ({ ...prev, ...json.invoice }));
+        setShowSendConfirm(false);
+        setSendResult({
+          type: 'success',
+          message: `Invoice ${invoice.invoice_number} sent to ${json.sentTo}`,
+        });
+        // Auto-dismiss success message after 5 seconds
+        setTimeout(() => setSendResult(null), 5000);
+      } else {
+        setSendResult({
+          type: 'error',
+          message: json.error || 'Failed to send invoice',
+        });
       }
+    } catch {
+      setSendResult({
+        type: 'error',
+        message: 'Network error — please try again',
+      });
     } finally {
       setSending(false);
     }
@@ -379,10 +397,10 @@ export default function InvoiceDetailClient({
             <Button
               variant="primary"
               icon={Send}
-              onClick={handleSendToLandlord}
+              onClick={() => setShowSendConfirm(true)}
               disabled={sending}
             >
-              {sending ? 'Sending…' : 'Send to Landlord'}
+              Send to Landlord
             </Button>
           )}
           <Button
@@ -699,6 +717,111 @@ export default function InvoiceDetailClient({
           onCancel={() => setShowPaymentForm(false)}
           loading={marking}
         />
+      )}
+
+      {/* Send Invoice Confirmation Modal */}
+      {showSendConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-label="Confirm send invoice" aria-modal="true">
+          <div
+            className="absolute inset-0 bg-black/40"
+            aria-hidden="true"
+            onClick={() => !sending && setShowSendConfirm(false)}
+          />
+          <div className="relative w-full max-w-md mx-4 rounded-xl bg-white shadow-xl">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[#e2e8f0] px-6 py-4">
+              <div>
+                <h3 className="text-base font-semibold text-[#0f172a]">Send Invoice</h3>
+                <p className="text-xs text-[#64748b] mt-0.5">
+                  This will email the invoice PDF to the landlord
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSendConfirm(false)}
+                disabled={sending}
+                aria-label="Close send confirmation"
+                className="rounded-lg p-1.5 text-[#64748b] hover:bg-[#f1f5f9] transition-colors disabled:opacity-50"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5">
+              <div className="flex items-start gap-3 rounded-lg bg-[#f8fafc] p-4">
+                <Send className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#1e40af]" />
+                <div className="text-sm text-[#0f172a]">
+                  <p className="font-medium">
+                    Send invoice {invoice.invoice_number} to{' '}
+                    <span className="text-[#1e40af]">{invoice.payee_name || 'the landlord'}</span>?
+                  </p>
+                  <p className="mt-1.5 text-[#64748b]">
+                    The invoice will be attached as a PDF. The invoice status will
+                    be updated to &quot;Sent&quot;.
+                  </p>
+                </div>
+              </div>
+
+              {sendResult?.type === 'error' && (
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {sendResult.message}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center gap-3 border-t border-[#e2e8f0] px-6 py-4">
+              <Button
+                variant="secondary"
+                size="md"
+                className="flex-1"
+                onClick={() => setShowSendConfirm(false)}
+                disabled={sending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                icon={Send}
+                className="flex-1"
+                onClick={handleSendToLandlord}
+                loading={sending}
+                disabled={sending}
+              >
+                {sending ? 'Sending...' : 'Send Invoice'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success/Error Toast */}
+      {sendResult && !showSendConfirm && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <div
+            className={cn(
+              'flex items-center gap-3 rounded-xl px-5 py-3.5 shadow-lg',
+              sendResult.type === 'success'
+                ? 'bg-green-50 border border-green-200 text-green-800'
+                : 'bg-red-50 border border-red-200 text-red-800',
+            )}
+          >
+            {sendResult.type === 'success' ? (
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-600" />
+            ) : (
+              <X className="h-5 w-5 flex-shrink-0 text-red-600" />
+            )}
+            <p className="text-sm font-medium">{sendResult.message}</p>
+            <button
+              onClick={() => setSendResult(null)}
+              className="ml-2 rounded-md p-1 hover:bg-black/5 transition-colors"
+              aria-label="Dismiss notification"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

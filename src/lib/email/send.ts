@@ -29,16 +29,23 @@ function getServiceClient() {
 const FROM_EMAIL =
   process.env.RESEND_FROM_EMAIL ?? 'notifications@rocketrealty.com';
 
+interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+}
+
 interface SendEmailOptions {
   to: string | string[];
   subject: string;
   html: string;
+  attachments?: EmailAttachment[];
 }
 
 export async function sendEmail({
   to,
   subject,
   html,
+  attachments,
 }: SendEmailOptions): Promise<void> {
   const client = getResend();
   if (!client) {
@@ -55,6 +62,7 @@ export async function sendEmail({
       to,
       subject,
       html,
+      ...(attachments?.length ? { attachments } : {}),
     });
 
     error = result.error;
