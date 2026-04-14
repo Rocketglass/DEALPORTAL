@@ -84,7 +84,41 @@ export default async function TenantApplicationsPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-border-subtle bg-white shadow-sm">
+            <>
+            {/* Mobile card layout */}
+            <div className="space-y-3 sm:hidden">
+              {applications.map((app) => {
+                const badge = statusBadge[app.status] ?? statusBadge.submitted;
+                return (
+                  <Link
+                    key={app.id}
+                    href={`/tenant/applications/${app.id}`}
+                    className="block rounded-xl border border-border-subtle bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-medium text-foreground truncate">{app.businessName}</p>
+                        <p className="mt-0.5 text-[12px] text-muted-foreground truncate">
+                          {app.propertyName}
+                          {app.suiteName ? ` \u00b7 Suite ${app.suiteName}` : ''}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}>
+                        {badge.label}
+                      </span>
+                    </div>
+                    {app.submittedAt && (
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        Submitted {formatDate(app.submittedAt)}
+                      </p>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="hidden sm:block overflow-hidden rounded-xl border border-border-subtle bg-white shadow-sm">
               <table className="w-full text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-border-subtle bg-muted/30">
@@ -114,7 +148,7 @@ export default async function TenantApplicationsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
-                          {app.submittedAt ? formatDate(app.submittedAt) : '—'}
+                          {app.submittedAt ? formatDate(app.submittedAt) : '\u2014'}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <Link
@@ -130,6 +164,7 @@ export default async function TenantApplicationsPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       )}

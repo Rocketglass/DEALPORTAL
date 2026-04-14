@@ -38,7 +38,7 @@ export default async function LandlordLeasesPage() {
   interface LeaseRow {
     id: string;
     status: string;
-    base_rent_monthly: number;
+    base_rent_monthly: number | null;
     property: { id: string; name: string }[] | { id: string; name: string } | null;
     tenant: { id: string; first_name: string | null; last_name: string | null; company_name: string | null }[] | { id: string; first_name: string | null; last_name: string | null; company_name: string | null } | null;
   }
@@ -128,7 +128,7 @@ export default async function LandlordLeasesPage() {
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{tenantName}</td>
                         <td className="px-4 py-3 tabular-nums text-foreground">
-                          {formatCurrency(lease.base_rent_monthly)}
+                          {lease.base_rent_monthly != null ? formatCurrency(lease.base_rent_monthly) : '—'}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}>

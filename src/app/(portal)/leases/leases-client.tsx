@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { ScrollText, Eye } from 'lucide-react';
+import { ScrollText, Eye, Plus } from 'lucide-react';
 import { DataTable } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import type { LeaseWithRelations } from '@/types/database';
 
@@ -104,12 +105,10 @@ export function LeasesClient({ leases, error }: Props) {
             View and manage all lease agreements.
           </p>
         </div>
-        <Link
-          href="/leases/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-light transition-colors"
-        >
-          <ScrollText className="h-4 w-4" />
-          Create Lease
+        <Link href="/leases/new">
+          <Button variant="primary" icon={Plus}>
+            Create Lease
+          </Button>
         </Link>
       </div>
 

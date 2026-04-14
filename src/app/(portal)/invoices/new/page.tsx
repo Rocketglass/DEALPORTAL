@@ -117,6 +117,12 @@ export default function NewInvoicePage() {
     if (form.total_consideration.trim() && (isNaN(Number(form.total_consideration)) || Number(form.total_consideration) < 0)) {
       newErrors.total_consideration = 'Must be a non-negative number';
     }
+    if (form.split_type === 'split') {
+      const pct = Number(form.split_percent);
+      if (isNaN(pct) || pct < 1 || pct > 99) {
+        newErrors.split_percent = 'Split percentage must be between 1 and 99';
+      }
+    }
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
       setShakeKey((k) => k + 1);
@@ -332,6 +338,7 @@ export default function NewInvoicePage() {
                     min="1"
                     max="99"
                     value={form.split_percent}
+                    error={errors.split_percent}
                     placeholder="e.g. 50"
                     onChange={(e) => handleChange('split_percent', e.target.value)}
                   />

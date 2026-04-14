@@ -124,8 +124,15 @@ function loiLabel(loi: LoiWithRelations): string {
     loi.tenant?.company_name ||
     [loi.tenant?.first_name, loi.tenant?.last_name].filter(Boolean).join(' ') ||
     'Unknown Tenant';
-  const property = loi.property?.name ?? 'Unknown Property';
-  const suite = loi.unit?.suite_number ? `, Suite ${loi.unit.suite_number}` : '';
+  const property = loi.property?.name
+    ?? (loi.external_address
+      ? [loi.external_address, loi.external_city, loi.external_state].filter(Boolean).join(', ')
+      : 'Unknown Property');
+  const suite = loi.unit?.suite_number
+    ? `, Suite ${loi.unit.suite_number}`
+    : loi.external_suite
+      ? `, Suite ${loi.external_suite}`
+      : '';
   return `${tenant} — ${property}${suite}`;
 }
 
@@ -196,11 +203,13 @@ export default function CreateLeasePage() {
         setForm((prev) => ({
           ...prev,
           lessee_name: loi.tenant?.company_name ?? '',
-          premises_address: loi.property?.address ?? '',
+          premises_address: loi.property?.address ?? loi.external_address ?? '',
+          premises_city: loi.property?.city ?? loi.external_city ?? '',
+          premises_state: loi.property?.state ?? loi.external_state ?? prev.premises_state,
+          premises_zip: loi.property?.zip ?? loi.external_zip ?? '',
           premises_sf: String(loi.unit?.sf ?? ''),
-          base_monthly_rent: sectionMap.base_rent ?? prev.base_monthly_rent,
-          lease_term_months: sectionMap.term ?? prev.lease_term_months,
-          cam_percentage: sectionMap.cam ?? prev.cam_percentage,
+          base_rent_monthly: sectionMap.base_rent ?? prev.base_rent_monthly,
+          cam_percent: sectionMap.cam ?? prev.cam_percent,
           security_deposit: sectionMap.security_deposit ?? prev.security_deposit,
           parking_spaces: sectionMap.parking ?? prev.parking_spaces,
         }));
@@ -238,9 +247,17 @@ export default function CreateLeasePage() {
     setImportedLoi(loi);
 
     if (!loi.property || !loi.unit) {
-      // External-address LOIs cannot be auto-mapped to a lease;
-      // the broker must select a system property manually.
-      setImportedLoi(null);
+      // External-address LOIs: pre-fill the address fields but skip full import
+      setForm((prev) => ({
+        ...prev,
+        lessee_name: loi.tenant?.company_name ?? '',
+        lessor_name: loi.landlord?.company_name ?? '',
+        premises_address: loi.external_address ?? '',
+        premises_city: loi.external_city ?? '',
+        premises_state: loi.external_state ?? prev.premises_state,
+        premises_zip: loi.external_zip ?? '',
+      }));
+      setSubmitError('This LOI uses an external address. Premises fields have been pre-filled from the LOI. Please complete the remaining sections manually.');
       return;
     }
 

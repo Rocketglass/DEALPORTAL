@@ -43,6 +43,11 @@ export async function GET(
         landlord_contact_id,
         tenant_contact_id,
         broker_contact_id,
+        external_address,
+        external_city,
+        external_state,
+        external_zip,
+        external_suite,
         property:properties(name, address, city, state),
         unit:units(suite_number),
         tenant:contacts!lois_tenant_contact_id_fkey(company_name, first_name, last_name),
@@ -141,6 +146,7 @@ export async function GET(
     const unit = loiData.unit as { suite_number: string } | null;
     const tenant = loiData.tenant as { company_name: string | null; first_name: string | null; last_name: string | null } | null;
     const broker = loiData.broker as { company_name: string | null; first_name: string | null; last_name: string | null } | null;
+    const landlord = loiData.landlord as { company_name: string | null; first_name: string | null; last_name: string | null } | null;
 
     const tenantName =
       tenant?.company_name ??
@@ -152,7 +158,21 @@ export async function GET(
       [broker?.first_name, broker?.last_name].filter(Boolean).join(' ') ??
       '';
 
+    const landlordName =
+      landlord?.company_name ??
+      [landlord?.first_name, landlord?.last_name].filter(Boolean).join(' ') ??
+      '';
+
     const brokerCompany = broker?.company_name ?? '';
+
+    // Property name — fall back to external address fields when property_id is null
+    const propertyName = property?.name
+      ?? (loiData.external_address
+        ? [loiData.external_address, loiData.external_city, loiData.external_state, loiData.external_zip].filter(Boolean).join(', ')
+        : '');
+
+    // Suite — fall back to external_suite
+    const suiteNumber = unit?.suite_number ?? loiData.external_suite ?? '';
 
     // Build a map of negotiations per section for efficient lookup
     const negsBySection = new Map<string, typeof negotiations>();
@@ -198,9 +218,10 @@ export async function GET(
     return NextResponse.json({
       callerRole: role,
       meta: {
-        property: property?.name ?? '',
-        suite: unit?.suite_number ?? '',
+        property: propertyName,
+        suite: suiteNumber,
         tenant: tenantName,
+        landlord: landlordName,
         broker: brokerName,
         brokerCompany,
         sentAt: loiData.sent_at ?? null,

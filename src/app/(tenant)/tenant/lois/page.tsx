@@ -104,7 +104,43 @@ export default async function TenantLoisPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-border-subtle bg-white shadow-sm">
+            <>
+            {/* Mobile card layout */}
+            <div className="space-y-3 sm:hidden">
+              {lois.map((loi) => {
+                const property = Array.isArray(loi.property) ? loi.property[0] : loi.property;
+                const landlord = Array.isArray(loi.landlord) ? loi.landlord[0] : loi.landlord;
+                const landlordName = landlord?.company_name
+                  || [landlord?.first_name, landlord?.last_name].filter(Boolean).join(' ')
+                  || 'Unknown';
+                const badge = statusBadge[loi.status as LoiStatus] ?? statusBadge.draft;
+
+                return (
+                  <Link
+                    key={loi.id}
+                    href={`/tenant/lois/${loi.id}`}
+                    className="block rounded-xl border border-border-subtle bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-medium text-foreground truncate">
+                          {property?.name ?? 'Unknown Property'}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-muted-foreground truncate">
+                          {landlordName}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}>
+                        {badge.label}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="hidden sm:block overflow-hidden rounded-xl border border-border-subtle bg-white shadow-sm">
               <table className="w-full text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-border-subtle bg-muted/30">
@@ -148,6 +184,7 @@ export default async function TenantLoisPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       )}

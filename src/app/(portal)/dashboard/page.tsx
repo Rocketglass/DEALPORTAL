@@ -138,8 +138,6 @@ function formatTimelineDate(isoDate: string): string {
 }
 
 function ActivityTimeline({ notifications }: { notifications: Notification[] }) {
-  const INITIAL_SHOW = 10;
-
   if (notifications.length === 0) {
     return (
       <Card className="border border-border-subtle">

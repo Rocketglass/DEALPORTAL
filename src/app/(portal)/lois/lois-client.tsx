@@ -36,7 +36,7 @@ function getPropertyLabel(loi: LoiWithRelations): string {
   const name = loi.property?.name
     ?? (loi.external_address
       ? [loi.external_address, loi.external_city, loi.external_state].filter(Boolean).join(', ')
-      : loi.property_id ?? '—');
+      : '—');
   const suite = loi.unit?.suite_number ?? loi.external_suite;
   return suite ? `${name} — Suite ${suite}` : name;
 }

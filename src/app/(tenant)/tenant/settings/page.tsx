@@ -5,6 +5,7 @@ import { User, Lock, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
 
@@ -175,29 +176,52 @@ function SecuritySection() {
           <h2 className="text-base font-semibold">Change Password</h2>
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <Input
-            label="Current Password"
-            type="password"
-            className="sm:col-span-2"
-            value={currentPassword}
-            onChange={(e) => { setCurrentPassword(e.target.value); clearError('currentPassword'); }}
-            error={errors.currentPassword}
-          />
-          <Input
-            label="New Password"
-            type="password"
-            value={newPassword}
-            onChange={(e) => { setNewPassword(e.target.value); clearError('newPassword'); }}
-            error={errors.newPassword}
-          />
-          <Input
-            label="Confirm New Password"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => { setConfirmPassword(e.target.value); clearError('confirmPassword'); }}
-            error={errors.confirmPassword}
-          />
+        <div className="mt-6 space-y-4">
+          <div>
+            <PasswordInput
+              id="current-password"
+              label="Current Password"
+              labelClassName="mb-1.5 block text-sm font-medium"
+              value={currentPassword}
+              onChange={(e) => { setCurrentPassword(e.target.value); clearError('currentPassword'); }}
+              className="w-full rounded-lg border border-border px-3 py-2 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="Enter your current password"
+            />
+            {errors.currentPassword && (
+              <p className="mt-1 text-xs text-destructive">{errors.currentPassword}</p>
+            )}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <PasswordInput
+                id="new-password"
+                label="New Password"
+                labelClassName="mb-1.5 block text-sm font-medium"
+                value={newPassword}
+                onChange={(e) => { setNewPassword(e.target.value); clearError('newPassword'); }}
+                className="w-full rounded-lg border border-border px-3 py-2 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="At least 8 characters"
+                minLength={8}
+              />
+              {errors.newPassword && (
+                <p className="mt-1 text-xs text-destructive">{errors.newPassword}</p>
+              )}
+            </div>
+            <div>
+              <PasswordInput
+                id="confirm-new-password"
+                label="Confirm New Password"
+                labelClassName="mb-1.5 block text-sm font-medium"
+                value={confirmPassword}
+                onChange={(e) => { setConfirmPassword(e.target.value); clearError('confirmPassword'); }}
+                className="w-full rounded-lg border border-border px-3 py-2 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="Re-enter your new password"
+              />
+              {errors.confirmPassword && (
+                <p className="mt-1 text-xs text-destructive">{errors.confirmPassword}</p>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 flex justify-end">

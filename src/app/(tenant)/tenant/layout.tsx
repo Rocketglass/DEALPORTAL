@@ -1,5 +1,5 @@
 import { PortalSidebar } from '@/components/layout/portal-sidebar';
-import { Header } from '@/components/layout/header';
+import { TenantHeader } from '@/components/layout/tenant-header';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +21,7 @@ export default function TenantLayout({
         <PortalSidebar navItems={tenantNavItems} portalName="Tenant Portal" />
       </div>
       <div className="flex flex-1 flex-col">
-        <Header />
+        <TenantHeader />
         <main className="flex-1 overflow-auto bg-background">
           {children}
         </main>

@@ -42,6 +42,10 @@ export default async function LandlordLoisPage() {
     sent_at: string | null;
     property: PropertyShape | PropertyShape[] | null;
     tenant: ContactShape | ContactShape[] | null;
+    external_address: string | null;
+    external_city: string | null;
+    external_state: string | null;
+    external_suite: string | null;
   }
 
   let lois: LoiRow[] = [];
@@ -55,6 +59,10 @@ export default async function LandlordLoisPage() {
         id,
         status,
         sent_at,
+        external_address,
+        external_city,
+        external_state,
+        external_suite,
         property:properties(id, name),
         tenant:contacts!lois_tenant_contact_id_fkey(id, first_name, last_name, company_name)
       `)
@@ -121,11 +129,15 @@ export default async function LandlordLoisPage() {
                       || [tenant?.first_name, tenant?.last_name].filter(Boolean).join(' ')
                       || 'Unknown';
                     const badge = statusBadge[loi.status as LoiStatus] ?? statusBadge.draft;
+                    const propertyLabel = property?.name
+                      ?? (loi.external_address
+                        ? [loi.external_address, loi.external_city, loi.external_state].filter(Boolean).join(', ')
+                        : 'Unknown Property');
 
                     return (
                       <tr key={loi.id} className="hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3 font-medium text-foreground">
-                          {property?.name ?? 'Unknown Property'}
+                          {propertyLabel}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{tenantName}</td>
                         <td className="px-4 py-3">

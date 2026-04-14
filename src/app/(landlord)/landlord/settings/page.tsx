@@ -5,6 +5,7 @@ import { User, Lock, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
 
@@ -176,28 +177,48 @@ function SecuritySection() {
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <Input
-            label="Current Password"
-            type="password"
-            className="sm:col-span-2"
-            value={currentPassword}
-            onChange={(e) => { setCurrentPassword(e.target.value); clearError('currentPassword'); }}
-            error={errors.currentPassword}
-          />
-          <Input
-            label="New Password"
-            type="password"
-            value={newPassword}
-            onChange={(e) => { setNewPassword(e.target.value); clearError('newPassword'); }}
-            error={errors.newPassword}
-          />
-          <Input
-            label="Confirm New Password"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => { setConfirmPassword(e.target.value); clearError('confirmPassword'); }}
-            error={errors.confirmPassword}
-          />
+          <div className="sm:col-span-2">
+            <PasswordInput
+              label="Current Password"
+              labelClassName="mb-1.5 block text-sm font-medium text-muted-foreground"
+              className="h-10 w-full rounded-lg border border-border bg-white px-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+              value={currentPassword}
+              onChange={(e) => { setCurrentPassword(e.target.value); clearError('currentPassword'); }}
+            />
+            {errors.currentPassword && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-red-600">
+                {errors.currentPassword}
+              </p>
+            )}
+          </div>
+          <div>
+            <PasswordInput
+              label="New Password"
+              labelClassName="mb-1.5 block text-sm font-medium text-muted-foreground"
+              className="h-10 w-full rounded-lg border border-border bg-white px-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+              value={newPassword}
+              onChange={(e) => { setNewPassword(e.target.value); clearError('newPassword'); }}
+            />
+            {errors.newPassword && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-red-600">
+                {errors.newPassword}
+              </p>
+            )}
+          </div>
+          <div>
+            <PasswordInput
+              label="Confirm New Password"
+              labelClassName="mb-1.5 block text-sm font-medium text-muted-foreground"
+              className="h-10 w-full rounded-lg border border-border bg-white px-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+              value={confirmPassword}
+              onChange={(e) => { setConfirmPassword(e.target.value); clearError('confirmPassword'); }}
+            />
+            {errors.confirmPassword && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-red-600">
+                {errors.confirmPassword}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="mt-6 flex justify-end">

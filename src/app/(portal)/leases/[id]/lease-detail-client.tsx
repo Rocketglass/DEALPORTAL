@@ -365,7 +365,7 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold">
-              {property.name}
+              {property?.name ?? lease.premises_address ?? 'Lease'}
               {unit?.suite_number ? ` — Suite ${unit.suite_number}` : ''}
             </h1>
             <Badge status={lease.status} />

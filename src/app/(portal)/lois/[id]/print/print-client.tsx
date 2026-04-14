@@ -96,11 +96,15 @@ export default function LoiPrintClient({ loi }: LoiPrintClientProps) {
 
   const propertyAddress = loi.property
     ? `${loi.property.address}, ${loi.property.city}, ${loi.property.state} ${loi.property.zip || ''}`
-    : '---';
+    : loi.external_address
+      ? [loi.external_address, loi.external_city, loi.external_state, loi.external_zip].filter(Boolean).join(', ')
+      : '---';
 
   const suiteDisplay = loi.unit?.suite_number
     ? `Suite ${loi.unit.suite_number}`
-    : '';
+    : loi.external_suite
+      ? `Suite ${loi.external_suite}`
+      : '';
 
   const tenantBusiness = companyOrName(loi.tenant);
   const landlordName = fullName(loi.landlord);
@@ -181,7 +185,7 @@ export default function LoiPrintClient({ loi }: LoiPrintClientProps) {
         {/* RE line */}
         <div style={{ marginBottom: 24 }}>
           <p style={{ margin: 0 }}>
-            <strong>RE:</strong> {loi.property?.address || '---'}
+            <strong>RE:</strong> {loi.property?.address || loi.external_address || '---'}
             {suiteDisplay ? `, ${suiteDisplay}` : ''}
           </p>
           <p style={{ margin: 0, paddingLeft: 36 }}>
