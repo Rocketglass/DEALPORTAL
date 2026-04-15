@@ -36,7 +36,7 @@ CREATE POLICY deal_collaborators_broker_all
   USING (
     EXISTS (
       SELECT 1 FROM users u
-      WHERE u.auth_provider_id = auth.uid()
+      WHERE u.auth_provider_id = auth.uid()::text
         AND u.role IN ('broker', 'admin')
         AND u.is_active = true
     )
@@ -78,7 +78,7 @@ CREATE POLICY deal_comments_broker_all
   USING (
     EXISTS (
       SELECT 1 FROM users u
-      WHERE u.auth_provider_id = auth.uid()
+      WHERE u.auth_provider_id = auth.uid()::text
         AND u.role IN ('broker', 'admin')
         AND u.is_active = true
     )
