@@ -63,7 +63,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   let sent = 0;
   let skipped = 0;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rocket-realty-portal.vercel.app';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rocketrealty.properties';
 
   for (const app of draftApps) {
     const contact = app.contact as unknown as { first_name: string | null; email: string | null } | null;

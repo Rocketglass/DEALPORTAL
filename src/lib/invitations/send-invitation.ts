@@ -56,7 +56,7 @@ export async function sendInvitation(params: SendInvitationParams): Promise<Send
   }
 
   // Build the invitation accept URL
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || url.replace('.supabase.co', '.vercel.app');
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rocketrealty.properties';
   const inviteUrl = `${appUrl}/invite?token=${token}`;
 
   // Send email using existing email infrastructure

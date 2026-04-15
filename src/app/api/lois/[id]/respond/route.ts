@@ -291,6 +291,11 @@ export async function POST(
             landlord_contact_id,
             tenant_contact_id,
             broker_contact_id,
+            external_address,
+            external_city,
+            external_state,
+            external_zip,
+            external_suite,
             property:properties(address, city, state),
             unit:units(suite_number),
             tenant:contacts!lois_tenant_contact_id_fkey(email, first_name, last_name, company_name),
@@ -327,9 +332,11 @@ export async function POST(
 
         const propertyAddress = property
           ? `${property.address}, ${property.city}, ${property.state}`
-          : 'Unknown property';
+          : loiFullData.external_address
+            ? [loiFullData.external_address, loiFullData.external_city, loiFullData.external_state, loiFullData.external_zip].filter(Boolean).join(', ')
+            : 'External Property';
 
-        const suiteNumber = unit?.suite_number ?? '';
+        const suiteNumber = unit?.suite_number ?? loiFullData.external_suite ?? '';
 
         // Determine actor's display name
         let actorName: string;
@@ -394,6 +401,11 @@ export async function POST(
             landlord_contact_id,
             tenant_contact_id,
             broker_contact_id,
+            external_address,
+            external_city,
+            external_state,
+            external_zip,
+            external_suite,
             property:properties(address, city, state),
             unit:units(suite_number),
             tenant:contacts!lois_tenant_contact_id_fkey(company_name, first_name, last_name),
@@ -415,7 +427,9 @@ export async function POST(
 
         const propertyAddress = property
           ? `${property.address}, ${property.city}, ${property.state}`
-          : 'Unknown property';
+          : loiFullData.external_address
+            ? [loiFullData.external_address, loiFullData.external_city, loiFullData.external_state, loiFullData.external_zip].filter(Boolean).join(', ')
+            : 'External Property';
 
         const actionLabel = responses.some((r) => r.action === 'reject')
           ? 'rejected terms'

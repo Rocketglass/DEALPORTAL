@@ -41,10 +41,6 @@ function LoginForm() {
   const [resetError, setResetError] = useState('');
   const invitationToken = searchParams.get('invitation');
   const baseRedirect = searchParams.get('redirect') || '/dashboard';
-  // If an invitation token is present, route through the auth callback so it gets processed
-  const redirect = invitationToken
-    ? `/auth/callback?invitation=${encodeURIComponent(invitationToken)}`
-    : baseRedirect;
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -70,7 +66,27 @@ function LoginForm() {
         return;
       }
 
-      router.push(redirect);
+      // If there's an invitation token, accept it via API after login
+      if (invitationToken) {
+        try {
+          const res = await fetch('/api/invitations/accept', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: invitationToken }),
+          });
+          const data = await res.json();
+          if (res.ok && data.redirect) {
+            router.push(data.redirect);
+            router.refresh();
+            return;
+          }
+          // If invitation acceptance fails, fall through to default redirect
+        } catch {
+          // Non-fatal — fall through to default redirect
+        }
+      }
+
+      router.push(baseRedirect);
       router.refresh();
     } catch {
       setError('Authentication service unavailable.');

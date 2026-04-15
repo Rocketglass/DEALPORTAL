@@ -17,8 +17,10 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const code = searchParams.get('code');
   const type = searchParams.get('type');
-  // Optional: honour a ?next= param for deep-link redirects
-  const next = searchParams.get('next') ?? '/dashboard';
+  // Optional: honour a ?next= param for deep-link redirects.
+  // Only allow relative paths to prevent open-redirect attacks.
+  const rawNext = searchParams.get('next') ?? '/dashboard';
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard';
   const invitationToken = searchParams.get('invitation');
 
   if (!code) {

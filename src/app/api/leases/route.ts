@@ -39,9 +39,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const body: CreateLeaseBody = await request.json();
 
     // Required field validation
+    // Note: property_id and unit_id are NOT required — external-address LOIs
+    // produce leases without a system property/unit reference.
     const requiredFields: string[] = [
-      'property_id',
-      'unit_id',
       'tenant_contact_id',
       'landlord_contact_id',
       'broker_contact_id',
@@ -73,20 +73,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { escalations, ...leaseData } = body;
 
-    // Prevent duplicate active leases for the same unit
-    const { data: existingLease } = await supabase
-      .from('leases')
-      .select('id, status')
-      .eq('unit_id', leaseData.unit_id)
-      .in('status', ['draft', 'review', 'sent_for_signature', 'partially_signed', 'executed'])
-      .limit(1)
-      .maybeSingle();
+    // Prevent duplicate active leases for the same unit (only when unit_id is present)
+    if (leaseData.unit_id) {
+      const { data: existingLease } = await supabase
+        .from('leases')
+        .select('id, status')
+        .eq('unit_id', leaseData.unit_id)
+        .in('status', ['draft', 'review', 'sent_for_signature', 'partially_signed', 'executed'])
+        .limit(1)
+        .maybeSingle();
 
-    if (existingLease) {
-      return NextResponse.json(
-        { error: `Unit already has an active lease (${existingLease.status}). Cancel or expire the existing lease first.` },
-        { status: 409 },
-      );
+      if (existingLease) {
+        return NextResponse.json(
+          { error: `Unit already has an active lease (${existingLease.status}). Cancel or expire the existing lease first.` },
+          { status: 409 },
+        );
+      }
     }
 
     // Insert the lease row
@@ -120,11 +122,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Update unit status to 'pending'
-    await supabase
-      .from('units')
-      .update({ status: 'pending' })
-      .eq('id', leaseData.unit_id);
+    // Update unit status to 'pending' (only for system units)
+    if (leaseData.unit_id) {
+      await supabase
+        .from('units')
+        .update({ status: 'pending' })
+        .eq('id', leaseData.unit_id);
+    }
 
     // Audit log
     await supabase.from('audit_log').insert({

@@ -9,19 +9,21 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const supabase = await createClient();
-
-    // Verify authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Only brokers/admins should access application data for LOI pre-fill
+    try {
+      await requireBrokerOrAdminForApi();
+    } catch (authError) {
+      return NextResponse.json(
+        { error: (authError as Error).message },
+        { status: 401 },
+      );
     }
+
+    const supabase = await createClient();
 
     const applicationId = request.nextUrl.searchParams.get('id');
     if (!applicationId) {

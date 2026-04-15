@@ -410,7 +410,9 @@ export async function POST(
 
         const propertyAddress = property
           ? `${property.address}, ${property.city}, ${property.state}`
-          : 'Unknown property';
+          : leaseFullData.premises_address
+            ? `${leaseFullData.premises_address}, ${leaseFullData.premises_city ?? ''}, ${leaseFullData.premises_state ?? ''}`
+            : 'External Property';
 
         const suiteNumber = unit?.suite_number ?? '';
 
@@ -465,6 +467,9 @@ export async function POST(
             landlord_contact_id,
             tenant_contact_id,
             broker_contact_id,
+            premises_address,
+            premises_city,
+            premises_state,
             property:properties(address, city, state),
             unit:units!leases_unit_id_fkey(suite_number),
             sections:lease_sections!inner(id, section_label)
@@ -480,7 +485,9 @@ export async function POST(
 
         const propertyAddress = property
           ? `${property.address}, ${property.city}, ${property.state}`
-          : 'Unknown property';
+          : leaseFullData.premises_address
+            ? `${leaseFullData.premises_address}, ${leaseFullData.premises_city ?? ''}, ${leaseFullData.premises_state ?? ''}`
+            : 'External Property';
 
         // Find the label for the updated section
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

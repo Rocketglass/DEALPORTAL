@@ -168,6 +168,7 @@ export default function CreateLeasePage() {
   // Submission
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [importInfo, setImportInfo] = useState<string | null>(null);
 
   // Load agreed LOIs on mount
   useEffect(() => {
@@ -247,7 +248,12 @@ export default function CreateLeasePage() {
     setImportedLoi(loi);
 
     if (!loi.property || !loi.unit) {
-      // External-address LOIs: pre-fill the address fields but skip full import
+      // External-address LOIs: pre-fill the address fields and LOI section values
+      const sectionMap: Record<string, string> = {};
+      for (const s of (loi.sections ?? [])) {
+        sectionMap[s.section_key] = s.agreed_value ?? s.proposed_value ?? '';
+      }
+
       setForm((prev) => ({
         ...prev,
         lessee_name: loi.tenant?.company_name ?? '',
@@ -256,8 +262,14 @@ export default function CreateLeasePage() {
         premises_city: loi.external_city ?? '',
         premises_state: loi.external_state ?? prev.premises_state,
         premises_zip: loi.external_zip ?? '',
+        base_rent_monthly: sectionMap.base_rent ?? prev.base_rent_monthly,
+        cam_percent: sectionMap.cam ?? prev.cam_percent,
+        security_deposit: sectionMap.security_deposit ?? prev.security_deposit,
+        parking_spaces: sectionMap.parking ?? prev.parking_spaces,
+        agreed_use: sectionMap.agreed_use ?? prev.agreed_use,
       }));
-      setSubmitError('This LOI uses an external address. Premises fields have been pre-filled from the LOI. Please complete the remaining sections manually.');
+      setImportInfo('This LOI uses an external address. Premises and key terms have been pre-filled. Please complete the remaining sections manually (square footage, term dates, etc.).');
+      setExpanded(new Set(AIR_SECTIONS.map((s) => s.key)));
       return;
     }
 
@@ -530,6 +542,14 @@ export default function CreateLeasePage() {
         <div className="mt-4 flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{submitError}</span>
+        </div>
+      )}
+
+      {/* Import info message */}
+      {importInfo && (
+        <div className="mt-4 flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          <Import className="h-4 w-4 shrink-0" />
+          <span>{importInfo}</span>
         </div>
       )}
 

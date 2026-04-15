@@ -34,6 +34,7 @@ export async function POST(
       .from('lois')
       .select(`
         id, status,
+        external_address, external_city, external_state, external_zip, external_suite,
         property:properties(address, city, state),
         unit:units(suite_number),
         tenant:contacts!lois_tenant_contact_id_fkey(first_name, last_name, company_name),
@@ -80,9 +81,13 @@ export async function POST(
       ?? [broker?.first_name, broker?.last_name].filter(Boolean).join(' '))
       || 'Broker';
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const loiData = loi as any;
     const propertyAddress = property
       ? `${property.address}, ${property.city}, ${property.state}`
-      : 'Unknown property';
+      : loiData.external_address
+        ? [loiData.external_address, loiData.external_city, loiData.external_state, loiData.external_zip].filter(Boolean).join(', ')
+        : 'External Property';
 
     const reviewToken = generateLoiReviewToken(loi.id);
 
@@ -91,7 +96,7 @@ export async function POST(
         id: loi.id,
         tenantBusinessName,
         propertyAddress,
-        suiteNumber: unit?.suite_number ?? '',
+        suiteNumber: unit?.suite_number ?? loiData.external_suite ?? '',
         brokerName,
         landlordName,
         reviewToken,

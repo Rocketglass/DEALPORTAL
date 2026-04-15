@@ -6,7 +6,7 @@
  * and inline styles for consistent rendering.
  */
 
-const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL ?? 'https://portal.rocketrealty.com';
+const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://rocketrealty.properties';
 
 // ---------------------------------------------------------------------------
 // Shared layout helpers
@@ -26,7 +26,7 @@ function layout(body: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Rocket Realty</title>
 </head>
-<body style="margin:0;padding:0;background-color:${BG_COLOR};font-family:Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+<body style="margin:0;padding:0;background-color:${BG_COLOR};font-family:Inter,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${BG_COLOR};">
     <tr>
       <td align="center" style="padding:32px 16px;">

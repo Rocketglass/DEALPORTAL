@@ -145,7 +145,9 @@ export async function POST(
     propertyAddress,
     suiteNumber,
     commissionAmount: commissionFormatted,
-    dueDate: data.due_date ?? new Date().toISOString(),
+    dueDate: data.due_date
+      ? new Date(data.due_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : 'Due on receipt',
     invoiceId: data.id,
   });
 

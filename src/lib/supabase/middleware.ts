@@ -385,7 +385,13 @@ export async function updateSession(request: NextRequest) {
     // Tenant: book an inspection tour
     /^\/api\/properties\/[^/]+\/book-inspection/.test(pathname) ||
     // Public: look up invitation details by token
-    pathname === '/api/invitations/accept';
+    pathname === '/api/invitations/accept' ||
+    // Lawyers: access deal comments via access_token (token validated in handler)
+    /^\/api\/deals\/[^/]+\/[^/]+\/comments/.test(pathname) ||
+    // Parties: view public deal checklists (linked from notification emails)
+    /^\/api\/checklists\/public\//.test(pathname) ||
+    // Parties: update checklist items (PATCH — linked from notification emails)
+    /^\/api\/checklists\/[^/]+\/items\/[^/]+$/.test(pathname);
 
   // Protected API routes — return 401 JSON if not authenticated
   // /auth/callback is a public route; it runs before a session exists

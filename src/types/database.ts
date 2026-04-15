@@ -377,8 +377,8 @@ export interface LoiNegotiation {
 export interface Lease {
   id: string;
   loi_id: string | null;
-  property_id: string;
-  unit_id: string;
+  property_id: string | null;
+  unit_id: string | null;
   tenant_contact_id: string;
   landlord_contact_id: string;
   broker_contact_id: string;
@@ -703,8 +703,8 @@ export interface LoiWithRelations extends Loi {
 }
 
 export interface LeaseWithRelations extends Lease {
-  property: Property;
-  unit: Unit;
+  property: Property | null;
+  unit: Unit | null;
   tenant: Contact;
   landlord: Contact;
   broker: Contact;

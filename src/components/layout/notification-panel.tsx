@@ -4,7 +4,14 @@ import { useEffect, useRef } from 'react';
 import { FileText, Handshake, ScrollText, Receipt } from 'lucide-react';
 import Link from 'next/link';
 
-export type NotificationType = 'application' | 'loi' | 'lease' | 'invoice';
+export type NotificationType =
+  | 'application'
+  | 'loi'
+  | 'loi_section_update'
+  | 'lease'
+  | 'lease_term_update'
+  | 'lease_response'
+  | 'invoice';
 
 export interface Notification {
   id: string;
@@ -19,14 +26,20 @@ export interface Notification {
 const typeIcons: Record<NotificationType, React.ElementType> = {
   application: FileText,
   loi: Handshake,
+  loi_section_update: Handshake,
   lease: ScrollText,
+  lease_term_update: ScrollText,
+  lease_response: ScrollText,
   invoice: Receipt,
 };
 
 const typeColors: Record<NotificationType, string> = {
   application: 'text-primary',
   loi: 'text-warning',
+  loi_section_update: 'text-warning',
   lease: 'text-success',
+  lease_term_update: 'text-success',
+  lease_response: 'text-success',
   invoice: 'text-muted-foreground',
 };
 
@@ -118,8 +131,8 @@ export function NotificationPanel({
         ) : (
           <div className="max-h-80 overflow-y-auto">
             {notifications.map((notification) => {
-              const Icon = typeIcons[notification.type];
-              const iconColor = typeColors[notification.type];
+              const Icon = typeIcons[notification.type] ?? FileText;
+              const iconColor = typeColors[notification.type] ?? 'text-muted-foreground';
 
               return (
                 <Link

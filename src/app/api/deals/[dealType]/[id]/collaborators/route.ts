@@ -147,7 +147,7 @@ export async function POST(
 
     // Send invitation email (non-fatal)
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://portal.rocketrealty.com';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rocketrealty.properties';
       const reviewUrl = `${baseUrl}/review/${dealType}/${dealId}?token=${accessToken}`;
       const dealLabel = dealType === 'loi' ? 'Letter of Intent' : 'Lease Agreement';
       const roleLabel = role === 'landlord_lawyer' ? "Landlord's Attorney" : "Tenant's Attorney";

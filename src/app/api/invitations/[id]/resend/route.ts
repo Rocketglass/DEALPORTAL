@@ -50,7 +50,7 @@ export async function POST(
     }
 
     // Resend email with the new token
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || url.replace('.supabase.co', '.vercel.app');
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rocketrealty.properties';
     const inviteUrl = `${appUrl}/invite?token=${newToken}`;
 
     try {

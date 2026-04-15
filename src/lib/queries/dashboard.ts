@@ -369,6 +369,8 @@ export async function getVacancyIntelligence(): Promise<{
     // Build a map of unit_id -> lease for quick lookup
     const leaseByUnit = new Map<string, (typeof leases)[number]>();
     for (const lease of leases || []) {
+      // Skip leases without a unit_id (external-address leases)
+      if (!lease.unit_id) continue;
       // If a unit already has a lease mapped, keep the one expiring later
       const existing = leaseByUnit.get(lease.unit_id);
       if (!existing || new Date(lease.expiration_date) > new Date(existing.expiration_date)) {

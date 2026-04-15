@@ -88,7 +88,7 @@ export async function generateCommissionInvoice(
   //    Use the property type to pick a market-convention default rate.
   //    In the future this could come from a deal-specific field.
   // ------------------------------------------------------------------
-  const propertyType = lease.property?.property_type ?? 'industrial';
+  const propertyType = (lease.property as { property_type?: string } | null)?.property_type ?? 'industrial';
   const commissionRate = overrideRate ?? getDefaultCommissionRate(
     propertyType as Parameters<typeof getDefaultCommissionRate>[0],
   );

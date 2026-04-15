@@ -187,18 +187,20 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
     console.error('[DocuSign Webhook] Failed to download executed PDF:', pdfError);
   }
 
-  // Update unit status to occupied
-  const { error: unitError } = await supabase
-    .from('units')
-    .update({
-      status: 'occupied',
-      current_lease_id: lease.id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', lease.unit_id);
+  // Update unit status to occupied (only for system units)
+  if (lease.unit_id) {
+    const { error: unitError } = await supabase
+      .from('units')
+      .update({
+        status: 'occupied',
+        current_lease_id: lease.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', lease.unit_id);
 
-  if (unitError) {
-    console.error('[DocuSign Webhook] Failed to update unit status:', unitError);
+    if (unitError) {
+      console.error('[DocuSign Webhook] Failed to update unit status:', unitError);
+    }
   }
 
   // Audit log
@@ -238,17 +240,21 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
         .eq('id', invoice.payee_contact_id)
         .maybeSingle();
 
-      const { data: prop } = await supabase
-        .from('properties')
-        .select('address')
-        .eq('id', lease.property_id)
-        .maybeSingle();
+      const { data: prop } = lease.property_id
+        ? await supabase
+            .from('properties')
+            .select('address')
+            .eq('id', lease.property_id)
+            .maybeSingle()
+        : { data: null };
 
-      const { data: unit } = await supabase
-        .from('units')
-        .select('suite_number')
-        .eq('id', lease.unit_id)
-        .maybeSingle();
+      const { data: unit } = lease.unit_id
+        ? await supabase
+            .from('units')
+            .select('suite_number')
+            .eq('id', lease.unit_id)
+            .maybeSingle()
+        : { data: null };
 
       if (payee?.email) {
         const payeeName = [payee.first_name, payee.last_name].filter(Boolean).join(' ')
@@ -306,11 +312,13 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
         .select('email, first_name, last_name, company_name')
         .eq('id', lease.broker_contact_id)
         .maybeSingle(),
-      supabase
-        .from('units')
-        .select('suite_number')
-        .eq('id', lease.unit_id)
-        .maybeSingle(),
+      lease.unit_id
+        ? supabase
+            .from('units')
+            .select('suite_number')
+            .eq('id', lease.unit_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
     const parties = [

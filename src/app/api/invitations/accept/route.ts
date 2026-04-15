@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { requireAuthForApi } from '@/lib/security/auth-guard';
 
 /**
  * GET /api/invitations/accept?token=XXX
@@ -79,6 +80,112 @@ export async function GET(request: NextRequest) {
     });
   } catch (err) {
     console.error('[Invitations Accept] Error:', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * POST /api/invitations/accept
+ *
+ * Authenticated endpoint — accepts an invitation for the currently logged-in user.
+ * Used when an existing user logs in via the invitation flow (they already have a
+ * session, so they don't go through the auth callback code exchange).
+ *
+ * Body: { token: string }
+ *
+ * Returns: { redirect: string } — the URL to redirect to based on the invitation role.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    await requireAuthForApi();
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { token } = body;
+
+    if (!token || typeof token !== 'string') {
+      return NextResponse.json(
+        { error: 'Missing invitation token' },
+        { status: 400 },
+      );
+    }
+
+    const { createClient } = await import('@/lib/supabase/service');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (await createClient()) as any;
+
+    const { data: invitation, error } = await supabase
+      .from('invitations')
+      .select('id, role, principal_id, contact_id, deal_id, status, expires_at')
+      .eq('token', token)
+      .eq('status', 'pending')
+      .single();
+
+    if (error || !invitation) {
+      return NextResponse.json(
+        { error: 'Invitation not found, already accepted, or expired' },
+        { status: 404 },
+      );
+    }
+
+    // Check expiry
+    if (invitation.expires_at && new Date(invitation.expires_at) < new Date()) {
+      return NextResponse.json(
+        { error: 'This invitation has expired' },
+        { status: 410 },
+      );
+    }
+
+    // Look up the auth user ID for the current user
+    const { createClient: createServerClient } = await import('@/lib/supabase/server');
+    const serverSupabase = await createServerClient();
+    const { data: { user: authUser } } = await serverSupabase.auth.getUser();
+
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Update user with invitation role and principal_id (for agents)
+    await supabase
+      .from('users')
+      .update({
+        role: invitation.role,
+        contact_id: invitation.contact_id,
+        principal_id: invitation.principal_id || null,
+      })
+      .eq('auth_provider_id', authUser.id);
+
+    // Mark invitation as accepted
+    await supabase
+      .from('invitations')
+      .update({
+        status: 'accepted',
+        accepted_at: new Date().toISOString(),
+        accepted_by_user_id: authUser.id,
+      })
+      .eq('id', invitation.id);
+
+    // Determine redirect based on role
+    const roleRedirects: Record<string, string> = {
+      landlord: '/landlord/dashboard',
+      landlord_agent: '/landlord/dashboard',
+      tenant: '/tenant/dashboard',
+      tenant_agent: '/tenant/dashboard',
+      broker: '/dashboard',
+      admin: '/dashboard',
+    };
+
+    const redirect = roleRedirects[invitation.role] || '/dashboard';
+
+    return NextResponse.json({ redirect });
+  } catch (err) {
+    console.error('[Invitations Accept POST] Error:', err);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 },

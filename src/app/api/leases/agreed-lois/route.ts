@@ -10,17 +10,22 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 import type { LoiWithRelations } from '@/types/database';
 
 export async function GET(): Promise<NextResponse> {
   try {
-    const supabase = await createClient();
-
-    // Verify authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Only brokers/admins should access agreed LOIs for lease creation
+    try {
+      await requireBrokerOrAdminForApi();
+    } catch (authError) {
+      return NextResponse.json(
+        { error: (authError as Error).message },
+        { status: 401 },
+      );
     }
+
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from('lois')
