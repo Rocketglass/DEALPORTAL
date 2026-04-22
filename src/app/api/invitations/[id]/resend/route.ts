@@ -32,26 +32,27 @@ export async function POST(
       return NextResponse.json({ error: 'Invitation not found or already used' }, { status: 404 });
     }
 
-    // Always generate a new token on resend to invalidate the old one
-    const newToken = randomBytes(32).toString('hex');
+    // Only rotate the token if the invitation has expired. Rotating a still-valid
+    // token would invalidate any earlier invitation email the recipient hasn't
+    // clicked yet, which is the most common cause of "Invalid Invitation" 404s.
     const isExpired = new Date(invitation.expires_at) < new Date();
+    const tokenToSend = isExpired ? randomBytes(32).toString('hex') : invitation.token;
     const newExpiry = isExpired
       ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       : invitation.expires_at;
 
     const { error: updateError } = await supabase
       .from('invitations')
-      .update({ token: newToken, expires_at: newExpiry, updated_at: new Date().toISOString() })
+      .update({ token: tokenToSend, expires_at: newExpiry, updated_at: new Date().toISOString() })
       .eq('id', id);
 
     if (updateError) {
-      console.error('[Invitations Resend] Failed to update token:', updateError);
+      console.error('[Invitations Resend] Failed to update invitation:', updateError);
       return NextResponse.json({ error: 'Failed to update invitation' }, { status: 500 });
     }
 
-    // Resend email with the new token
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rocketrealty.properties';
-    const inviteUrl = `${appUrl}/invite?token=${newToken}`;
+    const inviteUrl = `${appUrl}/invite?token=${tokenToSend}`;
 
     try {
       const { sendEmail } = await import('@/lib/email/send');
