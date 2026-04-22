@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
+import { geminiJson, isGeminiConfigured } from '@/lib/ai/gemini';
 import type { Database, LoiSectionKey, LoiSectionStatus } from '@/types/database';
 
 type LoiInsert = Database['public']['Tables']['lois']['Insert'];
@@ -249,6 +250,79 @@ function formatCurrency(amount: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Gemini refinement
+// ---------------------------------------------------------------------------
+
+/**
+ * Ask Gemini 2.0 Flash to refine the rule-based section values with
+ * market-informed language. Returns a map of section_key → proposed_value
+ * replacement strings. Only keys Gemini produces override the rule-based
+ * defaults; any failure (timeout, parse error, missing key) returns an
+ * empty map and the deterministic output is used as-is.
+ */
+async function refineWithGemini(
+  app: ApplicationData,
+  unit: UnitData,
+  property: PropertyData,
+  baseline: GeneratedSection[],
+): Promise<Record<string, string>> {
+  if (!isGeminiConfigured()) return {};
+
+  const baselineSummary = baseline
+    .map((s) => `  - ${s.section_key} (${s.section_label}): ${s.proposed_value}`)
+    .join('\n');
+
+  const prompt = [
+    'You are an experienced commercial real estate broker in San Diego East County',
+    'drafting the opening Letter of Intent on behalf of the landlord. Refine the',
+    'rule-based baseline below into market-grade proposed values. Keep the same',
+    '"key: value" shape each baseline uses (e.g. "monthlyAmount: $5,400; perSfRate: 1.80"),',
+    'since a downstream parser expects that format.',
+    '',
+    'Guidelines:',
+    '- Stay realistic for this property type and SF; do not invent new keys.',
+    '- Express dollar amounts in US format with commas ($5,400).',
+    '- Prefer NNN lease structure for industrial/warehouse and modified gross for',
+    '  office/retail unless the data suggests otherwise.',
+    '- If a baseline value is already strong, you may return it unchanged.',
+    '- For "agreed_use", use clear, specific language — not a generic category.',
+    '',
+    'Deal context:',
+    `- Tenant: ${app.business_name}`,
+    `- Agreed use request: ${app.agreed_use ?? '(unspecified)'}`,
+    `- Desired term (months): ${app.desired_term_months ?? '(unspecified)'}`,
+    `- Desired monthly rent budget: ${app.desired_rent_budget ? `$${app.desired_rent_budget.toLocaleString()}` : '(unspecified)'}`,
+    `- Property type: ${property.property_type}`,
+    `- Unit SF: ${unit.sf.toLocaleString()}`,
+    `- Unit marketing rate ($/SF/month): ${unit.marketing_rate ?? '(unspecified)'}`,
+    `- Unit CAM % share: ${unit.cam_percent ?? '(unspecified)'}`,
+    `- Property parking ratio (spaces / 1,000 SF): ${property.parking_ratio ?? '(unspecified)'}`,
+    '',
+    'Rule-based baseline (refine these, same keys):',
+    baselineSummary,
+    '',
+    'Return a JSON object mapping section_key to the refined proposed_value string.',
+    'Include only the keys you want to change; omit any you want left at baseline.',
+  ].join('\n');
+
+  const result = await geminiJson<Record<string, string>>(prompt, {
+    maxOutputTokens: 1024,
+    timeoutMs: 15_000,
+  });
+  if (!result || typeof result !== 'object') return {};
+
+  // Only keep string values whose keys match known section_keys.
+  const allowedKeys = new Set(baseline.map((s) => s.section_key));
+  const refined: Record<string, string> = {};
+  for (const [key, val] of Object.entries(result)) {
+    if (allowedKeys.has(key as LoiSectionKey) && typeof val === 'string' && val.trim()) {
+      refined[key] = val.trim();
+    }
+  }
+  return refined;
+}
+
+// ---------------------------------------------------------------------------
 // Route handler
 // ---------------------------------------------------------------------------
 
@@ -385,6 +459,40 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     );
 
+    // Gemini refinement pass: when GEMINI_API_KEY is set, ask Gemini 2.0 Flash
+    // to refine the rule-based section values with market-grade language.
+    // Any failure returns an empty map and we keep the deterministic baseline.
+    const geminiOverrides = await refineWithGemini(
+      {
+        business_name: application.business_name,
+        agreed_use: application.agreed_use,
+        desired_term_months: application.desired_term_months,
+        desired_rent_budget: application.desired_rent_budget,
+        requested_sf: application.requested_sf,
+        contact_id: application.contact_id,
+      },
+      {
+        sf: unit.sf,
+        marketing_rate: unit.marketing_rate,
+        cam_percent: unit.cam_percent,
+        cam_monthly: unit.cam_monthly,
+        monthly_rent: unit.monthly_rent,
+        rent_per_sqft: unit.rent_per_sqft,
+      },
+      {
+        property_type: property.property_type,
+        parking_spaces: property.parking_spaces,
+        parking_ratio: property.parking_ratio,
+        total_sf: property.total_sf,
+      },
+      generatedSections,
+    );
+    for (const section of generatedSections) {
+      const override = geminiOverrides[section.section_key];
+      if (override) section.proposed_value = override;
+    }
+    const geminiUsed = Object.keys(geminiOverrides).length > 0;
+
     // Apply template defaults — template values override generated defaults
     // but application-specific data (business name, budget, term) still takes priority
     if (templates?.sections && Array.isArray(templates.sections)) {
@@ -486,6 +594,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         application_id: body.applicationId,
         ai_drafted: true,
         sections_generated: generatedSections.length,
+        gemini_used: geminiUsed,
+        gemini_sections_refined: Object.keys(geminiOverrides).length,
       },
     });
 
