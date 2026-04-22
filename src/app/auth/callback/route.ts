@@ -49,15 +49,41 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (user) {
-      // Check if a users row already exists for this auth user
-      const { data: existingUser } = await supabase
+      // First try to find a users row linked to this auth user directly.
+      let { data: existingUser } = await supabase
         .from('users')
-        .select('id, contact_id')
+        .select('id, contact_id, auth_provider_id')
         .eq('auth_provider_id', user.id)
         .maybeSingle();
 
+      // Fallback: a users row may already exist for this email but point at a
+      // stale auth_provider_id (e.g. the auth user was deleted and recreated).
+      // Reconcile it rather than creating a duplicate, which would leave the
+      // original orphan in place and lock that email out of the portal.
+      if (!existingUser && user.email) {
+        const { createClient: createServiceClient } = await import('@/lib/supabase/service');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const serviceDb = (await createServiceClient()) as any;
+        const { data: byEmail } = await serviceDb
+          .from('users')
+          .select('id, contact_id, auth_provider_id')
+          .eq('email', user.email)
+          .maybeSingle();
+
+        if (byEmail) {
+          console.log(
+            `[Auth Callback] Reconciling orphan users row for ${user.email}: ${byEmail.auth_provider_id} → ${user.id}`,
+          );
+          await serviceDb
+            .from('users')
+            .update({ auth_provider_id: user.id, updated_at: new Date().toISOString() })
+            .eq('id', byEmail.id);
+          existingUser = byEmail;
+        }
+      }
+
       if (!existingUser) {
-        // New registration — create a contact record from auth metadata
+        // Brand-new registration — create a contact record from auth metadata
         const fullName = (user.user_metadata?.full_name as string) ?? '';
         const nameParts = fullName.trim().split(/\s+/);
         const firstName = nameParts[0] ?? '';
