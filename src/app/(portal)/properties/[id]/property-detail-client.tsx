@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -702,9 +702,8 @@ export default function PropertyDetailClient({
           </thead>
           <tbody>
             {units.map((unit) => (
-              <>
+              <Fragment key={unit.id}>
                 <tr
-                  key={unit.id}
                   onClick={() => toggleUnitExpand(unit.id)}
                   className={cn(
                     'border-b border-border cursor-pointer transition-colors hover:bg-muted/50',
@@ -863,7 +862,7 @@ export default function PropertyDetailClient({
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
