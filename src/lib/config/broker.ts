@@ -23,6 +23,12 @@ export const BROKER_CONFIG = {
   /** DRE license number */
   dreLicense: 'DRE #01234567',
 
+  /** Primary broker contact phone (shown on flyers). */
+  phone: '(858) 344-9916',
+
+  /** Primary broker contact email. */
+  email: 'rocketglass4@hotmail.com',
+
   /** Payment instructions for invoices */
   paymentInstructions: (invoiceNumber: string) =>
     `Please make check payable to:\nRocket Glass, Inc.\n1234 Commercial Blvd, Suite 200\nSan Diego, CA 92101\n\nOr wire to:\nBank: First Republic Bank\nRouting: XXXXXXXXX\nAccount: XXXXXXXXX\nRef: ${invoiceNumber}`,

@@ -15,6 +15,7 @@ import { getProperty, getUnits } from '@/lib/queries/properties';
 import { getQrCodesByProperty } from '@/lib/queries/qr-codes';
 import { formatCurrency } from '@/lib/utils';
 import Image from 'next/image';
+import { BROKER_CONFIG } from '@/lib/config/broker';
 import { PrintActions } from './print-actions';
 
 export const dynamic = 'force-dynamic';
@@ -40,6 +41,14 @@ function formatLandArea(sf: number | null | undefined): string {
 function cap(s: string | null | undefined): string {
   if (!s) return '--';
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Days between a past timestamp and today, floored */
+function daysSince(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  return Math.max(0, Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24)));
 }
 
 export default async function PropertyPrintPage({ params }: PrintPageProps) {
@@ -87,13 +96,25 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
   // Max contiguous (largest single vacant unit)
   const maxContig = availableSfs.length > 0 ? availableSfs[availableSfs.length - 1] : null;
 
-  // Asking rent from marketing_rate (annualized from monthly per SF)
+  // Asking rent from marketing_rate (monthly per SF). Annualize for display.
   const marketingRates = allUnits
     .filter((u) => u.marketing_rate != null && u.marketing_rate > 0)
     .map((u) => u.marketing_rate!);
-  const avgRate = marketingRates.length > 0
+  const avgMonthlyRate = marketingRates.length > 0
     ? marketingRates.reduce((a, b) => a + b, 0) / marketingRates.length
     : null;
+
+  // Optional property metadata stored in features JSON (no schema migration needed):
+  //   features.lease_type → 'NNN' | 'MG' | 'IG' | 'Gross' (default 'NNN')
+  //   features.submarket   → e.g., 'Santee Submarket'
+  //   features.building_class → e.g., 'B' (for the CoStar-style type label)
+  const features = (property.features ?? {}) as {
+    lease_type?: string;
+    submarket?: string;
+    building_class?: string;
+  };
+  const leaseType = features.lease_type || 'NNN';
+  const submarket = features.submarket || null;
 
   // Drive-ins description
   const driveIns =
@@ -253,6 +274,7 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
             <p style={{ fontSize: 13, color: '#64748b', margin: '2px 0 0 0', lineHeight: 1.4 }}>
               {property.city}, {property.state} {property.zip}
               {property.county ? ` (${property.county})` : ''}
+              {submarket ? ` - ${submarket}` : ''}
             </p>
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 24 }}>
@@ -283,9 +305,14 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
                     </td>
                     <td className="label-cell">Asking Rent</td>
                     <td className="value-cell">
-                      {avgRate
-                        ? `${formatCurrency(avgRate * 12)}/SF/Year`
-                        : '--'}
+                      {avgMonthlyRate ? (
+                        <>
+                          {`${formatCurrency(avgMonthlyRate * 12)}/SF/Year/${leaseType}`}
+                          <span style={{ color: '#94a3b8', fontSize: 10, marginLeft: 6 }}>
+                            ${avgMonthlyRate.toFixed(2)}
+                          </span>
+                        </>
+                      ) : '--'}
                     </td>
                   </tr>
                   <tr>
@@ -401,12 +428,12 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
         </div>
 
         {/* ================================================================ */}
-        {/* DESCRIPTION (if present)                                         */}
+        {/* PROPERTY NOTES (if present)                                      */}
         {/* ================================================================ */}
         {property.description && (
           <div style={{ marginBottom: 16 }}>
-            <div className="section-title">Description</div>
-            <p style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, marginTop: 6 }}>
+            <div className="section-title">Property Notes</div>
+            <p style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, marginTop: 6, whiteSpace: 'pre-wrap' }}>
               {property.description}
             </p>
           </div>
@@ -428,33 +455,40 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
                   <th className="right">Building Contiguous</th>
                   <th className="right">Rent/SF/Year</th>
                   <th>Occupancy</th>
-                  <th>Docks</th>
-                  <th>Drive Ins</th>
+                  <th>Term</th>
+                  <th className="right">Docks</th>
+                  <th className="right">Drive Ins</th>
+                  <th className="right">Days on Market</th>
                 </tr>
               </thead>
               <tbody>
                 {allUnits
                   .filter((u) => u.status === 'vacant')
-                  .map((unit) => (
-                    <tr key={unit.id}>
-                      <td>{unit.suite_number}</td>
-                      <td>{propertyTypeLabel}</td>
-                      <td>Direct</td>
-                      <td className="right">{fmt(unit.sf)}</td>
-                      <td className="right">{fmt(unit.sf)}</td>
-                      <td className="right">
-                        {unit.marketing_rate
-                          ? `${formatCurrency(unit.marketing_rate * 12)}`
-                          : 'Withheld'}
-                      </td>
-                      <td>Vacant</td>
-                      <td style={{ textAlign: 'center' }}>-</td>
-                      <td style={{ textAlign: 'center' }}>-</td>
-                    </tr>
-                  ))}
+                  .map((unit) => {
+                    const days = daysSince(unit.updated_at ?? unit.created_at);
+                    return (
+                      <tr key={unit.id}>
+                        <td>{unit.suite_number || '-'}</td>
+                        <td>{propertyTypeLabel}</td>
+                        <td>Direct</td>
+                        <td className="right">{fmt(unit.sf)}</td>
+                        <td className="right">{fmt(unit.sf)}</td>
+                        <td className="right">
+                          {unit.marketing_rate
+                            ? `${formatCurrency(unit.marketing_rate * 12)} ${leaseType}`
+                            : 'Withheld'}
+                        </td>
+                        <td>Vacant</td>
+                        <td>Negotiable</td>
+                        <td className="right">{property.dock_high_doors > 0 ? '-' : '-'}</td>
+                        <td className="right">{property.grade_level_doors > 0 ? '-' : '-'}</td>
+                        <td className="right">{days ?? '-'}</td>
+                      </tr>
+                    );
+                  })}
                 {allUnits.filter((u) => u.status === 'vacant').length === 0 && (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', color: '#94a3b8', padding: 12 }}>
+                    <td colSpan={11} style={{ textAlign: 'center', color: '#94a3b8', padding: 12 }}>
                       No vacant spaces currently available
                     </td>
                   </tr>
@@ -509,10 +543,13 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
             </div>
           </div>
 
-          {/* Center: Licensed text */}
+          {/* Center: Broker contact */}
           <div style={{ textAlign: 'center', flex: 1 }}>
-            <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>
-              Licensed to Rocket Realty
+            <p style={{ fontSize: 11, color: '#475569', margin: 0 }}>
+              {BROKER_CONFIG.displayName} · {BROKER_CONFIG.phone}
+            </p>
+            <p style={{ fontSize: 10, color: '#94a3b8', margin: '2px 0 0 0' }}>
+              {BROKER_CONFIG.email} · {BROKER_CONFIG.dreLicense}
             </p>
           </div>
 
