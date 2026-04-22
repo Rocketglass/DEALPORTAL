@@ -69,6 +69,7 @@ describe('withApiHandler', () => {
       role: 'broker' as UserRole,
       contactId: 'c-1',
       principalId: null,
+      principalContactId: null,
     };
     vi.mocked(requireBrokerOrAdminForApi).mockResolvedValueOnce(mockUser);
 

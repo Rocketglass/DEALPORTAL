@@ -28,9 +28,9 @@ export interface LandlordProperty extends Property {
  * For all other roles, returns the user's own contactId.
  */
 export function getEffectiveContactId(user: AuthUser): string {
-  const id = user.principalId ?? user.contactId;
+  const id = user.principalContactId ?? user.contactId;
   if (!id) {
-    throw new Error('User has no contactId or principalId — cannot determine landlord context');
+    throw new Error('User has no contactId or principal contact — cannot determine landlord context');
   }
   return id;
 }

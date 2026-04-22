@@ -121,8 +121,18 @@ export default function UsersPage() {
   const [inviteLinkType, _setInviteLinkType] = useState<'property' | 'contact'>('property');
   const [inviteLinkId, setInviteLinkId] = useState('');
   const [properties, setProperties] = useState<{ id: string; name: string }[]>([]);
-  const [contacts, setContacts] = useState<{ id: string; name: string; type: string }[]>([]);
   const [inviting, setInviting] = useState(false);
+
+  // Eligible principals for agent invitations: existing landlord or tenant users.
+  // The DB stores invitations.principal_id as a FK to users(id), so we must
+  // offer user UUIDs here, not contact UUIDs.
+  const principalCandidates = users
+    .filter((u) => {
+      if (inviteRole === 'landlord_agent') return u.role === 'landlord';
+      if (inviteRole === 'tenant_agent') return u.role === 'tenant';
+      return false;
+    })
+    .map((u) => ({ id: u.id, name: userName(u) }));
 
   // Role change state
   const [changingRole, setChangingRole] = useState<string | null>(null);
@@ -130,11 +140,10 @@ export default function UsersPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [usersRes, invitesRes, propsRes, contactsRes] = await Promise.all([
+      const [usersRes, invitesRes, propsRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/invitations'),
         fetch('/api/public/properties'),
-        fetch('/api/users?type=contacts'),
       ]);
 
       if (usersRes.ok) {
@@ -148,15 +157,6 @@ export default function UsersPage() {
       if (propsRes.ok) {
         const data = await propsRes.json();
         setProperties((data.properties ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
-      }
-      if (contactsRes.ok) {
-        const data = await contactsRes.json();
-        const allContacts = (data.contacts ?? data.users ?? []) as { id: string; contact_id?: string; email: string; role?: string; contact?: { first_name?: string; last_name?: string; company_name?: string } }[];
-        setContacts(allContacts.map((c) => ({
-          id: c.contact_id ?? c.id,
-          name: c.contact?.company_name ?? [c.contact?.first_name, c.contact?.last_name].filter(Boolean).join(' ') ?? c.email,
-          type: c.role ?? 'unknown',
-        })));
       }
     } catch {
       toast({ title: 'Failed to load users', variant: 'error' });
@@ -328,13 +328,16 @@ export default function UsersPage() {
                       <Select
                         value={inviteLinkId}
                         onChange={(e) => setInviteLinkId(e.target.value)}
+                        required
                       >
-                        <option value="">Select principal...</option>
-                        {contacts
-                          .filter((c) => inviteRole === 'landlord_agent' ? c.type === 'landlord' : c.type === 'tenant')
-                          .map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
+                        <option value="">
+                          {principalCandidates.length === 0
+                            ? `No ${inviteRole === 'landlord_agent' ? 'landlord' : 'tenant'} accounts yet — invite one first`
+                            : 'Select principal...'}
+                        </option>
+                        {principalCandidates.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
                       </Select>
                     </>
                   ) : (
@@ -438,11 +441,18 @@ export default function UsersPage() {
                         disabled={changingRole === user.id}
                         className="rounded border border-border bg-white px-2 py-1 text-xs outline-none focus:border-primary"
                       >
-                        {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
+                        {Object.entries(ROLE_LABELS)
+                          .filter(([value]) => !value.endsWith('_agent'))
+                          .map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        {user.role.endsWith('_agent') && (
+                          <option key={user.role} value={user.role} disabled>
+                            {ROLE_LABELS[user.role]} (via invite)
                           </option>
-                        ))}
+                        )}
                       </select>
                     </td>
                   </tr>

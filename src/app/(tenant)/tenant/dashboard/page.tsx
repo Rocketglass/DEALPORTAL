@@ -15,7 +15,7 @@ export default async function TenantDashboardPage() {
 
   // Agent delegation: agents view their principal's applications
   // Brokers/admins see all applications (null contactId skips the filter)
-  const contactId = isBroker ? null : (user.principalId ?? user.contactId);
+  const contactId = isBroker ? null : (user.principalContactId ?? user.contactId);
 
   if (!isBroker && !contactId) {
     return (

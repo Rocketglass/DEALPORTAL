@@ -54,7 +54,7 @@ export async function POST(
     const { id: loiId } = await params;
 
     // 1. Try to authenticate — allow unauthenticated for public landlord review
-    let user: { role: string; contactId: string | null; principalId: string | null } | null = null;
+    let user: { role: string; contactId: string | null; principalContactId: string | null } | null = null;
     try {
       user = await requireAuthForApi();
     } catch {
@@ -108,7 +108,7 @@ export async function POST(
 
     if (user) {
       role = user.role;
-      const effectiveContactId = user.contactId ?? user.principalId;
+      const effectiveContactId = user.principalContactId ?? user.contactId;
       isBrokerOrAdmin = role === 'broker' || role === 'admin';
       isLandlord = role === 'landlord' || role === 'landlord_agent';
       isTenant = role === 'tenant' || role === 'tenant_agent';

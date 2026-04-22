@@ -90,8 +90,8 @@ export async function GET(
     const leaseData = lease as any;
 
     // 3. Authorization: verify the caller is a party to this lease
-    const { role, contactId, principalId } = user;
-    const effectiveContactId = contactId ?? principalId;
+    const { role, contactId, principalContactId } = user;
+    const effectiveContactId = principalContactId ?? contactId;
 
     const isBrokerOrAdmin = role === 'broker' || role === 'admin';
     const isLandlord = role === 'landlord' || role === 'landlord_agent';

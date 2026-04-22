@@ -14,7 +14,7 @@ export default async function TenantApplicationDetailPage({ params }: Props) {
 
   const user = await requireRole('tenant', 'tenant_agent', 'broker', 'admin');
   const isBroker = user.role === 'broker' || user.role === 'admin';
-  const contactId = isBroker ? null : (user.principalId ?? user.contactId);
+  const contactId = isBroker ? null : (user.principalContactId ?? user.contactId);
 
   let application: Awaited<ReturnType<typeof getTenantApplication>>['data'] = null;
   let error: string | null = null;

@@ -22,7 +22,7 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     // 1. Try to authenticate — allow unauthenticated access for public review
-    let user: { role: string; contactId: string | null; principalId: string | null } | null = null;
+    let user: { role: string; contactId: string | null; principalContactId: string | null } | null = null;
     try {
       user = await requireAuthForApi();
     } catch {
@@ -79,7 +79,7 @@ export async function GET(
     let role = 'public';
     if (user) {
       role = user.role;
-      const effectiveContactId = user.contactId ?? user.principalId;
+      const effectiveContactId = user.principalContactId ?? user.contactId;
       const isBrokerOrAdmin = role === 'broker' || role === 'admin';
       const isLandlord = role === 'landlord' || role === 'landlord_agent';
       const isTenant = role === 'tenant' || role === 'tenant_agent';

@@ -43,7 +43,7 @@ export interface TenantApplicationWithDeal {
  * Fetch all applications for a tenant by contact ID, with associated LOI
  * (including section-level status) and lease progress.
  *
- * Agent delegation: callers should pass `user.principalId ?? user.contactId`
+ * Agent delegation: callers should pass `user.principalContactId ?? user.contactId`
  * so that tenant agents see their principal's applications.
  *
  * Avoids N+1 queries by batch-fetching LOIs and leases for all application IDs,

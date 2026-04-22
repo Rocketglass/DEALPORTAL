@@ -59,7 +59,7 @@ export async function GET(
         .single();
 
       if (app?.property_id) {
-        const effectiveContactId = user.principalId ?? user.contactId;
+        const effectiveContactId = user.principalContactId ?? user.contactId;
 
         const { count: loiCount } = await supabase
           .from('lois')
@@ -81,7 +81,7 @@ export async function GET(
 
     // Tenant ownership verification: ensure the application belongs to this tenant
     if (isTenant) {
-      const effectiveContactId = user.principalId ?? user.contactId;
+      const effectiveContactId = user.principalContactId ?? user.contactId;
       const { data: app } = await supabase
         .from('applications')
         .select('contact_id')

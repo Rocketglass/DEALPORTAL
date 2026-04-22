@@ -85,7 +85,7 @@ export async function POST(
       const leaseData = lease as any;
 
       // Determine actor role
-      const effectiveContactId = user.contactId ?? user.principalId;
+      const effectiveContactId = user.principalContactId ?? user.contactId;
       const isLandlord = effectiveContactId === leaseData.landlord_contact_id;
       const isTenant = effectiveContactId === leaseData.tenant_contact_id;
       const _isBrokerOrAdmin = user.role === 'broker' || user.role === 'admin';
@@ -220,8 +220,8 @@ export async function POST(
     const leaseRow = lease as any;
 
     // 3. Authorization: verify the caller is a party to this lease
-    const { role, contactId, principalId } = user;
-    const effectiveContactId = contactId ?? principalId;
+    const { role, contactId, principalContactId } = user;
+    const effectiveContactId = principalContactId ?? contactId;
 
     const isBrokerOrAdmin = role === 'broker' || role === 'admin';
     const isLandlord = role === 'landlord' || role === 'landlord_agent';

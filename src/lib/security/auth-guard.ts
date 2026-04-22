@@ -23,7 +23,23 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   contactId: string | null;
+  // users.id of the principal for agent roles. Only meaningful when
+  // role is landlord_agent or tenant_agent.
   principalId: string | null;
+  // contacts.id of the principal — used to scope data queries so an agent
+  // sees their principal's records. Populated only when principalId is set.
+  principalContactId: string | null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function resolvePrincipalContactId(supabase: any, principalUserId: string | null): Promise<string | null> {
+  if (!principalUserId) return null;
+  const { data } = await supabase
+    .from('users')
+    .select('contact_id')
+    .eq('id', principalUserId)
+    .maybeSingle();
+  return (data?.contact_id as string | null) ?? null;
 }
 
 /**
@@ -87,12 +103,15 @@ export async function requireAuth(): Promise<AuthUser> {
     redirect('/login');
   }
 
+  const principalContactId = await resolvePrincipalContactId(supabase, dbUser.principal_id);
+
   return {
     id: dbUser.id,
     email: dbUser.email,
     role: dbUser.role as UserRole,
     contactId: dbUser.contact_id,
     principalId: dbUser.principal_id,
+    principalContactId,
   };
 }
 
@@ -216,12 +235,15 @@ export async function requireAuthForApi(): Promise<AuthUser> {
     );
   }
 
+  const principalContactId = await resolvePrincipalContactId(supabase, dbUser.principal_id);
+
   return {
     id: dbUser.id,
     email: dbUser.email,
     role: dbUser.role as UserRole,
     contactId: dbUser.contact_id,
     principalId: dbUser.principal_id,
+    principalContactId,
   };
 }
 

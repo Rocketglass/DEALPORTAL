@@ -49,18 +49,25 @@ export async function PATCH(
     );
   }
 
+  // Agent roles require a principal_id, which this endpoint does not accept.
+  // Assigning an agent must go through the invite flow (/api/invitations)
+  // where the broker picks the principal.
+  if (role === 'landlord_agent' || role === 'tenant_agent') {
+    return NextResponse.json(
+      { error: 'To assign an agent role, send a new invitation so the principal can be selected.' },
+      { status: 400 },
+    );
+  }
+
   try {
     const supabase = getServiceClient();
 
-    // Clear principal_id if changing away from an agent role
-    const isAgentRole = role === 'landlord_agent' || role === 'tenant_agent';
+    // Any non-agent role clears principal_id.
     const update: Record<string, unknown> = {
       role,
+      principal_id: null,
       updated_at: new Date().toISOString(),
     };
-    if (!isAgentRole) {
-      update.principal_id = null;
-    }
 
     const { data, error } = await supabase
       .from('users')

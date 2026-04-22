@@ -31,7 +31,7 @@ const statusBadge: Record<ApplicationStatus, { label: string; className: string 
 export default async function TenantApplicationsPage() {
   const user = await requireRole('tenant', 'tenant_agent', 'broker', 'admin');
   const isBroker = user.role === 'broker' || user.role === 'admin';
-  const contactId = isBroker ? null : (user.principalId ?? user.contactId);
+  const contactId = isBroker ? null : (user.principalContactId ?? user.contactId);
 
   if (!isBroker && !contactId) {
     return (
