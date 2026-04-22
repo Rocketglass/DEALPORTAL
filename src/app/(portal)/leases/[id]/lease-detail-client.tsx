@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ChevronDown,
@@ -26,6 +26,7 @@ import {
   User,
   X,
   Save,
+  Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDate, formatSqft } from '@/lib/utils';
@@ -190,6 +191,8 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
 
   // PDF generation state
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   // Share deal summary state
   const [copied, setCopied] = useState(false);
@@ -315,6 +318,39 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
     }
   }
 
+  async function handleUploadPdf(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    // Reset so selecting the same file twice still fires onChange.
+    e.target.value = '';
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast({ title: 'Must be a PDF', variant: 'error' });
+      return;
+    }
+
+    setUploadingPdf(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`/api/leases/${lease.id}/upload-pdf`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast({ title: 'Upload failed', description: json.error ?? 'Please try again', variant: 'error' });
+        return;
+      }
+      toast({ title: 'Lease PDF uploaded', description: 'Ready to send for signature.', variant: 'success' });
+      router.refresh();
+    } catch {
+      toast({ title: 'Network error', description: 'Could not upload PDF', variant: 'error' });
+    } finally {
+      setUploadingPdf(false);
+    }
+  }
+
   // DocuSign signer list derived from lease status
   const signers: Array<{ name: string; role: string; status: string; signedAt: string | null }> =
     lease.docusign_envelope_id
@@ -418,9 +454,31 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
                     onClick={handleGeneratePdf}
                     loading={generatingPdf}
                     disabled={generatingPdf}
+                    title="Generate a summary PDF of the key terms"
                   >
                     {generatingPdf ? 'Generating…' : 'Generate PDF'}
                   </Button>
+                )}
+                {['draft', 'review'].includes(lease.status) && (
+                  <>
+                    <input
+                      ref={uploadInputRef}
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      onChange={handleUploadPdf}
+                    />
+                    <Button
+                      variant="secondary"
+                      icon={Upload}
+                      onClick={() => uploadInputRef.current?.click()}
+                      loading={uploadingPdf}
+                      disabled={uploadingPdf}
+                      title="Upload the full AIR form PDF (print the preview to PDF from your browser)"
+                    >
+                      {uploadingPdf ? 'Uploading…' : 'Upload PDF'}
+                    </Button>
+                  </>
                 )}
                 {lease.lease_pdf_url && (
                   <Button variant="secondary" icon={Download} onClick={handleDownloadPdf}>
