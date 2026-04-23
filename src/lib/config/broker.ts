@@ -1,8 +1,5 @@
 /**
  * Broker business details — used in invoices, PDFs, print views, and email templates.
- *
- * These should be updated with Rocket's real information before production use.
- * TODO: Move to env vars or a settings table once Rocket provides real values.
  */
 
 export const BROKER_CONFIG = {
@@ -14,14 +11,14 @@ export const BROKER_CONFIG = {
 
   /** Office address */
   address: {
-    street: '1234 Commercial Blvd, Suite 200',
+    street: '2950 Clairemont Dr',
     city: 'San Diego',
     state: 'CA',
-    zip: '92101',
+    zip: '92117',
   },
 
   /** DRE license number */
-  dreLicense: 'DRE #01234567',
+  dreLicense: 'DRE #01527512',
 
   /** Primary broker contact phone (shown on flyers). */
   phone: '(858) 344-9916',
@@ -29,9 +26,9 @@ export const BROKER_CONFIG = {
   /** Primary broker contact email. */
   email: 'rocketglass4@hotmail.com',
 
-  /** Payment instructions for invoices */
+  /** Payment instructions for invoices — check preferred, wire accepted, ACH not accepted. */
   paymentInstructions: (invoiceNumber: string) =>
-    `Please make check payable to:\nRocket Glass, Inc.\n1234 Commercial Blvd, Suite 200\nSan Diego, CA 92101\n\nOr wire to:\nBank: First Republic Bank\nRouting: XXXXXXXXX\nAccount: XXXXXXXXX\nRef: ${invoiceNumber}`,
+    `Please make check payable to:\nRocket Glass, Inc.\n2950 Clairemont Dr\nSan Diego, CA 92117\n\nOr wire to:\nBank: Chase Bank\nRouting: 322271627\nAccount: 629837375\nRef: ${invoiceNumber}\n\nNote: ACH payments are not accepted.`,
 
   /** Full formatted address */
   get fullAddress() {
