@@ -26,8 +26,11 @@ function getServiceClient() {
   return createServiceClient(url, key);
 }
 
+// Domain must match what is verified in Resend. Rocket's verified domain is
+// rocketrealty.properties (TLD is .properties, not .com). The previous default
+// silently dropped every email when RESEND_FROM_EMAIL was unset in Vercel.
 const FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL ?? 'notifications@rocketrealty.com';
+  process.env.RESEND_FROM_EMAIL ?? 'notifications@rocketrealty.properties';
 
 interface EmailAttachment {
   filename: string;

@@ -16,6 +16,7 @@ import {
   Check,
 } from 'lucide-react';
 import type { ApplicationStatus, DocumentType } from '@/types/database';
+import { BROKER_CONFIG } from '@/lib/config/broker';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -513,12 +514,12 @@ export function ApplicationStatusClient() {
               <div className="mt-4 space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="h-4 w-4 text-[var(--muted-foreground)]" />
-                  <span>(619) 555-0100</span>
+                  <span>{BROKER_CONFIG.phone}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="h-4 w-4 text-[var(--muted-foreground)]" />
-                  <a href="mailto:leasing@rocketrealty.com" className="text-[var(--primary)] hover:underline">
-                    leasing@rocketrealty.com
+                  <a href={`mailto:${BROKER_CONFIG.email}`} className="text-[var(--primary)] hover:underline">
+                    {BROKER_CONFIG.email}
                   </a>
                 </div>
               </div>
