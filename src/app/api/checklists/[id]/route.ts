@@ -63,7 +63,7 @@ export async function GET(
     });
   } catch (error) {
     console.error('[GET /api/checklists/[id]] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -144,7 +144,7 @@ export async function PATCH(
     return NextResponse.json({ checklist });
   } catch (error) {
     console.error('[PATCH /api/checklists/[id]] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

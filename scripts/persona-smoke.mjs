@@ -24,7 +24,7 @@ const env = Object.fromEntries(
     }),
 );
 
-const APP = 'http://localhost:3000';
+const APP = process.env.BASE_URL || 'http://localhost:3000';
 
 function newJar() {
   const store = new Map();

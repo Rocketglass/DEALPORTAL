@@ -121,7 +121,7 @@ export async function POST(
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/checklists/[id]/items] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -172,7 +172,7 @@ export async function GET(
     return NextResponse.json({ items: items ?? [] });
   } catch (error) {
     console.error('[GET /api/checklists/[id]/items] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

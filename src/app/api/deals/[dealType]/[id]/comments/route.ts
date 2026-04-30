@@ -109,7 +109,7 @@ export async function GET(
 
   if (error) {
     console.error('[GET /api/deals/.../comments] Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
   return NextResponse.json({ comments: data });
@@ -160,12 +160,12 @@ export async function POST(
 
     if (error) {
       console.error('[POST /api/deals/.../comments] Insert error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
     return NextResponse.json({ comment: data }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected error';
+    const message = 'Internal server error';
     console.error('[POST /api/deals/.../comments] Error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }

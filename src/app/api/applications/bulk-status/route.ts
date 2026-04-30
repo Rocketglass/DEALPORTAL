@@ -94,10 +94,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ updated, errors });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Failed to bulk update application statuses';
+    const message = 'Internal server error';
     console.error('[PATCH /api/applications/bulk-status] Error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }

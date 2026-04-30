@@ -49,13 +49,13 @@ export async function GET(): Promise<NextResponse> {
 
     if (error) {
       console.error('[GET /api/inspections] Query error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
     return NextResponse.json({ bookings: bookings ?? [] }, { status: 200 });
   } catch (error) {
     console.error('[GET /api/inspections] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     const status = message.startsWith('Unauthorized') || message.startsWith('Forbidden') ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }

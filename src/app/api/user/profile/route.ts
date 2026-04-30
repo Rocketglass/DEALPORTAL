@@ -29,7 +29,7 @@ export async function GET(): Promise<NextResponse> {
     return NextResponse.json({ profile }, { status: 200 });
   } catch (error) {
     console.error('[GET /api/user/profile] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -118,7 +118,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error('[PATCH /api/user/profile] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     const status = message.startsWith('Unauthorized') ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }

@@ -53,7 +53,7 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     return NextResponse.json({ comp });
   } catch (error) {
     console.error('[PATCH /api/comps/[id]] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     const status = message.startsWith('Unauthorized') || message.startsWith('Forbidden') ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }
@@ -83,7 +83,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext): Prom
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[DELETE /api/comps/[id]] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     const status = message.startsWith('Unauthorized') || message.startsWith('Forbidden') ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }

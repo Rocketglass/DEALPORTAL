@@ -50,8 +50,14 @@ export function withApiHandler(
       const route = new URL(req.url).pathname;
       console.error(`[${req.method} ${route}] Unexpected error:`, error);
       const message = error instanceof Error ? error.message : 'Internal server error';
-      const status = message.startsWith('Unauthorized') || message.startsWith('Forbidden') ? 401 : 500;
-      return NextResponse.json({ error: message }, { status });
+      // Auth errors carry curated messages safe to surface ("Unauthorized: ...",
+      // "Forbidden: ..."). Anything else likely has DB internals — return a
+      // generic 500 so we don't leak schema names, query text, or stack
+      // information to the client.
+      const isAuth = message.startsWith('Unauthorized') || message.startsWith('Forbidden');
+      const status = isAuth ? 401 : 500;
+      const clientMessage = isAuth ? message : 'Internal server error';
+      return NextResponse.json({ error: clientMessage }, { status });
     }
   };
 }

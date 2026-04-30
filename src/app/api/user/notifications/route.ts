@@ -21,13 +21,13 @@ export async function GET(): Promise<NextResponse> {
 
     if (error) {
       console.error('[GET /api/user/notifications] Query error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
     return NextResponse.json({ notifications: notifications ?? [] }, { status: 200 });
   } catch (error) {
     console.error('[GET /api/user/notifications] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     const status = message.startsWith('Unauthorized') ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }
@@ -46,13 +46,13 @@ export async function PATCH(): Promise<NextResponse> {
 
     if (error) {
       console.error('[PATCH /api/user/notifications] Update error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error('[PATCH /api/user/notifications] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     const status = message.startsWith('Unauthorized') ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }

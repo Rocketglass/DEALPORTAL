@@ -232,7 +232,7 @@ export async function GET(
     });
   } catch (error) {
     console.error('[GET /api/lois/[id]/review-data] Error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

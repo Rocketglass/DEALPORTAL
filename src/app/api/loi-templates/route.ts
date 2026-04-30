@@ -55,7 +55,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (error) {
       console.error('[GET /api/loi-templates] Query error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
     return NextResponse.json({ templates: data ?? [] });
@@ -69,8 +69,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const message =
-      error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

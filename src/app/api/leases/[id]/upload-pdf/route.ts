@@ -104,7 +104,7 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     return NextResponse.json({ ok: true, storage_path: storagePath });
   } catch (error) {
     console.error('[POST /api/leases/[id]/upload-pdf] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     const status = message.startsWith('Unauthorized') || message.startsWith('Forbidden') ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }

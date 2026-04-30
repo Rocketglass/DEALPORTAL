@@ -226,8 +226,7 @@ export async function PATCH(
 
     return NextResponse.json({ invoice: updated });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to update invoice status';
+    const message = 'Internal server error';
     console.error(`[PATCH /api/invoices/${id}/status] Error:`, error);
     return NextResponse.json({ error: message }, { status: 500 });
   }

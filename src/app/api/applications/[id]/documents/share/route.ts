@@ -96,7 +96,7 @@ export async function POST(
     });
   } catch (error) {
     console.error('[documents/share] unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Unexpected error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

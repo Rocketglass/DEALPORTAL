@@ -255,7 +255,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ applicationId: application.id }, { status: 201 });
   } catch (error) {
     console.error('[applications POST] unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Unexpected server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

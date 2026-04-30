@@ -100,9 +100,9 @@ describe('withApiHandler', () => {
     expect(body.error).toContain('Unauthorized');
   });
 
-  it('catches unhandled errors and returns 500', async () => {
+  it('catches unhandled errors and returns 500 with generic message', async () => {
     const handler = vi.fn(async () => {
-      throw new Error('Database connection failed');
+      throw new Error('Database connection failed: pg_class does not exist');
     });
 
     const wrapped = withApiHandler(handler, { auth: 'public' });
@@ -110,7 +110,21 @@ describe('withApiHandler', () => {
 
     expect(response.status).toBe(500);
     const body = await response.json();
-    expect(body.error).toBe('Database connection failed');
+    // Should NOT leak DB internals — generic message only.
+    expect(body.error).toBe('Internal server error');
+  });
+
+  it('preserves auth error messages (curated, safe to surface)', async () => {
+    const handler = vi.fn(async () => {
+      throw new Error('Forbidden: caller is not a party to this LOI');
+    });
+
+    const wrapped = withApiHandler(handler, { auth: 'public' });
+    const response = await wrapped(makeRequest());
+
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body.error).toContain('Forbidden');
   });
 
   it('provides serviceClient factory in context', async () => {

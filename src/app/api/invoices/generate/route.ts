@@ -97,8 +97,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ invoice }, { status: 201 });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to generate invoice';
+    const message = 'Internal server error';
     console.error('[POST /api/invoices/generate] Error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }

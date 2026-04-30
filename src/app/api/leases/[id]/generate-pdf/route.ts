@@ -102,7 +102,7 @@ export async function POST(_request: NextRequest, context: RouteContext): Promis
     });
   } catch (error) {
     console.error('[POST /api/leases/[id]/generate-pdf] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     const status = message.startsWith('Unauthorized') || message.startsWith('Forbidden') ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }

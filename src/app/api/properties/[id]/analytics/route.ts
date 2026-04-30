@@ -100,7 +100,7 @@ export async function GET(_request: Request, context: RouteContext): Promise<Nex
     });
   } catch (error) {
     console.error('[GET /api/properties/[id]/analytics] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     const status = message.startsWith('Unauthorized') || message.startsWith('Forbidden') ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }

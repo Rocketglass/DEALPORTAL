@@ -43,13 +43,13 @@ export async function GET(): Promise<NextResponse> {
 
     if (error) {
       console.error('[GET /api/leases/agreed-lois] Query error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
     return NextResponse.json({ lois: (data as LoiWithRelations[]) ?? [] });
   } catch (error) {
     console.error('[GET /api/leases/agreed-lois] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

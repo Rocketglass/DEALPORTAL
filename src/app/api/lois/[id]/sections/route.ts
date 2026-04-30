@@ -123,7 +123,7 @@ export async function POST(
 
     return NextResponse.json({ section }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected error';
+    const message = 'Internal server error';
     console.error('[POST /api/lois/[id]/sections] Error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }

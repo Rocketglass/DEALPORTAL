@@ -152,7 +152,7 @@ export async function GET(
     // Return the signed URL as JSON so the client can use it in the PDF viewer
     return NextResponse.json({ url: signedUrlData.signedUrl });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected error';
+    const message = 'Internal server error';
     console.error(
       `[GET /api/applications/${applicationId}/documents/${docId}/view] Error:`,
       error,

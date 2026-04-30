@@ -274,7 +274,7 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
           payee.email,
           payeeName,
         );
-        console.log(`[DocuSign Webhook] Invoice notification sent to ${payee.email}`);
+        console.log(`[DocuSign Webhook] Invoice notification sent for lease ${lease.id}`);
       }
     } catch (notifyErr) {
       console.error('[DocuSign Webhook] Failed to send invoice notification:', notifyErr);

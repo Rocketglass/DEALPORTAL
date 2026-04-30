@@ -129,7 +129,7 @@ export async function PATCH(
     return NextResponse.json({ item });
   } catch (error) {
     console.error('[PATCH /api/checklists/[id]/items/[itemId]] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -189,7 +189,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[DELETE /api/checklists/[id]/items/[itemId]] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

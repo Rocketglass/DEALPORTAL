@@ -27,9 +27,8 @@ export async function GET(): Promise<NextResponse> {
     }
 
     return NextResponse.json({ logs: logs ?? [] });
-  } catch (err: unknown) {
-    // requireBrokerOrAdminForApi throws on auth failure
-    const message = err instanceof Error ? err.message : 'Unauthorized';
-    return NextResponse.json({ error: message }, { status: 401 });
+  } catch {
+    // requireBrokerOrAdminForApi throws on auth failure — return 401.
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 }

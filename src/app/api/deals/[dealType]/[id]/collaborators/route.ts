@@ -57,7 +57,7 @@ export async function GET(
 
   if (error) {
     console.error('[GET /api/deals/.../collaborators] Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
   return NextResponse.json({ collaborators: data });
@@ -184,7 +184,7 @@ export async function POST(
 
     return NextResponse.json({ collaborator }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected error';
+    const message = 'Internal server error';
     console.error('[POST /api/deals/.../collaborators] Error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -196,7 +196,7 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     );
   } catch (error) {
     console.error('[book-inspection POST] unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Unexpected server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

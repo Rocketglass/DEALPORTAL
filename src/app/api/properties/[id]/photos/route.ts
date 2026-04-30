@@ -187,7 +187,7 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     return NextResponse.json({ photos: updatedUrls }, { status: 200 });
   } catch (error) {
     console.error('[POST /api/properties/[id]/photos] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     const status = message.startsWith('Unauthorized') || message.startsWith('Forbidden') ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }
@@ -267,7 +267,7 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
     return NextResponse.json({ photos: updatedUrls }, { status: 200 });
   } catch (error) {
     console.error('[DELETE /api/properties/[id]/photos] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     const status = message.startsWith('Unauthorized') || message.startsWith('Forbidden') ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }

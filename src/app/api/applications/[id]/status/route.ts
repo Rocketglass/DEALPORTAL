@@ -155,8 +155,7 @@ export async function PATCH(
 
     return NextResponse.json({ application: updated });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to update application status';
+    const message = 'Internal server error';
     console.error(`[PATCH /api/applications/${id}/status] Error:`, error);
     return NextResponse.json({ error: message }, { status: 500 });
   }

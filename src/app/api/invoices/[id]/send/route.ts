@@ -210,8 +210,7 @@ export async function POST(
       sentTo: payeeEmail,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to update invoice status';
+    const message = 'Internal server error';
     console.error(`[POST /api/invoices/${id}/send] Error:`, error);
     return NextResponse.json({ error: message }, { status: 500 });
   }

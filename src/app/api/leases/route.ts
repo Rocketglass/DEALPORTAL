@@ -146,7 +146,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ id: lease.id }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/leases] Unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const message = 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -121,8 +121,7 @@ export async function PATCH(
 
     return NextResponse.json({ application: updated });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to update credit check';
+    const message = 'Internal server error';
     console.error(`[PATCH /api/applications/${id}/credit-check] Error:`, error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
