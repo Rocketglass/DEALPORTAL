@@ -27,6 +27,7 @@ import {
   X,
   Save,
   Upload,
+  FileSignature,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDate, formatSqft } from '@/lib/utils';
@@ -192,7 +193,9 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
   // PDF generation state
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [markingOffline, setMarkingOffline] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const offlineInputRef = useRef<HTMLInputElement>(null);
 
   // Share deal summary state
   const [copied, setCopied] = useState(false);
@@ -351,6 +354,33 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
     }
   }
 
+  async function handleMarkExecutedOffline(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setMarkingOffline(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`/api/leases/${lease.id}/mark-executed-offline`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast({ title: 'Failed to mark executed', description: json.error ?? 'Please try again', variant: 'error' });
+        return;
+      }
+      toast({ title: 'Lease marked as executed', description: 'Commission invoice generated.', variant: 'success' });
+      router.refresh();
+    } catch {
+      toast({ title: 'Network error', description: 'Could not mark executed', variant: 'error' });
+    } finally {
+      setMarkingOffline(false);
+    }
+  }
+
   // DocuSign signer list derived from lease status
   const signers: Array<{ name: string; role: string; status: string; signedAt: string | null }> =
     lease.docusign_envelope_id
@@ -477,6 +507,27 @@ export default function LeaseDetailClient({ lease, escalations }: LeaseDetailCli
                       title="Upload the full AIR form PDF (print the preview to PDF from your browser)"
                     >
                       {uploadingPdf ? 'Uploading…' : 'Upload PDF'}
+                    </Button>
+                  </>
+                )}
+                {['draft', 'review', 'sent_for_signature', 'partially_signed'].includes(lease.status) && (
+                  <>
+                    <input
+                      ref={offlineInputRef}
+                      type="file"
+                      accept="application/pdf,image/*"
+                      className="hidden"
+                      onChange={handleMarkExecutedOffline}
+                    />
+                    <Button
+                      variant="secondary"
+                      icon={FileSignature}
+                      onClick={() => offlineInputRef.current?.click()}
+                      loading={markingOffline}
+                      disabled={markingOffline}
+                      title="Lease was signed offline (paper, email) — upload the signed PDF or photo to mark executed"
+                    >
+                      {markingOffline ? 'Uploading…' : 'Mark Executed (Offline)'}
                     </Button>
                   </>
                 )}

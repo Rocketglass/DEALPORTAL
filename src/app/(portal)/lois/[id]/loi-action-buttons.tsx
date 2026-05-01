@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { Send, Copy, Check, Loader2, Eye, ScrollText } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Send, Copy, Check, Loader2, Eye, ScrollText, FileSignature } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 
 interface LoiActionButtonsProps {
   loiId: string;
@@ -12,12 +13,45 @@ interface LoiActionButtonsProps {
 
 export function LoiActionButtons({ loiId, status }: LoiActionButtonsProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<'success' | 'error' | null>(null);
+  const [uploadingOffline, setUploadingOffline] = useState(false);
+  const offlineInputRef = useRef<HTMLInputElement>(null);
 
   const isDraft = status === 'draft';
   const isAgreed = status === 'agreed';
+  // Show "Mark Agreed (Offline)" while the LOI is in flight — broker may
+  // have taken it to the landlord on paper at any of these states.
+  const canMarkOffline = ['draft', 'sent', 'in_negotiation'].includes(status);
+
+  async function handleOfflineUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setUploadingOffline(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`/api/lois/${loiId}/mark-agreed-offline`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: 'Upload failed', description: data.error ?? 'Please try again', variant: 'error' });
+        return;
+      }
+      toast({ title: 'LOI marked as agreed', description: 'Ready to convert to a lease.', variant: 'success' });
+      router.refresh();
+    } catch {
+      toast({ title: 'Network error', variant: 'error' });
+    } finally {
+      setUploadingOffline(false);
+    }
+  }
 
   async function handleCopyLink() {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
@@ -97,6 +131,26 @@ export function LoiActionButtons({ loiId, status }: LoiActionButtonsProps) {
         >
           {copied ? 'Copied!' : 'Copy Link'}
         </Button>
+      )}
+      {canMarkOffline && (
+        <>
+          <input
+            ref={offlineInputRef}
+            type="file"
+            accept="application/pdf,image/*"
+            className="hidden"
+            onChange={handleOfflineUpload}
+          />
+          <Button
+            variant="secondary"
+            icon={uploadingOffline ? Loader2 : FileSignature}
+            onClick={() => offlineInputRef.current?.click()}
+            disabled={uploadingOffline}
+            title="Upload a paper-signed LOI and mark it agreed"
+          >
+            {uploadingOffline ? 'Uploading…' : 'Mark Agreed (Offline)'}
+          </Button>
+        </>
       )}
       {isAgreed ? (
         <Button

@@ -48,7 +48,7 @@ export type Database = {
       };
       lois: {
         Row: Loi;
-        Insert: Omit<Loi, 'id' | 'created_at' | 'updated_at' | 'ai_drafted' | 'ai_draft_prompt' | 'applicant_docusign_envelope_id' | 'applicant_docusign_status' | 'applicant_signed_at' | 'external_address' | 'external_city' | 'external_state' | 'external_zip' | 'external_property_type' | 'external_suite'> & {
+        Insert: Omit<Loi, 'id' | 'created_at' | 'updated_at' | 'ai_drafted' | 'ai_draft_prompt' | 'applicant_docusign_envelope_id' | 'applicant_docusign_status' | 'applicant_signed_at' | 'external_address' | 'external_city' | 'external_state' | 'external_zip' | 'external_property_type' | 'external_suite' | 'signed_pdf_url'> & {
           id?: string;
           ai_drafted?: boolean;
           ai_draft_prompt?: string | null;
@@ -345,6 +345,7 @@ export interface Loi {
   external_zip: string | null;
   external_property_type: string | null;
   external_suite: string | null;
+  signed_pdf_url: string | null;
   created_at: string;
   updated_at: string;
 }
