@@ -38,7 +38,15 @@ interface CreateLoiBody {
   property_id?: string | null;
   unit_id?: string | null;
   tenant_contact_id: string;
-  landlord_contact_id: string;
+  // Either provide an existing landlord contact, OR provide an inline shape
+  // and the server creates a new landlord contact and uses its id. Inline is
+  // for off-system deals where Rocket doesn't have the landlord in his CRM.
+  landlord_contact_id?: string;
+  landlord_inline?: {
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+  };
   broker_contact_id: string;
   status?: 'draft' | 'sent';
   notes?: string | null;
@@ -70,18 +78,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const body: CreateLoiBody = await request.json();
 
     // Basic required field validation
-    const alwaysRequired: (keyof CreateLoiBody)[] = [
-      'tenant_contact_id',
-      'landlord_contact_id',
-      'broker_contact_id',
-    ];
-    for (const field of alwaysRequired) {
+    for (const field of ['tenant_contact_id', 'broker_contact_id'] as const) {
       if (!body[field]) {
         return NextResponse.json(
           { error: `Missing required field: ${field}` },
           { status: 400 },
         );
       }
+    }
+
+    // Either an existing landlord contact OR an inline name must be supplied.
+    if (!body.landlord_contact_id && !body.landlord_inline?.name?.trim()) {
+      return NextResponse.json(
+        { error: 'Either landlord_contact_id or landlord_inline.name is required' },
+        { status: 400 },
+      );
     }
 
     // Either property_id+unit_id OR external_address must be provided
@@ -94,11 +105,41 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // If inline landlord was provided, create the contact now and use its id.
+    let landlordContactId = body.landlord_contact_id;
+    if (!landlordContactId && body.landlord_inline) {
+      const { name, email, phone } = body.landlord_inline;
+      const parts = name.trim().split(/\s+/);
+      const firstName = parts[0] ?? '';
+      const lastName = parts.slice(1).join(' ') || null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: newContact, error: contactErr } = await (supabase as any)
+        .from('contacts')
+        .insert({
+          type: 'landlord',
+          first_name: firstName || null,
+          last_name: lastName,
+          // If only a single token was given, fall back to using it as the
+          // company name so the row remains useful even without a person name.
+          company_name: lastName ? null : firstName,
+          email: email?.trim() || null,
+          phone: phone?.trim() || null,
+          tags: [],
+        })
+        .select('id')
+        .single();
+      if (contactErr || !newContact) {
+        console.error('[POST /api/lois] inline landlord create error:', contactErr);
+        return NextResponse.json({ error: 'Failed to create landlord contact' }, { status: 500 });
+      }
+      landlordContactId = newContact.id as string;
+    }
+
     const loiData: LoiInsert = {
       property_id: body.property_id ?? null,
       unit_id: body.unit_id ?? null,
       tenant_contact_id: body.tenant_contact_id,
-      landlord_contact_id: body.landlord_contact_id,
+      landlord_contact_id: landlordContactId!,
       broker_contact_id: body.broker_contact_id,
       status: body.status ?? 'draft',
       version: 1,

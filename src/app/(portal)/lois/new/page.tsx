@@ -193,6 +193,14 @@ export default function CreateLoiPage() {
   const [landlordContactId, setLandlordContactId] = useState('');
   const [brokerContactId, setBrokerContactId] = useState('');
 
+  // Inline-add landlord (off-system / unknown landlord case). When active,
+  // we don't require landlordContactId; instead the API auto-creates a
+  // landlord contact from these three fields on submit.
+  const [landlordInlineActive, setLandlordInlineActive] = useState(false);
+  const [landlordInlineName, setLandlordInlineName] = useState('');
+  const [landlordInlineEmail, setLandlordInlineEmail] = useState('');
+  const [landlordInlinePhone, setLandlordInlinePhone] = useState('');
+
   // ----- External address fields -----
   const [externalAddress, setExternalAddress] = useState('');
   const [externalCity, setExternalCity] = useState('');
@@ -494,7 +502,11 @@ export default function CreateLoiPage() {
       if (!externalState.trim()) newHeaderErrors.externalState = 'State is required';
     }
     if (!tenantContactId) newHeaderErrors.tenantContactId = 'Tenant is required';
-    if (!landlordContactId) newHeaderErrors.landlordContactId = 'Landlord is required';
+    if (landlordInlineActive) {
+      if (!landlordInlineName.trim()) newHeaderErrors.landlordContactId = 'Landlord name is required';
+    } else {
+      if (!landlordContactId) newHeaderErrors.landlordContactId = 'Landlord is required';
+    }
     if (!brokerContactId) newHeaderErrors.brokerContactId = 'Broker is required';
 
     if (!isFilled('base_rent', sections)) newSectionErrors.add('base_rent');
@@ -540,11 +552,20 @@ export default function CreateLoiPage() {
     try {
       const payload: Record<string, unknown> = {
         tenant_contact_id: tenantContactId,
-        landlord_contact_id: landlordContactId,
         broker_contact_id: brokerContactId,
         status,
         sections: buildSectionsPayload(),
       };
+
+      if (landlordInlineActive) {
+        payload.landlord_inline = {
+          name: landlordInlineName.trim(),
+          email: landlordInlineEmail.trim() || null,
+          phone: landlordInlinePhone.trim() || null,
+        };
+      } else {
+        payload.landlord_contact_id = landlordContactId;
+      }
 
       if (propertySource === 'system') {
         payload.property_id = propertyId;
@@ -926,26 +947,71 @@ export default function CreateLoiPage() {
 
         {/* Landlord */}
         <div>
-          <Select
-            label="Landlord"
-            required
-            value={landlordContactId}
-            onChange={(e) => {
-              setLandlordContactId(e.target.value);
-              clearHeaderError('landlordContactId');
-            }}
-            error={headerErrors.landlordContactId}
-            disabled={loadingData}
-          >
-            <option value="">
-              {loadingData ? 'Loading…' : 'Select a landlord'}
-            </option>
-            {landlordContacts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {contactLabel(c)}
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-foreground">
+              Landlord<span className="text-destructive ml-0.5">*</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setLandlordInlineActive((v) => !v);
+                clearHeaderError('landlordContactId');
+                if (!landlordInlineActive) setLandlordContactId('');
+              }}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              {landlordInlineActive ? 'Pick from contacts' : 'Not in my contacts? Add new →'}
+            </button>
+          </div>
+          {landlordInlineActive ? (
+            <div className="space-y-2 rounded-lg border border-dashed border-border bg-muted/30 p-3">
+              <Input
+                placeholder="Landlord full name or company"
+                value={landlordInlineName}
+                onChange={(e) => {
+                  setLandlordInlineName(e.target.value);
+                  clearHeaderError('landlordContactId');
+                }}
+                error={headerErrors.landlordContactId}
+                required
+              />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  placeholder="Email (optional)"
+                  type="email"
+                  value={landlordInlineEmail}
+                  onChange={(e) => setLandlordInlineEmail(e.target.value)}
+                />
+                <Input
+                  placeholder="Phone (optional)"
+                  value={landlordInlinePhone}
+                  onChange={(e) => setLandlordInlinePhone(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                A new landlord contact will be created when you save the LOI.
+              </p>
+            </div>
+          ) : (
+            <Select
+              value={landlordContactId}
+              onChange={(e) => {
+                setLandlordContactId(e.target.value);
+                clearHeaderError('landlordContactId');
+              }}
+              error={headerErrors.landlordContactId}
+              disabled={loadingData}
+            >
+              <option value="">
+                {loadingData ? 'Loading…' : 'Select a landlord'}
               </option>
-            ))}
-          </Select>
+              {landlordContacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {contactLabel(c)}
+                </option>
+              ))}
+            </Select>
+          )}
         </div>
 
         {/* Broker */}
