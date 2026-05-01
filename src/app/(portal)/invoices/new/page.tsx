@@ -106,16 +106,16 @@ export default function NewInvoicePage() {
     }
     if (!form.property_address.trim()) newErrors.property_address = 'Property address is required';
     if (!form.description.trim()) newErrors.description = 'Description is required';
-    if (!form.commission_amount.trim()) {
-      newErrors.commission_amount = 'Commission amount is required';
-    } else if (isNaN(Number(form.commission_amount)) || Number(form.commission_amount) <= 0) {
-      newErrors.commission_amount = 'Must be a positive number';
-    }
-    if (form.commission_rate_percent.trim() && (isNaN(Number(form.commission_rate_percent)) || Number(form.commission_rate_percent) < 0 || Number(form.commission_rate_percent) > 100)) {
+    // Commission amount is derived from rate × total — both inputs are required.
+    if (!form.commission_rate_percent.trim()) {
+      newErrors.commission_rate_percent = 'Commission rate is required';
+    } else if (isNaN(Number(form.commission_rate_percent)) || Number(form.commission_rate_percent) <= 0 || Number(form.commission_rate_percent) > 100) {
       newErrors.commission_rate_percent = 'Must be between 0 and 100';
     }
-    if (form.total_consideration.trim() && (isNaN(Number(form.total_consideration)) || Number(form.total_consideration) < 0)) {
-      newErrors.total_consideration = 'Must be a non-negative number';
+    if (!form.total_consideration.trim()) {
+      newErrors.total_consideration = 'Total consideration is required';
+    } else if (isNaN(Number(form.total_consideration)) || Number(form.total_consideration) <= 0) {
+      newErrors.total_consideration = 'Must be a positive number';
     }
     if (form.split_type === 'split') {
       const pct = Number(form.split_percent);
@@ -275,18 +275,19 @@ export default function NewInvoicePage() {
                 className="sm:col-span-2 lg:col-span-3"
               />
               <Input
-                label="Commission Amount ($)"
+                label="Total Consideration ($)"
                 required
                 type="number"
                 step="0.01"
                 min="0"
-                value={form.commission_amount}
-                error={errors.commission_amount}
+                value={form.total_consideration}
+                error={errors.total_consideration}
                 placeholder="0.00"
-                onChange={(e) => handleChange('commission_amount', e.target.value)}
+                onChange={(e) => handleChange('total_consideration', e.target.value)}
               />
               <Input
                 label="Commission Rate (%)"
+                required
                 type="number"
                 step="0.01"
                 min="0"
@@ -297,14 +298,13 @@ export default function NewInvoicePage() {
                 onChange={(e) => handleChange('commission_rate_percent', e.target.value)}
               />
               <Input
-                label="Total Consideration ($)"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.total_consideration}
-                error={errors.total_consideration}
-                placeholder="0.00"
-                onChange={(e) => handleChange('total_consideration', e.target.value)}
+                label="Commission Amount ($)"
+                type="text"
+                value={form.commission_amount ? `$${Number(form.commission_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+                placeholder="—"
+                readOnly
+                hint="Auto-calculated from total × rate"
+                onChange={() => { /* read-only: derived from total × rate */ }}
               />
               <Input
                 label="Due Date"

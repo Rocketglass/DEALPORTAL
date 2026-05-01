@@ -62,7 +62,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     property_address,
     suite_number,
     description,
-    commission_amount,
+    // commission_amount is no longer accepted from clients — server derives it
+    // below from rate × total × split. Drop it on the floor if anyone sends it.
     commission_rate_percent,
     total_consideration,
     lease_term_months,
@@ -98,21 +99,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 400 },
     );
   }
-  if (typeof commission_amount !== 'number' || commission_amount <= 0) {
+  // commission_amount is now derived server-side from total × rate × split.
+  // The two inputs (commission_rate_percent and total_consideration) are
+  // required; any client-supplied commission_amount is ignored.
+  if (
+    typeof commission_rate_percent !== 'number' ||
+    commission_rate_percent <= 0 ||
+    commission_rate_percent > 100
+  ) {
     return NextResponse.json(
-      { error: 'commission_amount is required and must be a positive number' },
+      { error: 'commission_rate_percent is required and must be between 0 and 100' },
       { status: 400 },
     );
   }
-
-  // Optional field validation
-  if (
-    commission_rate_percent !== undefined &&
-    commission_rate_percent !== null &&
-    (typeof commission_rate_percent !== 'number' || commission_rate_percent < 0 || commission_rate_percent > 100)
-  ) {
+  if (typeof total_consideration !== 'number' || total_consideration <= 0) {
     return NextResponse.json(
-      { error: 'commission_rate_percent must be a number between 0 and 100' },
+      { error: 'total_consideration is required and must be a positive number' },
       { status: 400 },
     );
   }
@@ -228,6 +230,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // ------------------------------------------------------------------
+  // Derive commission_amount server-side: total × rate × split share.
+  // Client-supplied commission_amount is ignored on purpose so the displayed
+  // value matches the saved value and can never drift from the inputs.
+  // ------------------------------------------------------------------
+  const splitShare =
+    typeof commission_split_percent === 'number' && commission_split_percent > 0 && commission_split_percent <= 100
+      ? commission_split_percent / 100
+      : 1;
+  const derivedCommissionAmount =
+    Math.round(total_consideration * (commission_rate_percent / 100) * splitShare * 100) / 100;
+
+  // ------------------------------------------------------------------
   // Build the description with property/suite context
   // ------------------------------------------------------------------
   const fullDescription = suite_number
@@ -246,9 +260,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payee_contact_id: payeeContactId,
       lease_term_months: typeof lease_term_months === 'number' ? lease_term_months : 0,
       monthly_rent: typeof monthly_rent === 'number' ? monthly_rent : 0,
-      total_consideration: typeof total_consideration === 'number' ? total_consideration : 0,
-      commission_rate_percent: typeof commission_rate_percent === 'number' ? commission_rate_percent : 0,
-      commission_amount: commission_amount as number,
+      total_consideration,
+      commission_rate_percent,
+      commission_amount: derivedCommissionAmount,
       payee_name: payee_name as string,
       payee_address: typeof payee_address === 'string' ? payee_address : null,
       payee_city_state_zip: null,
