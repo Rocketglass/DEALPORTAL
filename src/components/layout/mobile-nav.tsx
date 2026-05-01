@@ -12,6 +12,7 @@ import {
   Handshake,
   ScrollText,
   Receipt,
+  Inbox,
   BarChart3,
   Settings,
   LogOut,
@@ -26,6 +27,7 @@ const navItems = [
   { href: '/lois', label: 'LOIs', icon: Handshake },
   { href: '/leases', label: 'Leases', icon: ScrollText },
   { href: '/invoices', label: 'Invoices', icon: Receipt },
+  { href: '/bills-in', label: 'Bills In', icon: Inbox },
   { href: '/comps', label: 'Comps', icon: BarChart3 },
 ];
 

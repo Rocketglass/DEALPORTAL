@@ -13,6 +13,7 @@ const BROKER_PORTAL_ROUTES = [
   '/lois',
   '/leases',
   '/invoices',
+  '/bills-in',
   '/comps',
   '/users',
   '/settings',
