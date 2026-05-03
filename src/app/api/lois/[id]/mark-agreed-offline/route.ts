@@ -139,10 +139,13 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
   }
 
   // Update the LOI itself: status = 'agreed', store signed file path,
-  // stamp agreed_at. The optional `notes` field passed in is recorded in
-  // the audit_log entry below — we don't write it to lois.notes to avoid
-  // clobbering any prior context the broker put there.
-  const { error: updateErr } = await supabase
+  // stamp agreed_at. Atomic transition — only flip if status is still in
+  // an in-flight state. Without this guard, two parallel POSTs would both
+  // upload PDFs and both update lois.signed_pdf_url, leaving an orphan
+  // file in storage. The optional `notes` field is recorded in the audit_log
+  // entry below — we don't write it to lois.notes to avoid clobbering any
+  // prior context the broker put there.
+  const { data: updated, error: updateErr } = await supabase
     .from('lois')
     .update({
       status: 'agreed',
@@ -150,10 +153,21 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
       agreed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('id', id);
+    .eq('id', id)
+    .in('status', ['draft', 'sent', 'in_negotiation'])
+    .select('id')
+    .maybeSingle();
   if (updateErr) {
     console.error(`[POST /api/lois/${id}/mark-agreed-offline] update error:`, updateErr);
     return NextResponse.json({ error: 'Failed to update LOI' }, { status: 500 });
+  }
+  if (!updated) {
+    // Another writer marked it agreed first. Clean up the orphan upload.
+    await supabase.storage.from('lease-documents').remove([storagePath]).catch(() => {});
+    return NextResponse.json(
+      { error: 'LOI was already marked agreed by another request' },
+      { status: 409 },
+    );
   }
 
   // Audit log — clearly tagged so the timeline shows it wasn't an electronic

@@ -115,7 +115,12 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     return NextResponse.json({ error: 'Failed to store signed file' }, { status: 500 });
   }
 
-  // Update lease record
+  // Update lease record. Atomic transition — only flip if status is still in
+  // a pre-executed state. Without this guard, two parallel POSTs both pass
+  // the status check above, both update the row, and both fall through to
+  // generateCommissionInvoice — producing duplicate invoices for one signing
+  // event. `.in('status', [...]).select()` returns the row only when it
+  // actually transitioned; null result means another writer beat us to it.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updatePayload: Record<string, any> = {
     status: 'executed',
@@ -127,13 +132,25 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
   // The optional `notes` field is captured in the audit log entry below;
   // we don't overwrite the lease's own `notes` column to avoid clobbering
   // any prior context the broker put there.
-  const { error: updateErr } = await supabase
+  const { data: updated, error: updateErr } = await supabase
     .from('leases')
     .update(updatePayload)
-    .eq('id', id);
+    .eq('id', id)
+    .in('status', ['draft', 'review', 'sent_for_signature', 'partially_signed'])
+    .select('id')
+    .maybeSingle();
   if (updateErr) {
     console.error(`[POST /api/leases/${id}/mark-executed-offline] update error:`, updateErr);
     return NextResponse.json({ error: 'Failed to update lease' }, { status: 500 });
+  }
+  if (!updated) {
+    // Another writer flipped the status between our read and our update.
+    // Clean up the orphan storage object so we don't accumulate cruft.
+    await supabase.storage.from('lease-documents').remove([storagePath]).catch(() => {});
+    return NextResponse.json(
+      { error: 'Lease was already marked executed by another request' },
+      { status: 409 },
+    );
   }
 
   // Mirror the DocuSign-completed downstream: flip the unit to occupied so

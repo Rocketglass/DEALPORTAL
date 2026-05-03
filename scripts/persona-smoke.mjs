@@ -140,7 +140,7 @@ const brokerRoutes = [
   ids.leaseId ? `/leases/${ids.leaseId}` : null,
   ids.leaseId ? `/leases/${ids.leaseId}/print` : null,
   ids.loiId ? `/lois/${ids.loiId}` : null,
-  ids.applicationId ? `/applications/${ids.applicationId}` : null,
+  ids.applicationId ? `/applications/${ids.applicationId}/review` : null,
 ].filter(Boolean);
 
 const tenantRoutes = [
