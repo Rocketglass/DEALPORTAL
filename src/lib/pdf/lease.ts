@@ -161,13 +161,8 @@ export async function generateLeaseSummaryPdf(
     font: helveticaBold,
     color: COLORS.primary,
   });
-  y -= 16;
-  drawText('Commercial Real Estate Brokerage', MARGIN_LEFT, y, {
-    size: 9,
-    color: COLORS.muted,
-  });
 
-  drawText('LEASE SUMMARY', PAGE_WIDTH - MARGIN_RIGHT, y + 16, {
+  drawText('LEASE SUMMARY', PAGE_WIDTH - MARGIN_RIGHT, y, {
     size: 18,
     font: helveticaBold,
     color: COLORS.dark,
@@ -175,6 +170,7 @@ export async function generateLeaseSummaryPdf(
   });
 
   if (lease.form_type) {
+    y -= 16;
     drawText(`${lease.form_type}${lease.form_version ? ' · ' + lease.form_version : ''}`, PAGE_WIDTH - MARGIN_RIGHT, y, {
       size: 9,
       color: COLORS.muted,

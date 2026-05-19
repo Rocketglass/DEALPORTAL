@@ -537,9 +537,6 @@ export default async function PropertyPrintPage({ params }: PrintPageProps) {
               <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '0.05em', textTransform: 'uppercase' as const }}>
                 Rocket Realty
               </p>
-              <p style={{ fontSize: 10, color: '#64748b', margin: '1px 0 0 0' }}>
-                Commercial Real Estate
-              </p>
             </div>
           </div>
 

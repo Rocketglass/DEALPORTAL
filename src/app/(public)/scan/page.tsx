@@ -53,7 +53,7 @@ export default function ScanLandingPage() {
         </div>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          Rocket Realty &middot; Commercial Real Estate
+          Rocket Realty
         </p>
       </div>
     </div>

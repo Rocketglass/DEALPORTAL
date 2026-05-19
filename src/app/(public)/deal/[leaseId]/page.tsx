@@ -198,9 +198,6 @@ export default async function DealSummaryPage({ params }: Props) {
             <h1 className="text-white text-xl sm:text-2xl font-bold tracking-tight">
               ROCKET REALTY
             </h1>
-            <p className="text-blue-200 text-sm mt-0.5">
-              Commercial Real Estate Brokerage
-            </p>
           </div>
 
           {/* Content */}

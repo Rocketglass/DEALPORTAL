@@ -158,9 +158,6 @@ export default function LoiPrintClient({ loi }: LoiPrintClientProps) {
             ROCKET REALTY
           </h1>
           <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0 0', fontFamily: 'Inter, system-ui, sans-serif' }}>
-            Commercial Real Estate Brokerage
-          </p>
-          <p style={{ fontSize: 13, color: '#64748b', margin: '2px 0 0 0', fontFamily: 'Inter, system-ui, sans-serif' }}>
             San Diego, CA
           </p>
         </div>
@@ -320,7 +317,7 @@ export default function LoiPrintClient({ loi }: LoiPrintClientProps) {
 
         {/* Footer */}
         <div style={{ marginTop: 64, borderTop: '1px solid #e2e8f0', paddingTop: 16, textAlign: 'center', fontSize: 12, color: '#64748b', fontFamily: 'Inter, system-ui, sans-serif' }}>
-          <p style={{ margin: 0 }}>Rocket Realty &middot; Commercial Real Estate Brokerage &middot; San Diego, CA</p>
+          <p style={{ margin: 0 }}>Rocket Realty &middot; San Diego, CA</p>
         </div>
       </div>
     </>
