@@ -38,9 +38,10 @@ const typeOptions = [
 ];
 
 const sourceOptions = [
+  { value: 'lease-upload', label: 'Lease Upload' },
+  { value: 'manual', label: 'Manual' },
   { value: 'internal', label: 'Internal' },
   { value: 'costar', label: 'CoStar' },
-  { value: 'manual', label: 'Manual' },
 ];
 
 const emptyForm: FormState = {
@@ -102,6 +103,11 @@ export function CompsClient({ comps, error }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Optimistically removed rows (hidden client-side immediately on successful delete)
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
+
+  const visibleComps = comps.filter((c) => !removedIds.has(c.id));
+
   // Form state
   const [form, setForm] = useState<FormState>({ ...emptyForm });
 
@@ -122,6 +128,13 @@ export function CompsClient({ comps, error }: Props) {
     setDeleting(true);
     setDeleteError(null);
 
+    // Optimistic: hide row immediately
+    setRemovedIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+
     try {
       const res = await fetch(`/api/comps/${id}`, { method: 'DELETE' });
 
@@ -133,6 +146,12 @@ export function CompsClient({ comps, error }: Props) {
       setDeletingId(null);
       router.refresh();
     } catch (err) {
+      // Rollback optimistic removal
+      setRemovedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       setDeleteError(err instanceof Error ? err.message : 'Delete failed');
     } finally {
       setDeleting(false);
@@ -234,9 +253,14 @@ export function CompsClient({ comps, error }: Props) {
     {
       key: 'source',
       label: 'Source',
-      render: (row: ComparableTransaction) => (
-        <span className="text-xs text-muted-foreground capitalize">{row.source || '\u2014'}</span>
-      ),
+      render: (row: ComparableTransaction) => {
+        if (!row.source) {
+          return <span className="text-xs text-muted-foreground">{'\u2014'}</span>;
+        }
+        // 'lease-upload' picks up the primary-subtle (blue) palette via STATUS_COLORS;
+        // any other source string falls through to the neutral muted (gray) style.
+        return <Badge status={row.source} size="sm" />;
+      },
     },
     {
       key: '_actions',
@@ -481,7 +505,7 @@ export function CompsClient({ comps, error }: Props) {
       )}
 
       <DataTable
-        data={comps}
+        data={visibleComps}
         columns={columns}
         searchKeys={['address', 'city', 'tenant_name']}
         filters={[

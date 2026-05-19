@@ -18,6 +18,7 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; dot?: str
   proposed: { bg: 'bg-primary-subtle', text: 'text-primary', dot: 'bg-primary' },
   lease: { bg: 'bg-primary-subtle', text: 'text-primary' },
   industrial: { bg: 'bg-primary-subtle', text: 'text-primary' },
+  'lease-upload': { bg: 'bg-primary-subtle', text: 'text-primary' },
 
   // Pending / warning (amber)
   under_review: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
