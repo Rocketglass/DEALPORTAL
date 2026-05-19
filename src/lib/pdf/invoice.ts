@@ -95,25 +95,21 @@ export async function generateInvoicePdf(
   };
 
   // -----------------------------------------------------------------
-  // Header — logo + brand name + invoice title
+  // Header — logo (or text wordmark fallback) + invoice title
   // -----------------------------------------------------------------
   if (logo) {
-    // Scale logo to ~32pt tall, preserving aspect
-    const maxHeight = 32;
+    // The logo already includes the "ROCKET REALTY" wordmark, so we don't
+    // draw separate text. Scale to ~46pt tall so the wordmark inside the
+    // logo stays readable.
+    const maxHeight = 46;
     const ratio = logo.width / logo.height;
     const drawHeight = Math.min(maxHeight, logo.height);
     const drawWidth = drawHeight * ratio;
     page.drawImage(logo, {
       x: MARGIN_LEFT,
-      y: y - drawHeight + 12,
+      y: y - drawHeight + 14,
       width: drawWidth,
       height: drawHeight,
-    });
-    // Wordmark next to the logo
-    drawText('ROCKET REALTY', MARGIN_LEFT + drawWidth + 12, y, {
-      size: 18,
-      font: helveticaBold,
-      color: COLORS.primary,
     });
   } else {
     drawText('ROCKET REALTY', MARGIN_LEFT, y, {
@@ -137,7 +133,8 @@ export async function generateInvoicePdf(
     align: 'right',
   });
 
-  y -= 18;
+  // Push past the logo bottom edge so the divider clears it
+  y -= 24;
   drawLine(y);
 
   // -----------------------------------------------------------------

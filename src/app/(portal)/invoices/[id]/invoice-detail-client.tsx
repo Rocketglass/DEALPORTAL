@@ -445,9 +445,12 @@ export default function InvoiceDetailClient({
         <div className="border-b border-[#e2e8f0] bg-[#f8fafc] px-8 py-6">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-bold tracking-tight text-[#1e40af]">
-                ROCKET REALTY
-              </h2>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/invoice-logo.png"
+                alt="Rocket Realty"
+                className="h-12 w-auto"
+              />
             </div>
             <div className="text-right">
               <h3 className="text-xl font-bold text-[#0f172a]">
