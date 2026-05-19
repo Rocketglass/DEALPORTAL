@@ -38,8 +38,6 @@ function layout(body: string): string {
                 <tr>
                   <td>
                     <span style="font-size:18px;font-weight:700;color:${BRAND_COLOR};letter-spacing:-0.02em;">ROCKET REALTY</span>
-                    <br />
-                    <span style="font-size:12px;color:${MUTED_COLOR};">Commercial Real Estate Brokerage</span>
                   </td>
                 </tr>
               </table>

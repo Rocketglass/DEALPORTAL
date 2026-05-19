@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 import { getInvoiceWithDetail } from '@/lib/queries/invoices';
+import { enrichInvoice } from '@/lib/invoice/enrich';
 import { generateInvoicePdf } from '@/lib/pdf/invoice';
 import { sendEmail } from '@/lib/email/send';
 import { invoiceSent } from '@/lib/email/templates';
@@ -103,25 +104,15 @@ export async function POST(
     || 'Landlord';
 
   // ------------------------------------------------------------------
-  // Enrich with display fields for PDF generation
+  // Generate PDF (with full lease enrichment)
   // ------------------------------------------------------------------
-  const lease = data.lease;
-  const propertyAddress =
-    lease?.property?.address ?? lease?.premises_address ?? '';
-  const suiteNumber = lease?.unit?.suite_number
-    ? `Suite ${lease.unit.suite_number}`
-    : '';
+  const enriched = enrichInvoice(data);
+  const propertyAddress = enriched.property_address;
+  const suiteNumber = enriched.suite_number;
 
-  // ------------------------------------------------------------------
-  // Generate PDF
-  // ------------------------------------------------------------------
   let pdfBuffer: Buffer;
   try {
-    const pdfBytes = await generateInvoicePdf({
-      ...data,
-      property_address: propertyAddress,
-      suite_number: suiteNumber,
-    });
+    const pdfBytes = await generateInvoicePdf(enriched);
     pdfBuffer = Buffer.from(pdfBytes);
   } catch (pdfError) {
     console.error(`[POST /api/invoices/${id}/send] PDF generation error:`, pdfError);

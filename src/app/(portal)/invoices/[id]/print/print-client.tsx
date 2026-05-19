@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDocumentDate } from '@/lib/utils';
 import type { EnrichedInvoice } from '../types';
@@ -32,13 +32,6 @@ interface InvoicePrintClientProps {
 }
 
 export default function InvoicePrintClient({ invoice }: InvoicePrintClientProps) {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      window.print();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
   const escalations = invoice.escalations ?? [];
   const hasEscalations = escalations.length > 0;
 
@@ -108,11 +101,11 @@ export default function InvoicePrintClient({ invoice }: InvoicePrintClientProps)
       `}</style>
 
       <div className="mx-auto max-w-3xl bg-white px-4 py-8 print:max-w-none print:px-0 print:py-0">
-        {/* Print button — hidden when printing */}
+        {/* Toolbar — hidden when printing */}
         <div className="no-print mb-8 flex items-center justify-between">
-          <Button variant="ghost" onClick={() => window.history.back()}>
-            &larr; Back
-          </Button>
+          <Link href={`/invoices/${invoice.id}`}>
+            <Button variant="ghost">&larr; Back to Invoice</Button>
+          </Link>
           <Button variant="primary" onClick={() => window.print()}>
             Print Invoice
           </Button>
@@ -232,14 +225,15 @@ export default function InvoicePrintClient({ invoice }: InvoicePrintClientProps)
             <p className="whitespace-pre-line">{invoice.payment_instructions}</p>
           ) : (
             <p>
-              Please make checks payable to: <strong>Rocket Realty</strong>
+              Please make checks payable to:{' '}
+              <strong>RDI Group DBA Rocket Realty</strong>
             </p>
           )}
         </div>
 
         {/* Footer */}
         <div className="mt-16 border-t border-[#e2e8f0] pt-4 text-center text-xs text-[#64748b]">
-          <p>Rocket Realty &middot; Commercial Real Estate Brokerage &middot; San Diego, CA</p>
+          <p>Rocket Realty &middot; San Diego, CA</p>
         </div>
       </div>
     </>

@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 import { getInvoiceWithDetail } from '@/lib/queries/invoices';
+import { enrichInvoice } from '@/lib/invoice/enrich';
 import { generateInvoicePdf } from '@/lib/pdf/invoice';
 
 interface RouteContext {
@@ -52,26 +53,10 @@ export async function GET(
   }
 
   // ------------------------------------------------------------------
-  // Enrich with display fields (same logic as the print page)
-  // ------------------------------------------------------------------
-  const lease = data.lease;
-
-  const propertyAddress =
-    lease?.property?.address ?? lease?.premises_address ?? '';
-
-  const suiteNumber = lease?.unit?.suite_number
-    ? `Suite ${lease.unit.suite_number}`
-    : '';
-
-  // ------------------------------------------------------------------
-  // Generate PDF
+  // Generate PDF (with full lease enrichment)
   // ------------------------------------------------------------------
   try {
-    const pdfBytes = await generateInvoicePdf({
-      ...data,
-      property_address: propertyAddress,
-      suite_number: suiteNumber,
-    });
+    const pdfBytes = await generateInvoicePdf(enrichInvoice(data));
 
     const fileName = `Invoice-${data.invoice_number}.pdf`;
 

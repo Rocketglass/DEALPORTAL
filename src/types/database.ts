@@ -469,6 +469,9 @@ export interface CommissionInvoice {
   payee_name: string | null;
   payee_address: string | null;
   payee_city_state_zip: string | null;
+  property_address: string | null;
+  suite_number: string | null;
+  lessee_name: string | null;
   payment_instructions: string | null;
   status: InvoiceStatus;
   sent_date: string | null;

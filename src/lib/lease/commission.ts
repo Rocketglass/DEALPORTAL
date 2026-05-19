@@ -98,6 +98,9 @@ export function generateCommissionInvoice(
     notes: null,
     commission_split_percent: effectiveSplit,
     split_with_agent: splitWithAgent ?? null,
+    property_address: null,
+    suite_number: null,
+    lessee_name: null,
   };
 
   return invoice;

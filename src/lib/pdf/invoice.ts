@@ -1,8 +1,9 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import type { CommissionInvoice } from '@/types/database';
+import { PDFDocument, StandardFonts, rgb, PDFImage } from 'pdf-lib';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import type { EnrichedInvoice } from '@/lib/invoice/enrich';
 import { BROKER_CONFIG } from '@/lib/config/broker';
 
-/** Hex color string to pdf-lib RGB */
 function hexToRgb(hex: string) {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -34,30 +35,37 @@ function formatDate(dateStr: string): string {
   }).format(new Date(dateStr));
 }
 
+const LOGO_FILENAME = 'invoice-logo.png';
+
+async function loadLogo(doc: PDFDocument): Promise<PDFImage | null> {
+  try {
+    const logoPath = path.join(process.cwd(), 'public', LOGO_FILENAME);
+    const bytes = await readFile(logoPath);
+    return await doc.embedPng(bytes);
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Generate a professional PDF for a commission invoice.
- *
- * Uses pdf-lib with built-in Helvetica fonts (no external font files needed).
- * Returns raw PDF bytes as Uint8Array.
+ * Generate a branded PDF for a commission invoice using pdf-lib.
  */
 export async function generateInvoicePdf(
-  invoice: CommissionInvoice & { property_address: string; suite_number: string },
+  invoice: EnrichedInvoice,
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const page = doc.addPage([612, 792]); // Letter size: 8.5 x 11 inches
+  const page = doc.addPage([612, 792]); // Letter
 
   const helvetica = await doc.embedFont(StandardFonts.Helvetica);
   const helveticaBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const logo = await loadLogo(doc);
 
   const MARGIN_LEFT = 50;
   const MARGIN_RIGHT = 50;
   const PAGE_WIDTH = 612;
   const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
-  let y = 742; // start near top
+  let y = 742;
 
-  // ---------------------------------------------------------------------------
-  // Helper: draw text
-  // ---------------------------------------------------------------------------
   const drawText = (
     text: string,
     x: number,
@@ -77,9 +85,6 @@ export async function generateInvoicePdf(
     page.drawText(text, { x: xPos, y: yPos, size, font, color });
   };
 
-  // ---------------------------------------------------------------------------
-  // Helper: draw horizontal line
-  // ---------------------------------------------------------------------------
   const drawLine = (yPos: number, color = COLORS.border) => {
     page.drawLine({
       start: { x: MARGIN_LEFT, y: yPos },
@@ -89,39 +94,55 @@ export async function generateInvoicePdf(
     });
   };
 
-  // ---------------------------------------------------------------------------
-  // Header
-  // ---------------------------------------------------------------------------
-  drawText('ROCKET REALTY', MARGIN_LEFT, y, {
-    size: 18,
-    font: helveticaBold,
-    color: COLORS.primary,
-  });
-  y -= 16;
-  drawText('Commercial Real Estate Brokerage', MARGIN_LEFT, y, {
-    size: 9,
-    color: COLORS.muted,
-  });
+  // -----------------------------------------------------------------
+  // Header — logo + brand name + invoice title
+  // -----------------------------------------------------------------
+  if (logo) {
+    // Scale logo to ~32pt tall, preserving aspect
+    const maxHeight = 32;
+    const ratio = logo.width / logo.height;
+    const drawHeight = Math.min(maxHeight, logo.height);
+    const drawWidth = drawHeight * ratio;
+    page.drawImage(logo, {
+      x: MARGIN_LEFT,
+      y: y - drawHeight + 12,
+      width: drawWidth,
+      height: drawHeight,
+    });
+    // Wordmark next to the logo
+    drawText('ROCKET REALTY', MARGIN_LEFT + drawWidth + 12, y, {
+      size: 18,
+      font: helveticaBold,
+      color: COLORS.primary,
+    });
+  } else {
+    drawText('ROCKET REALTY', MARGIN_LEFT, y, {
+      size: 18,
+      font: helveticaBold,
+      color: COLORS.primary,
+    });
+  }
 
   // Invoice title — right-aligned
-  drawText('COMMISSION INVOICE', PAGE_WIDTH - MARGIN_RIGHT, y + 16, {
+  drawText('COMMISSION INVOICE', PAGE_WIDTH - MARGIN_RIGHT, y, {
     size: 16,
     font: helveticaBold,
     color: COLORS.dark,
     align: 'right',
   });
+  y -= 18;
   drawText(`Invoice #${invoice.invoice_number}`, PAGE_WIDTH - MARGIN_RIGHT, y, {
     size: 10,
     color: COLORS.muted,
     align: 'right',
   });
 
-  y -= 24;
+  y -= 18;
   drawLine(y);
 
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------------
   // Dates
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------------
   y -= 22;
   drawText('Invoice Date:', MARGIN_LEFT, y, { size: 9, color: COLORS.muted });
   drawText(formatDate(invoice.created_at), MARGIN_LEFT + 72, y, {
@@ -140,10 +161,33 @@ export async function generateInvoicePdf(
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // From / To
-  // ---------------------------------------------------------------------------
-  y -= 32;
+  // -----------------------------------------------------------------
+  // Property / parties block — pulled from the lease
+  // -----------------------------------------------------------------
+  y -= 30;
+
+  const propertyLine = invoice.premises_full ||
+    [invoice.property_address, invoice.suite_number].filter(Boolean).join(', ');
+
+  const propertyParties: Array<[string, string]> = [];
+  if (propertyLine) propertyParties.push(['PREMISES', propertyLine]);
+  if (invoice.lessor_name) propertyParties.push(['LESSOR', invoice.lessor_name]);
+  if (invoice.lessee_name) propertyParties.push(['LESSEE (TENANT)', invoice.lessee_name]);
+
+  for (const [label, value] of propertyParties) {
+    drawText(label, MARGIN_LEFT, y, {
+      size: 8,
+      font: helveticaBold,
+      color: COLORS.muted,
+    });
+    drawText(value, MARGIN_LEFT + 110, y, { size: 10 });
+    y -= 16;
+  }
+
+  // -----------------------------------------------------------------
+  // From / Bill To
+  // -----------------------------------------------------------------
+  y -= 16;
   drawText('FROM', MARGIN_LEFT, y, {
     size: 8,
     font: helveticaBold,
@@ -156,7 +200,7 @@ export async function generateInvoicePdf(
   });
 
   y -= 16;
-  drawText(BROKER_CONFIG.companyName, MARGIN_LEFT, y, { font: helveticaBold, size: 10 });
+  drawText('Rocket Realty', MARGIN_LEFT, y, { font: helveticaBold, size: 10 });
   drawText(invoice.payee_name ?? '', MARGIN_LEFT + CONTENT_WIDTH / 2, y, {
     font: helveticaBold,
     size: 10,
@@ -173,21 +217,22 @@ export async function generateInvoicePdf(
   });
 
   y -= 14;
-  drawText(`${BROKER_CONFIG.address.city}, ${BROKER_CONFIG.address.state} ${BROKER_CONFIG.address.zip}`, MARGIN_LEFT, y, {
-    size: 9,
-    color: COLORS.muted,
-  });
+  drawText(
+    `${BROKER_CONFIG.address.city}, ${BROKER_CONFIG.address.state} ${BROKER_CONFIG.address.zip}`,
+    MARGIN_LEFT,
+    y,
+    { size: 9, color: COLORS.muted },
+  );
   drawText(invoice.payee_city_state_zip ?? '', MARGIN_LEFT + CONTENT_WIDTH / 2, y, {
     size: 9,
     color: COLORS.muted,
   });
 
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------------
   // Line items table
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------------
   y -= 36;
 
-  // Table header background
   page.drawRectangle({
     x: MARGIN_LEFT,
     y: y - 4,
@@ -220,7 +265,6 @@ export async function generateInvoicePdf(
   y -= 24;
   drawLine(y + 2);
 
-  // Row helper
   const drawRow = (
     desc: string,
     detail: string,
@@ -243,11 +287,6 @@ export async function generateInvoicePdf(
     drawLine(y + 6);
   };
 
-  drawRow(
-    'Property',
-    `${invoice.property_address}, ${invoice.suite_number}`,
-    '',
-  );
   drawRow('Lease Term', `${invoice.lease_term_months} months`, '');
   drawRow('Monthly Rent', `${formatCurrency(invoice.monthly_rent)} /mo`, '');
   drawRow(
@@ -280,9 +319,9 @@ export async function generateInvoicePdf(
     align: 'right',
   });
 
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------------
   // Payment instructions
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------------
   y -= 44;
   drawText('PAYMENT INSTRUCTIONS', MARGIN_LEFT, y, {
     size: 8,
@@ -297,9 +336,9 @@ export async function generateInvoicePdf(
     y -= 14;
   }
 
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------------
   // Footer
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------------
   y = 40;
   drawLine(y + 8);
   drawText(

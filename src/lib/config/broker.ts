@@ -26,9 +26,12 @@ export const BROKER_CONFIG = {
   /** Primary broker contact email. */
   email: 'rocketglass4@hotmail.com',
 
-  /** Payment instructions for invoices — check preferred, wire accepted, ACH not accepted. */
+  /** Name checks should be made out to (legal payee). */
+  checkPayee: 'RDI Group DBA Rocket Realty',
+
+  /** Payment instructions for invoices — check, wire, or ACH. */
   paymentInstructions: (invoiceNumber: string) =>
-    `Please make check payable to:\nRocket Glass, Inc.\n2950 Clairemont Dr\nSan Diego, CA 92117\n\nOr wire to:\nBank: Chase Bank\nRouting: 322271627\nAccount: 629837375\nRef: ${invoiceNumber}\n\nNote: ACH payments are not accepted.`,
+    `Please make check payable to:\nRDI Group DBA Rocket Realty\n2950 Clairemont Dr\nSan Diego, CA 92117\n\nOr wire / ACH to:\nBank: Chase Bank\nRouting: 322271627\nAccount: 629837375\nRef: ${invoiceNumber}`,
 
   /** Full formatted address */
   get fullAddress() {
