@@ -102,6 +102,31 @@ export default function NewInvoicePage() {
         next.description = `Lease commission — ${p.lessee_name}`;
       }
 
+      // Capture deal terms that don't have first-class form fields by
+      // appending them to notes. Idempotent — only adds if the marker line
+      // isn't already present.
+      const noteLines: string[] = [];
+      if (p.commencement_date) {
+        noteLines.push(`Commencement: ${p.commencement_date}`);
+      }
+      if (typeof p.annual_escalation_percent === 'number' && p.annual_escalation_percent > 0) {
+        noteLines.push(`Annual escalation: ${p.annual_escalation_percent}%`);
+      }
+      if (typeof p.free_rent_months === 'number' && p.free_rent_months > 0) {
+        noteLines.push(
+          `Free rent: ${p.free_rent_months} month${p.free_rent_months === 1 ? '' : 's'}`,
+        );
+      }
+      if (noteLines.length > 0) {
+        const marker = 'Deal terms (from lease):';
+        if (!next.notes.includes(marker)) {
+          const block = [marker, ...noteLines.map((l) => `  • ${l}`)].join('\n');
+          next.notes = next.notes.trim()
+            ? `${next.notes.trim()}\n\n${block}`
+            : block;
+        }
+      }
+
       // Recompute commission amount with the freshly filled values
       const rate = parseFloat(next.commission_rate_percent);
       const total = parseFloat(next.total_consideration);
