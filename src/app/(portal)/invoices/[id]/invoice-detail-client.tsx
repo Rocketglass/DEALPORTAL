@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Download,
   Send,
@@ -23,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import type { InvoiceStatus } from '@/types/database';
 import type { EnrichedInvoice } from './types';
+import EditInvoiceForm from './edit-invoice-form';
 
 // ---------------------------------------------------------------------------
 // Progress tracker
@@ -258,6 +260,7 @@ interface InvoiceDetailClientProps {
 export default function InvoiceDetailClient({
   initialInvoice,
 }: InvoiceDetailClientProps) {
+  const router = useRouter();
   const [invoice, setInvoice] = useState(initialInvoice);
   const [sending, setSending] = useState(false);
   const [marking, setMarking] = useState(false);
@@ -267,6 +270,7 @@ export default function InvoiceDetailClient({
   const [editingRate, setEditingRate] = useState(false);
   const [newRate, setNewRate] = useState('');
   const [savingRate, setSavingRate] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   // ---- Status actions ----------------------------------------------------
 
@@ -392,16 +396,25 @@ export default function InvoiceDetailClient({
           <Badge status={invoice.status} dot />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {invoice.status === 'draft' && (
-            <Button
-              variant="primary"
-              icon={Send}
-              onClick={() => setShowSendConfirm(true)}
-              disabled={sending}
-            >
-              Send Invoice
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                icon={Pencil}
+                onClick={() => setShowEditForm(true)}
+              >
+                Edit
+              </Button>
+              <Button
+                variant="primary"
+                icon={Send}
+                onClick={() => setShowSendConfirm(true)}
+                disabled={sending}
+              >
+                Send Invoice
+              </Button>
+            </>
           )}
           <Button
             variant="secondary"
@@ -435,9 +448,6 @@ export default function InvoiceDetailClient({
               <h2 className="text-lg font-bold tracking-tight text-[#1e40af]">
                 ROCKET REALTY
               </h2>
-              <p className="mt-0.5 text-xs text-[#64748b]">
-                Commercial Real Estate Brokerage
-              </p>
             </div>
             <div className="text-right">
               <h3 className="text-xl font-bold text-[#0f172a]">
@@ -724,6 +734,19 @@ export default function InvoiceDetailClient({
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Invoice Modal */}
+      {showEditForm && (
+        <EditInvoiceForm
+          invoice={invoice}
+          onCancel={() => setShowEditForm(false)}
+          onSaved={() => {
+            // Re-fetch from the server so enriched lease-join fields stay correct.
+            setShowEditForm(false);
+            router.refresh();
+          }}
+        />
+      )}
 
       {/* Payment Details Modal */}
       {showPaymentForm && (

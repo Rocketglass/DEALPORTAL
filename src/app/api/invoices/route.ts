@@ -61,6 +61,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     payee_address,
     property_address,
     suite_number,
+    lessee_name,
     description,
     // commission_amount is no longer accepted from clients — server derives it
     // below from rate × total × split. Drop it on the floor if anyone sends it.
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     notes,
     commission_split_percent,
     split_with_agent,
+    invoice_number: invoiceNumberOverride,
   } = body as Record<string, unknown>;
 
   // Required fields
@@ -143,14 +145,42 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // ------------------------------------------------------------------
-  // Get next invoice number
+  // Resolve invoice number — accept user override, otherwise auto-generate
   // ------------------------------------------------------------------
-  const { data: invoiceNumber, error: numError } = await getNextInvoiceNumber();
-  if (numError || !invoiceNumber) {
-    return NextResponse.json(
-      { error: `Failed to generate invoice number: ${numError}` },
-      { status: 500 },
-    );
+  let invoiceNumber: string;
+  if (
+    typeof invoiceNumberOverride === 'string' &&
+    invoiceNumberOverride.trim()
+  ) {
+    const trimmed = invoiceNumberOverride.trim();
+    if (trimmed.length > 32) {
+      return NextResponse.json(
+        { error: 'invoice_number must be 32 characters or fewer' },
+        { status: 400 },
+      );
+    }
+    // Reject duplicates so the unique invoice_number stays unique.
+    const { data: existingByNumber } = await (await createClient())
+      .from('commission_invoices')
+      .select('id')
+      .eq('invoice_number', trimmed)
+      .maybeSingle();
+    if (existingByNumber) {
+      return NextResponse.json(
+        { error: `Invoice number "${trimmed}" already exists` },
+        { status: 409 },
+      );
+    }
+    invoiceNumber = trimmed;
+  } else {
+    const { data: generated, error: numError } = await getNextInvoiceNumber();
+    if (numError || !generated) {
+      return NextResponse.json(
+        { error: `Failed to generate invoice number: ${numError}` },
+        { status: 500 },
+      );
+    }
+    invoiceNumber = generated;
   }
 
   // ------------------------------------------------------------------
@@ -266,6 +296,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payee_name: payee_name as string,
       payee_address: typeof payee_address === 'string' ? payee_address : null,
       payee_city_state_zip: null,
+      property_address:
+        typeof property_address === 'string' && property_address.trim()
+          ? property_address.trim()
+          : null,
+      suite_number:
+        typeof suite_number === 'string' && suite_number.trim()
+          ? suite_number.trim()
+          : null,
+      lessee_name:
+        typeof lessee_name === 'string' && lessee_name.trim()
+          ? lessee_name.trim()
+          : null,
       payment_instructions: BROKER_CONFIG.paymentInstructions(invoiceNumber),
       status: 'draft',
       sent_date: null,

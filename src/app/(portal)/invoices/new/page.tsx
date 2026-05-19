@@ -14,11 +14,13 @@ import { Card, CardContent } from '@/components/ui/card';
 type SplitType = 'full' | 'split';
 
 interface FormState {
+  invoice_number: string;
   payee_name: string;
   payee_email: string;
   payee_address: string;
   property_address: string;
   suite_number: string;
+  lessee_name: string;
   description: string;
   commission_amount: string;
   commission_rate_percent: string;
@@ -37,11 +39,13 @@ function getDefaultDueDate(): string {
 }
 
 const initialState: FormState = {
+  invoice_number: '',
   payee_name: '',
   payee_email: '',
   payee_address: '',
   property_address: '',
   suite_number: '',
+  lessee_name: '',
   description: '',
   commission_amount: '',
   commission_rate_percent: '',
@@ -144,8 +148,10 @@ export default function NewInvoicePage() {
         description: form.description.trim(),
         commission_amount: Number(form.commission_amount),
       };
+      if (form.invoice_number.trim()) payload.invoice_number = form.invoice_number.trim();
       if (form.payee_address.trim()) payload.payee_address = form.payee_address.trim();
       if (form.suite_number.trim()) payload.suite_number = form.suite_number.trim();
+      if (form.lessee_name.trim()) payload.lessee_name = form.lessee_name.trim();
       if (form.commission_rate_percent.trim()) payload.commission_rate_percent = Number(form.commission_rate_percent);
       if (form.total_consideration.trim()) payload.total_consideration = Number(form.total_consideration);
       if (form.due_date) payload.due_date = form.due_date;
@@ -203,13 +209,29 @@ export default function NewInvoicePage() {
       )}
 
       <form key={shakeKey} onSubmit={handleSubmit} className={shakeKey > 0 ? 'animate-shake' : ''}>
-        {/* Payee Information */}
+        {/* Invoice Number override */}
         <Card>
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Invoice Number</h2>
+            <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Input
+                label="Invoice Number"
+                value={form.invoice_number}
+                placeholder="Leave blank to auto-generate"
+                hint="Override the auto-generated RR-XX number if you need a custom one."
+                onChange={(e) => handleChange('invoice_number', e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Payee Information */}
+        <Card className="mt-6">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold mb-4">Payee Information</h2>
             <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
               <Input
-                label="Payee Name"
+                label="Payee Name (Lessor)"
                 required
                 value={form.payee_name}
                 error={errors.payee_name}
@@ -239,7 +261,7 @@ export default function NewInvoicePage() {
         {/* Property Reference */}
         <Card className="mt-6">
           <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Property Reference</h2>
+            <h2 className="text-lg font-semibold mb-4">Property &amp; Tenant</h2>
             <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
               <Input
                 label="Property / Address"
@@ -255,6 +277,14 @@ export default function NewInvoicePage() {
                 value={form.suite_number}
                 placeholder="e.g. Suite 100"
                 onChange={(e) => handleChange('suite_number', e.target.value)}
+              />
+              <Input
+                label="Tenant (Lessee)"
+                value={form.lessee_name}
+                placeholder="Tenant business name"
+                hint="Shown on the invoice as the lessee."
+                onChange={(e) => handleChange('lessee_name', e.target.value)}
+                className="sm:col-span-2"
               />
             </div>
           </CardContent>

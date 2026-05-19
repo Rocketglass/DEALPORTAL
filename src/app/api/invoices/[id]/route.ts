@@ -1,15 +1,29 @@
 /**
  * PATCH /api/invoices/[id]
  *
- * Update editable fields on a commission invoice (currently limited to
- * commission_rate_percent and commission_amount while in 'draft' status).
+ * Update editable fields on a commission invoice. Only invoices in 'draft'
+ * status can be edited (once sent or paid, the document is locked).
  *
  * Requires authenticated broker or admin.
  *
- * Body:
+ * Body — all fields optional, server validates and updates only what's sent:
  * {
- *   commission_rate_percent: number;   // e.g. 5.0 for 5%
- *   commission_amount: number;         // recalculated commission amount
+ *   invoice_number?: string;
+ *   payee_name?: string;
+ *   payee_address?: string | null;
+ *   payee_city_state_zip?: string | null;
+ *   property_address?: string | null;
+ *   suite_number?: string | null;
+ *   lessee_name?: string | null;
+ *   lease_term_months?: number;
+ *   monthly_rent?: number;
+ *   total_consideration?: number;
+ *   commission_rate_percent?: number;
+ *   commission_amount?: number;    // recalculated derived value
+ *   commission_split_percent?: number;
+ *   split_with_agent?: string | null;
+ *   due_date?: string;             // ISO date
+ *   notes?: string | null;
  * }
  */
 
@@ -17,7 +31,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 
-// Service-role client so we can update without RLS restrictions
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -25,13 +38,20 @@ function getServiceClient() {
   return createClient(url, key);
 }
 
+type Updatable = Record<string, unknown>;
+
+function trimOrNull(v: unknown): string | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null) return null;
+  if (typeof v !== 'string') return undefined;
+  const t = v.trim();
+  return t ? t : null;
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  // ------------------------------------------------------------------
-  // Auth check
-  // ------------------------------------------------------------------
   let currentUser;
   try {
     currentUser = await requireBrokerOrAdminForApi();
@@ -44,9 +64,6 @@ export async function PATCH(
 
   const { id } = await params;
 
-  // ------------------------------------------------------------------
-  // Parse body
-  // ------------------------------------------------------------------
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -54,23 +71,148 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { commission_rate_percent, commission_amount, commission_split_percent, split_with_agent } = body;
+  const supabase = getServiceClient();
 
-  // Validate required fields
-  if (
-    typeof commission_rate_percent !== 'number' ||
-    commission_rate_percent < 0.1 ||
-    commission_rate_percent > 20
-  ) {
+  // ------------------------------------------------------------------
+  // Load existing invoice — confirm exists and is editable
+  // ------------------------------------------------------------------
+  const { data: existing, error: findError } = await supabase
+    .from('commission_invoices')
+    .select('id, invoice_number, status')
+    .eq('id', id)
+    .single();
+
+  if (findError || !existing) {
+    return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+  }
+
+  if (existing.status !== 'draft') {
     return NextResponse.json(
-      { error: 'commission_rate_percent must be a number between 0.1 and 20' },
-      { status: 400 },
+      { error: 'Only draft invoices can be edited' },
+      { status: 422 },
     );
   }
 
-  if (typeof commission_amount !== 'number' || commission_amount < 0) {
+  // ------------------------------------------------------------------
+  // Build update payload, validating each field
+  // ------------------------------------------------------------------
+  const update: Updatable = { updated_at: new Date().toISOString() };
+
+  // invoice_number — uniqueness check
+  if ('invoice_number' in body) {
+    const num = body.invoice_number;
+    if (typeof num !== 'string' || !num.trim()) {
+      return NextResponse.json(
+        { error: 'invoice_number must be a non-empty string' },
+        { status: 400 },
+      );
+    }
+    const trimmed = num.trim();
+    if (trimmed.length > 32) {
+      return NextResponse.json(
+        { error: 'invoice_number must be 32 characters or fewer' },
+        { status: 400 },
+      );
+    }
+    if (trimmed !== existing.invoice_number) {
+      const { data: collision } = await supabase
+        .from('commission_invoices')
+        .select('id')
+        .eq('invoice_number', trimmed)
+        .neq('id', id)
+        .maybeSingle();
+      if (collision) {
+        return NextResponse.json(
+          { error: `Invoice number "${trimmed}" already exists` },
+          { status: 409 },
+        );
+      }
+      update.invoice_number = trimmed;
+    }
+  }
+
+  // Free-text fields — trim and null-out empty strings
+  for (const field of [
+    'payee_name',
+    'payee_address',
+    'payee_city_state_zip',
+    'property_address',
+    'suite_number',
+    'lessee_name',
+    'split_with_agent',
+    'notes',
+  ] as const) {
+    if (field in body) {
+      const cleaned = trimOrNull(body[field]);
+      if (cleaned !== undefined) update[field] = cleaned;
+    }
+  }
+
+  // Numeric fields
+  const numericFields: Array<{
+    key: string;
+    min?: number;
+    max?: number;
+    integer?: boolean;
+  }> = [
+    { key: 'lease_term_months', min: 0, integer: true },
+    { key: 'monthly_rent', min: 0 },
+    { key: 'total_consideration', min: 0 },
+    { key: 'commission_rate_percent', min: 0, max: 100 },
+    { key: 'commission_amount', min: 0 },
+    { key: 'commission_split_percent', min: 1, max: 100 },
+  ];
+
+  for (const { key, min, max, integer } of numericFields) {
+    if (key in body) {
+      const v = body[key];
+      if (typeof v !== 'number' || Number.isNaN(v)) {
+        return NextResponse.json(
+          { error: `${key} must be a number` },
+          { status: 400 },
+        );
+      }
+      if (integer && !Number.isInteger(v)) {
+        return NextResponse.json(
+          { error: `${key} must be an integer` },
+          { status: 400 },
+        );
+      }
+      if (typeof min === 'number' && v < min) {
+        return NextResponse.json(
+          { error: `${key} must be ≥ ${min}` },
+          { status: 400 },
+        );
+      }
+      if (typeof max === 'number' && v > max) {
+        return NextResponse.json(
+          { error: `${key} must be ≤ ${max}` },
+          { status: 400 },
+        );
+      }
+      update[key] = v;
+    }
+  }
+
+  // due_date — ISO date (YYYY-MM-DD)
+  if ('due_date' in body) {
+    const dd = body.due_date;
+    if (dd === null) {
+      update.due_date = null;
+    } else if (typeof dd === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dd)) {
+      update.due_date = dd;
+    } else {
+      return NextResponse.json(
+        { error: 'due_date must be YYYY-MM-DD' },
+        { status: 400 },
+      );
+    }
+  }
+
+  // Reject the no-op update
+  if (Object.keys(update).length === 1) {
     return NextResponse.json(
-      { error: 'commission_amount must be a non-negative number' },
+      { error: 'No editable fields provided' },
       { status: 400 },
     );
   }
@@ -79,55 +221,9 @@ export async function PATCH(
   // Persist
   // ------------------------------------------------------------------
   try {
-    const supabase = getServiceClient();
-
-    // Verify the invoice exists and is in draft status
-    const { data: existing, error: findError } = await supabase
-      .from('commission_invoices')
-      .select('id, invoice_number, status')
-      .eq('id', id)
-      .single();
-
-    if (findError || !existing) {
-      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
-    }
-
-    if (existing.status !== 'draft') {
-      return NextResponse.json(
-        { error: 'Commission rate can only be edited on draft invoices' },
-        { status: 422 },
-      );
-    }
-
-    const now = new Date().toISOString();
-
-    // Build update payload — only include split fields if provided
-    const updatePayload: Record<string, unknown> = {
-      commission_rate_percent,
-      commission_amount,
-      updated_at: now,
-    };
-
-    if (typeof commission_split_percent === 'number') {
-      if (commission_split_percent < 1 || commission_split_percent > 100) {
-        return NextResponse.json(
-          { error: 'commission_split_percent must be between 1 and 100' },
-          { status: 400 },
-        );
-      }
-      updatePayload.commission_split_percent = commission_split_percent;
-    }
-
-    if (split_with_agent !== undefined) {
-      updatePayload.split_with_agent =
-        typeof split_with_agent === 'string' && split_with_agent.trim()
-          ? split_with_agent.trim()
-          : null;
-    }
-
     const { data: updated, error: updateError } = await supabase
       .from('commission_invoices')
-      .update(updatePayload)
+      .update(update)
       .eq('id', id)
       .select()
       .single();
@@ -137,14 +233,16 @@ export async function PATCH(
     }
 
     console.log(
-      `[PATCH /api/invoices/${id}] ${existing.invoice_number} commission rate → ${commission_rate_percent}%` +
-        ` by ${currentUser.email}`,
+      `[PATCH /api/invoices/${id}] ${existing.invoice_number} updated by ${currentUser.email}` +
+        ` (fields: ${Object.keys(update).filter((k) => k !== 'updated_at').join(', ')})`,
     );
 
     return NextResponse.json({ invoice: updated });
   } catch (error) {
-    const message = 'Internal server error';
     console.error(`[PATCH /api/invoices/${id}] Error:`, error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
