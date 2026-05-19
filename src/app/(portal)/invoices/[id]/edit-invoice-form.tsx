@@ -17,6 +17,7 @@ interface EditFormState {
   payee_city_state_zip: string;
   property_address: string;
   suite_number: string;
+  suite_sf: string;
   lessee_name: string;
   lease_term_months: string;
   monthly_rent: string;
@@ -38,6 +39,7 @@ function fromInvoice(invoice: EnrichedInvoice): EditFormState {
     property_address:
       invoice.property_address || invoice.premises_full || '',
     suite_number: invoice.suite_number?.replace(/^Suite\s+/, '') ?? '',
+    suite_sf: invoice.suite_sf ? String(invoice.suite_sf) : '',
     lessee_name: invoice.lessee_name ?? '',
     lease_term_months: String(invoice.lease_term_months ?? ''),
     monthly_rent: String(invoice.monthly_rent ?? ''),
@@ -103,6 +105,14 @@ export default function EditInvoiceForm({
     payload.property_address = form.property_address.trim() || null;
     payload.suite_number = form.suite_number.trim() || null;
     payload.lessee_name = form.lessee_name.trim() || null;
+    if (form.suite_sf.trim()) {
+      const sf = parseInt(form.suite_sf, 10);
+      if (Number.isFinite(sf) && sf >= 0) {
+        payload.suite_sf = sf;
+      }
+    } else {
+      payload.suite_sf = null;
+    }
     payload.notes = form.notes.trim() || null;
 
     // Numerics
@@ -256,6 +266,16 @@ export default function EditInvoiceForm({
                 label="Tenant (Lessee)"
                 value={form.lessee_name}
                 onChange={(e) => update('lessee_name', e.target.value)}
+              />
+              <Input
+                label="Suite Size (SF)"
+                type="number"
+                min={0}
+                step="1"
+                value={form.suite_sf}
+                placeholder="e.g. 2500"
+                hint="Enables annual / PSF breakdown on the invoice."
+                onChange={(e) => update('suite_sf', e.target.value)}
               />
             </div>
           </section>

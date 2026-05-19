@@ -148,12 +148,13 @@ export async function PATCH(
     }
   }
 
-  // Numeric fields
+  // Numeric fields. `nullable` allows the field to be explicitly cleared.
   const numericFields: Array<{
     key: string;
     min?: number;
     max?: number;
     integer?: boolean;
+    nullable?: boolean;
   }> = [
     { key: 'lease_term_months', min: 0, integer: true },
     { key: 'monthly_rent', min: 0 },
@@ -161,11 +162,16 @@ export async function PATCH(
     { key: 'commission_rate_percent', min: 0, max: 100 },
     { key: 'commission_amount', min: 0 },
     { key: 'commission_split_percent', min: 1, max: 100 },
+    { key: 'suite_sf', min: 0, integer: true, nullable: true },
   ];
 
-  for (const { key, min, max, integer } of numericFields) {
+  for (const { key, min, max, integer, nullable } of numericFields) {
     if (key in body) {
       const v = body[key];
+      if (nullable && v === null) {
+        update[key] = null;
+        continue;
+      }
       if (typeof v !== 'number' || Number.isNaN(v)) {
         return NextResponse.json(
           { error: `${key} must be a number` },

@@ -186,6 +186,34 @@ export default function InvoicePrintClient({ invoice }: InvoicePrintClientProps)
 
         {/* === TOTALS === */}
         <div className="mb-10 space-y-3 text-[15px]">
+          {invoice.suite_sf && invoice.suite_sf > 0 && (
+            <>
+              <div className="flex">
+                <span className="w-64 font-semibold text-[#0f172a]">SUITE SIZE:</span>
+                <span className="text-[#0f172a]">
+                  {invoice.suite_sf.toLocaleString()} SF
+                </span>
+              </div>
+              <div className="flex">
+                <span className="w-64 font-semibold text-[#0f172a]">MONTHLY RENT:</span>
+                <span className="text-[#0f172a]">
+                  {formatCurrency(invoice.monthly_rent)} /mo
+                </span>
+              </div>
+              <div className="flex">
+                <span className="w-64 font-semibold text-[#0f172a]">ANNUAL RENT:</span>
+                <span className="text-[#0f172a]">
+                  {formatCurrency(invoice.monthly_rent * 12)} /yr
+                </span>
+              </div>
+              <div className="flex">
+                <span className="w-64 font-semibold text-[#0f172a]">RATE PER SF:</span>
+                <span className="text-[#0f172a]">
+                  {formatCurrency((invoice.monthly_rent * 12) / invoice.suite_sf)} /SF/yr
+                </span>
+              </div>
+            </>
+          )}
           <div className="flex border-t-2 border-[#0f172a] pt-4">
             <span className="w-64 font-bold text-[#0f172a]">TOTAL CONSIDERATION:</span>
             <span className="font-bold text-[#0f172a]">

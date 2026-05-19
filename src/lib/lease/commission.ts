@@ -100,6 +100,7 @@ export function generateCommissionInvoice(
     split_with_agent: splitWithAgent ?? null,
     property_address: null,
     suite_number: null,
+    suite_sf: null,
     lessee_name: null,
   };
 

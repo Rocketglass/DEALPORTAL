@@ -6,6 +6,7 @@ export interface EnrichedInvoice extends CommissionInvoice {
   property_address: string;
   premises_full: string;
   suite_number: string;
+  // suite_sf inherited from CommissionInvoice (number | null).
   lessor_name: string;
   lessee_name: string;
   broker_name: string;

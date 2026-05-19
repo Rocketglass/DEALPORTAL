@@ -289,6 +289,23 @@ export async function generateInvoicePdf(
 
   drawRow('Lease Term', `${invoice.lease_term_months} months`, '');
   drawRow('Monthly Rent', `${formatCurrency(invoice.monthly_rent)} /mo`, '');
+
+  // Annual + PSF breakdown when suite SF is known.
+  if (invoice.suite_sf && invoice.suite_sf > 0) {
+    const annualRent = invoice.monthly_rent * 12;
+    const psfAnnual = annualRent / invoice.suite_sf;
+    drawRow(
+      'Annual Rent',
+      `${invoice.suite_sf.toLocaleString()} SF`,
+      `${formatCurrency(annualRent)} /yr`,
+    );
+    drawRow(
+      'Rate per SF',
+      'Annual basis',
+      `${formatCurrency(psfAnnual)} /SF/yr`,
+    );
+  }
+
   drawRow(
     'Total Consideration',
     `${formatCurrency(invoice.monthly_rent)} x ${invoice.lease_term_months} mo`,

@@ -559,6 +559,32 @@ export default function InvoiceDetailClient({
                   </td>
                   <td className="px-4 py-3 text-right text-[#64748b]" />
                 </tr>
+                {invoice.suite_sf && invoice.suite_sf > 0 && (
+                  <>
+                    <tr>
+                      <td className="px-4 py-3 font-medium text-[#0f172a]">
+                        Annual Rent
+                      </td>
+                      <td className="px-4 py-3 text-right text-[#64748b]">
+                        {invoice.suite_sf.toLocaleString()} SF
+                      </td>
+                      <td className="px-4 py-3 text-right text-[#0f172a]">
+                        {formatCurrency(invoice.monthly_rent * 12)} /yr
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 font-medium text-[#0f172a]">
+                        Rate per SF
+                      </td>
+                      <td className="px-4 py-3 text-right text-[#64748b]">
+                        Annual basis
+                      </td>
+                      <td className="px-4 py-3 text-right text-[#0f172a]">
+                        {formatCurrency((invoice.monthly_rent * 12) / invoice.suite_sf)} /SF/yr
+                      </td>
+                    </tr>
+                  </>
+                )}
                 <tr>
                   <td className="px-4 py-3 font-medium text-[#0f172a]">
                     Total Consideration
