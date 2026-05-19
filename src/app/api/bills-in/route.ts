@@ -33,7 +33,7 @@ export async function GET(): Promise<NextResponse> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .from('bills_in')
-      .select('id, vendor_name, amount, pdf_url, paid, paid_at, created_at')
+      .select('id, vendor_name, amount, pdf_url, payment_url, paid, paid_at, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -65,6 +65,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const file = formData.get('file');
   const vendorName = formData.get('vendor_name');
   const amountRaw = formData.get('amount');
+  const paymentUrlRaw = formData.get('payment_url');
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'Missing file' }, { status: 400 });
@@ -91,6 +92,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'File does not appear to be a valid PDF' }, { status: 400 });
   }
 
+  // Optional payment URL — must be http(s) if provided.
+  let paymentUrl: string | null = null;
+  if (typeof paymentUrlRaw === 'string' && paymentUrlRaw.trim()) {
+    const trimmed = paymentUrlRaw.trim();
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return NextResponse.json(
+          { error: 'payment_url must be an http(s) URL' },
+          { status: 400 },
+        );
+      }
+      paymentUrl = trimmed;
+    } catch {
+      return NextResponse.json(
+        { error: 'payment_url must be a valid URL' },
+        { status: 400 },
+      );
+    }
+  }
+
   try {
     const supabase = getServiceClient();
     const storagePath = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
@@ -113,9 +135,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         vendor_name: vendorName.trim(),
         amount,
         pdf_url: storagePath,
+        payment_url: paymentUrl,
         uploaded_by: user.id,
       })
-      .select('id, vendor_name, amount, pdf_url, paid, paid_at, created_at')
+      .select('id, vendor_name, amount, pdf_url, payment_url, paid, paid_at, created_at')
       .single();
 
     if (insertErr || !bill) {

@@ -30,15 +30,64 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
   }
 
   const { id } = await context.params;
-  let body: { paid?: boolean };
+  let body: { paid?: boolean; payment_url?: string | null };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  if (typeof body.paid !== 'boolean') {
-    return NextResponse.json({ error: 'paid (boolean) is required' }, { status: 400 });
+  if (body.paid === undefined && body.payment_url === undefined) {
+    return NextResponse.json(
+      { error: 'Provide at least one of paid or payment_url' },
+      { status: 400 },
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const update: any = { updated_at: new Date().toISOString() };
+
+  if (body.paid !== undefined) {
+    if (typeof body.paid !== 'boolean') {
+      return NextResponse.json(
+        { error: 'paid must be a boolean' },
+        { status: 400 },
+      );
+    }
+    update.paid = body.paid;
+    update.paid_at = body.paid ? new Date().toISOString() : null;
+  }
+
+  if (body.payment_url !== undefined) {
+    if (body.payment_url === null) {
+      update.payment_url = null;
+    } else if (typeof body.payment_url === 'string') {
+      const trimmed = body.payment_url.trim();
+      if (!trimmed) {
+        update.payment_url = null;
+      } else {
+        try {
+          const parsed = new URL(trimmed);
+          if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            return NextResponse.json(
+              { error: 'payment_url must be an http(s) URL' },
+              { status: 400 },
+            );
+          }
+          update.payment_url = trimmed;
+        } catch {
+          return NextResponse.json(
+            { error: 'payment_url must be a valid URL' },
+            { status: 400 },
+          );
+        }
+      }
+    } else {
+      return NextResponse.json(
+        { error: 'payment_url must be a string or null' },
+        { status: 400 },
+      );
+    }
   }
 
   try {
@@ -46,13 +95,9 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .from('bills_in')
-      .update({
-        paid: body.paid,
-        paid_at: body.paid ? new Date().toISOString() : null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(update)
       .eq('id', id)
-      .select('id, vendor_name, amount, pdf_url, paid, paid_at, created_at')
+      .select('id, vendor_name, amount, pdf_url, payment_url, paid, paid_at, created_at')
       .single();
 
     if (error || !data) {

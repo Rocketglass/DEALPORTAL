@@ -1,7 +1,18 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Inbox, Plus, Search, Trash2, Eye, Loader2, Check, X } from 'lucide-react';
+import {
+  Inbox,
+  Plus,
+  Search,
+  Trash2,
+  Eye,
+  Loader2,
+  Check,
+  X,
+  ExternalLink,
+  Pencil,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +23,7 @@ export interface Bill {
   vendor_name: string;
   amount: number;
   pdf_url: string;
+  payment_url: string | null;
   paid: boolean;
   paid_at: string | null;
   created_at: string;
@@ -41,12 +53,16 @@ export function BillsInClient({ initialBills }: BillsInClientProps) {
   const [showForm, setShowForm] = useState(false);
   const [vendorName, setVendorName] = useState('');
   const [amount, setAmount] = useState('');
+  const [paymentUrl, setPaymentUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewVendor, setPreviewVendor] = useState<string>('');
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingPayUrlId, setEditingPayUrlId] = useState<string | null>(null);
+  const [payUrlDraft, setPayUrlDraft] = useState('');
+  const [savingPayUrl, setSavingPayUrl] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -71,6 +87,7 @@ export function BillsInClient({ initialBills }: BillsInClientProps) {
   function resetForm() {
     setVendorName('');
     setAmount('');
+    setPaymentUrl('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -95,12 +112,27 @@ export function BillsInClient({ initialBills }: BillsInClientProps) {
       return;
     }
 
+    const payUrlTrimmed = paymentUrl.trim();
+    if (payUrlTrimmed) {
+      try {
+        const parsed = new URL(payUrlTrimmed);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          toast({ title: 'Payment URL must start with http:// or https://', variant: 'error' });
+          return;
+        }
+      } catch {
+        toast({ title: 'Payment URL is not a valid URL', variant: 'error' });
+        return;
+      }
+    }
+
     setUploading(true);
     try {
       const form = new FormData();
       form.append('file', file);
       form.append('vendor_name', vendorName.trim());
       form.append('amount', String(amt));
+      if (payUrlTrimmed) form.append('payment_url', payUrlTrimmed);
       const res = await fetch('/api/bills-in', { method: 'POST', body: form });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -153,6 +185,52 @@ export function BillsInClient({ initialBills }: BillsInClientProps) {
       setPreviewVendor(bill.vendor_name);
     } catch {
       toast({ title: 'Network error', variant: 'error' });
+    }
+  }
+
+  function startEditPayUrl(bill: Bill) {
+    setEditingPayUrlId(bill.id);
+    setPayUrlDraft(bill.payment_url ?? '');
+  }
+
+  function cancelEditPayUrl() {
+    setEditingPayUrlId(null);
+    setPayUrlDraft('');
+  }
+
+  async function savePayUrl(bill: Bill) {
+    const trimmed = payUrlDraft.trim();
+    if (trimmed) {
+      try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          toast({ title: 'URL must start with http:// or https://', variant: 'error' });
+          return;
+        }
+      } catch {
+        toast({ title: 'Not a valid URL', variant: 'error' });
+        return;
+      }
+    }
+    setSavingPayUrl(true);
+    try {
+      const res = await fetch(`/api/bills-in/${bill.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_url: trimmed || null }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: 'Failed to save', description: data.error ?? 'Try again', variant: 'error' });
+        return;
+      }
+      const { bill: updated } = await res.json();
+      setBills((prev) => prev.map((b) => (b.id === bill.id ? updated : b)));
+      cancelEditPayUrl();
+    } catch {
+      toast({ title: 'Network error', variant: 'error' });
+    } finally {
+      setSavingPayUrl(false);
     }
   }
 
@@ -253,6 +331,14 @@ export function BillsInClient({ initialBills }: BillsInClientProps) {
                   className="block w-full text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-primary-light"
                 />
               </div>
+              <Input
+                label="Payment URL (optional)"
+                type="url"
+                value={paymentUrl}
+                onChange={(e) => setPaymentUrl(e.target.value)}
+                placeholder="https://invoice.stripe.com/i/..."
+                hint="Paste the vendor's pay link to surface a Pay button on this bill."
+              />
               <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="secondary" onClick={() => { setShowForm(false); resetForm(); }}>
                   Cancel
@@ -297,6 +383,7 @@ export function BillsInClient({ initialBills }: BillsInClientProps) {
                   <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3">Uploaded</th>
                   <th className="px-4 py-3">Paid</th>
+                  <th className="px-4 py-3">Pay</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -326,6 +413,76 @@ export function BillsInClient({ initialBills }: BillsInClientProps) {
                         )}
                         {bill.paid ? `Paid ${bill.paid_at ? formatDate(bill.paid_at) : ''}`.trim() : 'Unpaid'}
                       </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      {editingPayUrlId === bill.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="url"
+                            autoFocus
+                            value={payUrlDraft}
+                            onChange={(e) => setPayUrlDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') savePayUrl(bill);
+                              if (e.key === 'Escape') cancelEditPayUrl();
+                            }}
+                            placeholder="https://..."
+                            disabled={savingPayUrl}
+                            className="w-44 rounded-md border border-border bg-white px-2 py-1 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => savePayUrl(bill)}
+                            disabled={savingPayUrl}
+                            aria-label="Save payment URL"
+                            className="rounded p-1 text-primary hover:bg-primary/10"
+                          >
+                            {savingPayUrl ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEditPayUrl}
+                            disabled={savingPayUrl}
+                            aria-label="Cancel"
+                            className="rounded p-1 text-muted-foreground hover:bg-muted"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : bill.payment_url ? (
+                        <div className="inline-flex items-center gap-1">
+                          <a
+                            href={bill.payment_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-primary/90"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Pay Now
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => startEditPayUrl(bill)}
+                            aria-label="Edit payment URL"
+                            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            title="Edit payment URL"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startEditPayUrl(bill)}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          + Add pay link
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex gap-1">

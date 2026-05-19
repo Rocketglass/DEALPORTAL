@@ -15,7 +15,7 @@ export default async function BillsInPage() {
   const supabase = (await createClient()) as any;
   const { data, error } = await supabase
     .from('bills_in')
-    .select('id, vendor_name, amount, pdf_url, paid, paid_at, created_at')
+    .select('id, vendor_name, amount, pdf_url, payment_url, paid, paid_at, created_at')
     .order('created_at', { ascending: false });
 
   if (error) {
