@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
+import LeaseUpload, { type ParsedLeaseFields } from './lease-upload';
 
 type SplitType = 'full' | 'split';
 
@@ -20,11 +21,14 @@ interface FormState {
   payee_address: string;
   property_address: string;
   suite_number: string;
+  suite_sf: string;
   lessee_name: string;
   description: string;
   commission_amount: string;
   commission_rate_percent: string;
   total_consideration: string;
+  lease_term_months: string;
+  monthly_rent: string;
   due_date: string;
   notes: string;
   split_type: SplitType;
@@ -45,11 +49,14 @@ const initialState: FormState = {
   payee_address: '',
   property_address: '',
   suite_number: '',
+  suite_sf: '',
   lessee_name: '',
   description: '',
   commission_amount: '',
   commission_rate_percent: '',
   total_consideration: '',
+  lease_term_months: '',
+  monthly_rent: '',
   due_date: getDefaultDueDate(),
   notes: '',
   split_type: 'full',
@@ -64,6 +71,60 @@ export default function NewInvoicePage() {
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [shakeKey, setShakeKey] = useState(0);
+
+  // Saved alongside form state for "Save as comp" — the form doesn't expose
+  // these fields directly but the parser fills them and we forward them on save.
+  const [compMetadata, setCompMetadata] = useState<{
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    commencement_date: string | null;
+  } | null>(null);
+  const [saveAsComp, setSaveAsComp] = useState(false);
+
+  function applyParsedLease(p: ParsedLeaseFields) {
+    setForm((prev) => {
+      const next = { ...prev };
+      if (p.lessor_name) next.payee_name = p.lessor_name;
+      if (p.lessor_email) next.payee_email = p.lessor_email;
+      if (p.lessor_address) next.payee_address = p.lessor_address;
+      if (p.property_address) next.property_address = p.property_address;
+      if (p.suite_number) next.suite_number = p.suite_number;
+      if (p.suite_sf) next.suite_sf = String(p.suite_sf);
+      if (p.lessee_name) next.lessee_name = p.lessee_name;
+      if (p.lease_term_months) next.lease_term_months = String(p.lease_term_months);
+      if (p.monthly_rent) next.monthly_rent = String(p.monthly_rent);
+      if (p.total_consideration) next.total_consideration = String(p.total_consideration);
+      if (p.commission_rate_percent) next.commission_rate_percent = String(p.commission_rate_percent);
+
+      // Auto-populate a sensible description if the broker hasn't typed one
+      if (!next.description.trim() && p.lessee_name) {
+        next.description = `Lease commission — ${p.lessee_name}`;
+      }
+
+      // Recompute commission amount with the freshly filled values
+      const rate = parseFloat(next.commission_rate_percent);
+      const total = parseFloat(next.total_consideration);
+      if (Number.isFinite(rate) && rate > 0 && Number.isFinite(total) && total > 0) {
+        const share = next.split_type === 'split' && parseFloat(next.split_percent) > 0
+          ? parseFloat(next.split_percent) / 100
+          : 1;
+        next.commission_amount = (Math.round(total * (rate / 100) * share * 100) / 100).toFixed(2);
+      }
+
+      return next;
+    });
+
+    setCompMetadata({
+      city: p.city,
+      state: p.state,
+      zip: p.zip,
+      commencement_date: p.commencement_date,
+    });
+    setSaveAsComp(true);
+    setErrors({});
+    setServerError(null);
+  }
 
   function handleChange(field: keyof FormState, value: string) {
     setForm((prev) => {
@@ -151,7 +212,29 @@ export default function NewInvoicePage() {
       if (form.invoice_number.trim()) payload.invoice_number = form.invoice_number.trim();
       if (form.payee_address.trim()) payload.payee_address = form.payee_address.trim();
       if (form.suite_number.trim()) payload.suite_number = form.suite_number.trim();
+      if (form.suite_sf.trim()) {
+        const sf = parseInt(form.suite_sf, 10);
+        if (Number.isFinite(sf) && sf > 0) payload.suite_sf = sf;
+      }
       if (form.lessee_name.trim()) payload.lessee_name = form.lessee_name.trim();
+      if (form.lease_term_months.trim()) {
+        const m = parseInt(form.lease_term_months, 10);
+        if (Number.isFinite(m) && m >= 0) payload.lease_term_months = m;
+      }
+      if (form.monthly_rent.trim()) {
+        const mr = parseFloat(form.monthly_rent);
+        if (Number.isFinite(mr) && mr >= 0) payload.monthly_rent = mr;
+      }
+
+      // Save-as-comp metadata travels alongside the invoice when the
+      // broker opted in after parsing a lease.
+      if (saveAsComp && compMetadata) {
+        payload.save_as_comp = true;
+        payload.comp_city = compMetadata.city;
+        payload.comp_state = compMetadata.state;
+        payload.comp_zip = compMetadata.zip;
+        payload.comp_transaction_date = compMetadata.commencement_date;
+      }
       if (form.commission_rate_percent.trim()) payload.commission_rate_percent = Number(form.commission_rate_percent);
       if (form.total_consideration.trim()) payload.total_consideration = Number(form.total_consideration);
       if (form.due_date) payload.due_date = form.due_date;
@@ -207,6 +290,11 @@ export default function NewInvoicePage() {
           {serverError}
         </div>
       )}
+
+      {/* Lease parser — pre-fills the form below */}
+      <div className="mb-6">
+        <LeaseUpload onApply={applyParsedLease} />
+      </div>
 
       <form key={shakeKey} onSubmit={handleSubmit} className={shakeKey > 0 ? 'animate-shake' : ''}>
         {/* Invoice Number override */}
@@ -286,6 +374,16 @@ export default function NewInvoicePage() {
                 onChange={(e) => handleChange('lessee_name', e.target.value)}
                 className="sm:col-span-2"
               />
+              <Input
+                label="Suite Size (SF)"
+                type="number"
+                min="0"
+                step="1"
+                value={form.suite_sf}
+                placeholder="e.g. 2500"
+                hint="Enables monthly / annual / PSF breakdown."
+                onChange={(e) => handleChange('suite_sf', e.target.value)}
+              />
             </div>
           </CardContent>
         </Card>
@@ -303,6 +401,24 @@ export default function NewInvoicePage() {
                 placeholder="e.g. Lease renewal commission"
                 onChange={(e) => handleChange('description', e.target.value)}
                 className="sm:col-span-2 lg:col-span-3"
+              />
+              <Input
+                label="Lease Term (months)"
+                type="number"
+                min="0"
+                step="1"
+                value={form.lease_term_months}
+                placeholder="e.g. 60"
+                onChange={(e) => handleChange('lease_term_months', e.target.value)}
+              />
+              <Input
+                label="Monthly Rent ($)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.monthly_rent}
+                placeholder="0.00"
+                onChange={(e) => handleChange('monthly_rent', e.target.value)}
               />
               <Input
                 label="Total Consideration ($)"
@@ -407,20 +523,40 @@ export default function NewInvoicePage() {
         </Card>
 
         {/* Actions */}
-        <div className="mt-6 flex items-center justify-end gap-3">
-          <Link href="/invoices">
-            <Button variant="secondary" type="button">
-              Cancel
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {compMetadata ? (
+            <label className="inline-flex items-center gap-2 text-sm text-[#0f172a]">
+              <input
+                type="checkbox"
+                checked={saveAsComp}
+                onChange={(e) => setSaveAsComp(e.target.checked)}
+                className="h-4 w-4 rounded border-[#cbd5e1] text-[#1e40af] focus:ring-[#1e40af]"
+              />
+              <span>
+                Also save as a comp record
+                <span className="ml-1 text-xs text-[#64748b]">
+                  (uses extracted city / state / commencement date)
+                </span>
+              </span>
+            </label>
+          ) : (
+            <span />
+          )}
+          <div className="flex items-center gap-3 sm:justify-end">
+            <Link href="/invoices">
+              <Button variant="secondary" type="button">
+                Cancel
+              </Button>
+            </Link>
+            <Button
+              type="submit"
+              variant="primary"
+              icon={Save}
+              loading={saving}
+            >
+              {saving ? 'Creating...' : 'Create Invoice'}
             </Button>
-          </Link>
-          <Button
-            type="submit"
-            variant="primary"
-            icon={Save}
-            loading={saving}
-          >
-            {saving ? 'Creating...' : 'Create Invoice'}
-          </Button>
+          </div>
         </div>
       </form>
     </div>

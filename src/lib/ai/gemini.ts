@@ -22,14 +22,13 @@ export interface GeminiJsonOptions {
   timeoutMs?: number;
 }
 
-/**
- * Send `prompt` to Gemini 2.0 Flash and return the parsed JSON response.
- * Returns null on any failure — callers should fall back to a deterministic
- * alternative rather than surfacing the error to the user.
- */
-export async function geminiJson<T = unknown>(
-  prompt: string,
-  opts: GeminiJsonOptions = {},
+type GeminiPart =
+  | { text: string }
+  | { inline_data: { mime_type: string; data: string } };
+
+async function callGemini<T>(
+  parts: GeminiPart[],
+  opts: GeminiJsonOptions,
 ): Promise<T | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
@@ -43,7 +42,7 @@ export async function geminiJson<T = unknown>(
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts }],
         generationConfig: {
           responseMimeType: 'application/json',
           ...(opts.responseSchema ? { responseSchema: opts.responseSchema } : {}),
@@ -54,11 +53,15 @@ export async function geminiJson<T = unknown>(
     });
 
     if (!res.ok) {
-      console.error('[Gemini] non-200 response:', res.status, await res.text().catch(() => ''));
+      console.error(
+        '[Gemini] non-200 response:',
+        res.status,
+        await res.text().catch(() => ''),
+      );
       return null;
     }
 
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     };
 
@@ -79,4 +82,40 @@ export async function geminiJson<T = unknown>(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/**
+ * Send `prompt` to Gemini 2.0 Flash and return the parsed JSON response.
+ * Returns null on any failure — callers should fall back to a deterministic
+ * alternative rather than surfacing the error to the user.
+ */
+export async function geminiJson<T = unknown>(
+  prompt: string,
+  opts: GeminiJsonOptions = {},
+): Promise<T | null> {
+  return callGemini<T>([{ text: prompt }], opts);
+}
+
+/**
+ * Send a prompt + file (PDF, image, etc.) to Gemini 2.0 Flash. The file is
+ * inlined as base64 via `inline_data`. Use for multimodal extraction tasks
+ * like parsing a lease PDF.
+ *
+ * `mimeType` should match the file (e.g. 'application/pdf', 'image/png').
+ * Returns null on any failure — caller decides fallback behavior.
+ */
+export async function geminiJsonFromFile<T = unknown>(
+  prompt: string,
+  file: Buffer | Uint8Array,
+  mimeType: string,
+  opts: GeminiJsonOptions = {},
+): Promise<T | null> {
+  const base64 = Buffer.from(file).toString('base64');
+  return callGemini<T>(
+    [
+      { text: prompt },
+      { inline_data: { mime_type: mimeType, data: base64 } },
+    ],
+    { timeoutMs: opts.timeoutMs ?? 45_000, ...opts },
+  );
 }

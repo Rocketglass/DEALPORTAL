@@ -61,6 +61,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     payee_address,
     property_address,
     suite_number,
+    suite_sf,
     lessee_name,
     description,
     // commission_amount is no longer accepted from clients — server derives it
@@ -74,6 +75,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     commission_split_percent,
     split_with_agent,
     invoice_number: invoiceNumberOverride,
+    save_as_comp,
+    comp_city,
+    comp_state,
+    comp_zip,
+    comp_transaction_date,
   } = body as Record<string, unknown>;
 
   // Required fields
@@ -304,6 +310,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         typeof suite_number === 'string' && suite_number.trim()
           ? suite_number.trim()
           : null,
+      suite_sf:
+        typeof suite_sf === 'number' && Number.isInteger(suite_sf) && suite_sf > 0
+          ? suite_sf
+          : null,
       lessee_name:
         typeof lessee_name === 'string' && lessee_name.trim()
           ? lessee_name.trim()
@@ -336,5 +346,76 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     `[POST /api/invoices] Manual invoice ${invoice.invoice_number} created by ${currentUser.email}`,
   );
 
-  return NextResponse.json({ invoice }, { status: 201 });
+  // -----------------------------------------------------------------
+  // Optionally save the underlying lease as a comp record. Best-effort —
+  // never fails the invoice creation. Needs at least address + city + SF.
+  // -----------------------------------------------------------------
+  let compResult: { id: string } | null = null;
+  if (save_as_comp === true) {
+    const compAddress = typeof property_address === 'string' ? property_address.trim() : '';
+    const compCity = typeof comp_city === 'string' ? comp_city.trim() : '';
+    const compStateClean =
+      typeof comp_state === 'string' && comp_state.trim()
+        ? comp_state.trim().toUpperCase().slice(0, 2)
+        : 'CA';
+    const sfValue =
+      typeof suite_sf === 'number' && Number.isInteger(suite_sf) && suite_sf > 0
+        ? suite_sf
+        : null;
+    const monthly = typeof monthly_rent === 'number' && monthly_rent > 0 ? monthly_rent : null;
+    const termMonths =
+      typeof lease_term_months === 'number' && lease_term_months > 0 ? lease_term_months : null;
+    const txDate =
+      typeof comp_transaction_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(comp_transaction_date)
+        ? comp_transaction_date
+        : new Date().toISOString().slice(0, 10);
+    const rentPerSqftAnnual =
+      sfValue && monthly ? Math.round((monthly * 12 / sfValue) * 100) / 100 : null;
+
+    if (compAddress && compCity) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: comp, error: compError } = await (supabase as any)
+        .from('comparable_transactions')
+        .insert({
+          property_id: null,
+          address: compAddress,
+          city: compCity,
+          state: compStateClean,
+          property_type: null,
+          transaction_type: 'lease',
+          transaction_date: txDate,
+          tenant_name: typeof lessee_name === 'string' && lessee_name.trim() ? lessee_name.trim() : null,
+          sf: sfValue,
+          monthly_rent: monthly,
+          rent_per_sqft: rentPerSqftAnnual,
+          lease_term_months: termMonths,
+          sale_price: null,
+          price_per_sqft: null,
+          cap_rate: null,
+          notes: `Auto-generated from lease upload for invoice ${invoice.invoice_number}`,
+          source: 'lease-upload',
+          created_by: brokerContactId,
+        })
+        .select('id')
+        .single();
+
+      if (compError) {
+        // Don't fail the invoice — just log. The user already has their invoice.
+        console.error('[POST /api/invoices] comp insert failed:', compError);
+      } else {
+        compResult = comp;
+        console.log(
+          `[POST /api/invoices] comp ${comp.id} created alongside invoice ${invoice.invoice_number}`,
+        );
+      }
+    } else {
+      console.log(
+        `[POST /api/invoices] save_as_comp requested but address/city missing — skipped`,
+      );
+    }
+  }
+
+  if (typeof comp_zip === 'string') void comp_zip; // explicit no-op until comps gain a zip column
+
+  return NextResponse.json({ invoice, comp: compResult }, { status: 201 });
 }
