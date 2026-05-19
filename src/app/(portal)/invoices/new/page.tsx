@@ -103,8 +103,11 @@ export default function NewInvoicePage() {
       }
 
       // Capture deal terms that don't have first-class form fields by
-      // appending them to notes. Idempotent — only adds if the marker line
-      // isn't already present.
+      // embedding them in notes between explicit markers. Re-parsing
+      // replaces the block in place so it can't leave stale terms behind.
+      const PARSER_BLOCK_START = '<!-- lease-parser-terms:start -->';
+      const PARSER_BLOCK_END = '<!-- lease-parser-terms:end -->';
+
       const noteLines: string[] = [];
       if (p.commencement_date) {
         noteLines.push(`Commencement: ${p.commencement_date}`);
@@ -117,15 +120,24 @@ export default function NewInvoicePage() {
           `Free rent: ${p.free_rent_months} month${p.free_rent_months === 1 ? '' : 's'}`,
         );
       }
+
+      // Strip any prior parser block first.
+      const stripPattern = new RegExp(
+        `\\n*${PARSER_BLOCK_START}[\\s\\S]*?${PARSER_BLOCK_END}\\n*`,
+        'g',
+      );
+      let baseNotes = next.notes.replace(stripPattern, '\n').trim();
+
       if (noteLines.length > 0) {
-        const marker = 'Deal terms (from lease):';
-        if (!next.notes.includes(marker)) {
-          const block = [marker, ...noteLines.map((l) => `  • ${l}`)].join('\n');
-          next.notes = next.notes.trim()
-            ? `${next.notes.trim()}\n\n${block}`
-            : block;
-        }
+        const block = [
+          PARSER_BLOCK_START,
+          'Deal terms (from lease):',
+          ...noteLines.map((l) => `  • ${l}`),
+          PARSER_BLOCK_END,
+        ].join('\n');
+        baseNotes = baseNotes ? `${baseNotes}\n\n${block}` : block;
       }
+      next.notes = baseNotes;
 
       // Recompute commission amount with the freshly filled values
       const rate = parseFloat(next.commission_rate_percent);

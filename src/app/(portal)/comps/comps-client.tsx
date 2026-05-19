@@ -475,6 +475,11 @@ export function CompsClient({ comps, error }: Props) {
                   <option value="manual">Manual</option>
                   <option value="internal">Internal</option>
                   <option value="costar">CoStar</option>
+                  <option value="lease-upload">Lease Upload</option>
+                  {form.source &&
+                    !['manual', 'internal', 'costar', 'lease-upload'].includes(form.source) && (
+                      <option value={form.source}>{form.source}</option>
+                    )}
                 </Select>
               </div>
 
