@@ -37,9 +37,14 @@ async function callGemini<T>(
   const timeout = setTimeout(() => controller.abort(), opts.timeoutMs ?? 20_000);
 
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    // Pass the key via header, never the URL query string — a key in the URL
+    // can end up in proxy/error logs. Header keeps it out of any URL surface.
+    const res = await fetch(GEMINI_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
       signal: controller.signal,
       body: JSON.stringify({
         contents: [{ parts }],

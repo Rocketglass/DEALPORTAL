@@ -73,11 +73,11 @@ async function verifyDocuSignSignature(
   const hmacSecret = process.env.DOCUSIGN_CONNECT_HMAC_SECRET;
 
   if (!hmacSecret) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[DocuSign Webhook] No HMAC secret — skipping verification (dev only)');
-      return true;
-    }
-    console.error('[DocuSign Webhook] HMAC secret not configured in production');
+    // Fail closed in EVERY environment — never accept an unsigned webhook.
+    // The previous code accepted unsigned webhooks when NODE_ENV==='development',
+    // which would let anyone forge lease-executed events on any non-prod deploy.
+    // For local testing, set DOCUSIGN_CONNECT_HMAC_SECRET to a test value.
+    console.error('[DocuSign Webhook] HMAC secret not configured — rejecting webhook');
     return false;
   }
 

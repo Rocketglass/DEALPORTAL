@@ -175,10 +175,16 @@ export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Get client IP for rate limiting
+  // Get client IP for rate limiting.
+  // Use the platform-observed client IP, NOT the leftmost X-Forwarded-For
+  // value — that entry is client-supplied and an attacker can forge a fresh
+  // one per request to dodge the rate limiter. On Vercel, x-real-ip is set to
+  // the true client IP, and the LAST X-Forwarded-For hop is the address Vercel
+  // actually observed (the trustworthy end of the chain).
+  const forwardedFor = request.headers.get('x-forwarded-for');
   const clientIp =
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
+    request.headers.get('x-real-ip')?.trim() ||
+    forwardedFor?.split(',').pop()?.trim() ||
     '127.0.0.1';
 
   const pathname = request.nextUrl.pathname;
