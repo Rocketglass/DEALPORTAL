@@ -98,7 +98,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (insertError) {
       console.error('[POST /api/properties] Insert error:', insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to create the property' }, { status: 500 });
     }
 
     // Audit log (non-fatal)

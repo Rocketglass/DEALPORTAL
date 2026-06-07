@@ -106,7 +106,7 @@ export async function POST(
 
     if (insertError) {
       console.error('[POST /api/checklists/[id]/items] Insert error:', insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to create the checklist item' }, { status: 500 });
     }
 
     // Audit log

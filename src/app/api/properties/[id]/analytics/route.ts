@@ -46,7 +46,7 @@ export async function GET(_request: Request, context: RouteContext): Promise<Nex
 
     if (viewsResult.error) {
       console.error(`[GET /api/properties/${id}/analytics] Query error:`, viewsResult.error);
-      return NextResponse.json({ error: viewsResult.error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to load analytics' }, { status: 500 });
     }
 
     const applications = appsResult.count ?? 0;

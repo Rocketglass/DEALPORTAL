@@ -337,7 +337,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (insertError || !invoice) {
     console.error('[POST /api/invoices] Insert error:', insertError);
     return NextResponse.json(
-      { error: `Failed to create invoice: ${insertError?.message}` },
+      { error: 'Failed to create the invoice' },
       { status: 500 },
     );
   }

@@ -116,7 +116,7 @@ export async function POST(
     if (insertError) {
       console.error('[POST /api/lois/[id]/sections] Insert error:', insertError);
       return NextResponse.json(
-        { error: insertError.message },
+        { error: 'Failed to create the LOI section' },
         { status: 500 },
       );
     }

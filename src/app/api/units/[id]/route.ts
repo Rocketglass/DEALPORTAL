@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
 
     if (updateError) {
       console.error(`[PATCH /api/units/${id}] Update error:`, updateError);
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to update the unit' }, { status: 500 });
     }
 
     // Audit log (non-fatal)

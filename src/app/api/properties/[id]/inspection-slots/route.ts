@@ -105,7 +105,7 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
 
     if (insertError) {
       console.error('[POST /api/properties/[id]/inspection-slots] Insert error:', insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to create the inspection slot' }, { status: 500 });
     }
 
     return NextResponse.json({ slots: createdSlots }, { status: 201 });

@@ -47,7 +47,7 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
 
     if (updateError) {
       console.error(`[PATCH /api/comps/${id}] Update error:`, updateError);
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to update the comp' }, { status: 500 });
     }
 
     return NextResponse.json({ comp });
@@ -77,7 +77,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext): Prom
 
     if (deleteError) {
       console.error(`[DELETE /api/comps/${id}] Delete error:`, deleteError);
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to delete the comp' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

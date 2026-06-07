@@ -99,7 +99,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (insertError) {
       console.error('[POST /api/comps] Insert error:', insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to create the comp' }, { status: 500 });
     }
 
     return NextResponse.json({ comp }, { status: 201 });

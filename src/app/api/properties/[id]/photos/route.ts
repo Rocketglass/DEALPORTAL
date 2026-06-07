@@ -172,7 +172,7 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
 
     if (updateError) {
       console.error(`[POST /api/properties/${id}/photos] DB update error:`, updateError);
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to update the photo' }, { status: 500 });
     }
 
     // Audit log (non-fatal)
@@ -238,7 +238,7 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
 
     if (deleteError) {
       console.error(`[DELETE /api/properties/${id}/photos] Storage delete error:`, deleteError);
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to delete the photo' }, { status: 500 });
     }
 
     // Update property record — remove the URL
@@ -252,7 +252,7 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
 
     if (updateError) {
       console.error(`[DELETE /api/properties/${id}/photos] DB update error:`, updateError);
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to update the photo' }, { status: 500 });
     }
 
     // Audit log (non-fatal)

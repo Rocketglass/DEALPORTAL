@@ -141,7 +141,7 @@ export async function POST(
     if (insertError) {
       console.error('[POST /api/leases/[id]/sections] Insert error:', insertError);
       return NextResponse.json(
-        { error: `Failed to create sections: ${insertError.message}` },
+        { error: 'Failed to create the lease sections' },
         { status: 500 },
       );
     }

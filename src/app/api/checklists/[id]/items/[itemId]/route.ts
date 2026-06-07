@@ -113,7 +113,7 @@ export async function PATCH(
 
     if (updateError) {
       console.error('[PATCH /api/checklists/[id]/items/[itemId]] Update error:', updateError);
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to update the checklist item' }, { status: 500 });
     }
 
     // Audit log (best-effort, non-blocking)
@@ -174,7 +174,7 @@ export async function DELETE(
 
     if (deleteError) {
       console.error('[DELETE /api/checklists/[id]/items/[itemId]] Delete error:', deleteError);
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to delete the checklist item' }, { status: 500 });
     }
 
     // Audit log

@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 import { geminiJsonFromFile, isGeminiConfigured } from '@/lib/ai/gemini';
+import { z } from 'zod';
 
 const MAX_BYTES = 25 * 1024 * 1024;
 const PDF_MAGIC = Buffer.from([0x25, 0x50, 0x44, 0x46]);
@@ -114,6 +115,32 @@ Field guidance:
 
 If the document is not a lease, return all nulls.`;
 
+// Runtime guard on the model output. Gemini's response is untrusted — a crafted
+// lease PDF could try to inject out-of-range or wrong-typed values that would
+// otherwise flow straight into invoice / commission math. Any field that fails
+// its rule is coerced to null so the broker fills it in manually.
+const nstr = (max: number) => z.string().trim().max(max).nullable().catch(null);
+const PARSED_LEASE_VALIDATOR = z.object({
+  lessor_name: nstr(200),
+  lessor_email: nstr(200),
+  lessor_address: nstr(300),
+  lessee_name: nstr(200),
+  lessee_email: nstr(200),
+  property_address: nstr(300),
+  suite_number: nstr(40),
+  city: nstr(120),
+  state: nstr(40),
+  zip: nstr(20),
+  suite_sf: z.number().int().positive().max(100_000_000).nullable().catch(null),
+  lease_term_months: z.number().int().positive().max(1200).nullable().catch(null),
+  monthly_rent: z.number().positive().max(100_000_000).nullable().catch(null),
+  total_consideration: z.number().positive().max(10_000_000_000).nullable().catch(null),
+  annual_escalation_percent: z.number().min(0).max(100).nullable().catch(null),
+  free_rent_months: z.number().int().min(0).max(120).nullable().catch(null),
+  commission_rate_percent: z.number().min(0).max(100).nullable().catch(null),
+  commencement_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().catch(null),
+});
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     await requireBrokerOrAdminForApi();
@@ -181,5 +208,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  return NextResponse.json({ fields: parsed });
+  // Validate / sanitize the untrusted model output before handing it back.
+  const safe = PARSED_LEASE_VALIDATOR.safeParse(parsed);
+  if (!safe.success) {
+    console.error('[leases/parse] model output failed validation:', safe.error);
+    return NextResponse.json(
+      {
+        error:
+          'Could not parse the lease — try a different PDF or fill the invoice manually',
+      },
+      { status: 502 },
+    );
+  }
+
+  return NextResponse.json({ fields: safe.data });
 }

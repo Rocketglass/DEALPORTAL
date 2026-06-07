@@ -142,7 +142,7 @@ export async function POST(
 
     if (insertError) {
       console.error('[POST /api/deals/.../collaborators] Insert error:', insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to create the collaborator' }, { status: 500 });
     }
 
     // Send invitation email (non-fatal)

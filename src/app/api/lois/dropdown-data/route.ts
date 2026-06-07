@@ -42,7 +42,7 @@ export async function GET(): Promise<NextResponse> {
     if (propertiesResult.error) {
       console.error('[GET /api/lois/dropdown-data] Properties error:', propertiesResult.error);
       return NextResponse.json(
-        { error: propertiesResult.error.message },
+        { error: 'Failed to load properties' },
         { status: 500 },
       );
     }
@@ -50,7 +50,7 @@ export async function GET(): Promise<NextResponse> {
     if (contactsResult.error) {
       console.error('[GET /api/lois/dropdown-data] Contacts error:', contactsResult.error);
       return NextResponse.json(
-        { error: contactsResult.error.message },
+        { error: 'Failed to load contacts' },
         { status: 500 },
       );
     }

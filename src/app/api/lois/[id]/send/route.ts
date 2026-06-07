@@ -71,7 +71,7 @@ export async function POST(
 
     if (updateError) {
       console.error('[POST /api/lois/[id]/send] Update error:', updateError);
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to update the LOI' }, { status: 500 });
     }
 
     // Attempt email notification (non-fatal)
