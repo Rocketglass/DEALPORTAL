@@ -58,24 +58,29 @@ export async function GET(
         .eq('id', applicationId)
         .single();
 
-      if (app?.property_id) {
-        const effectiveContactId = user.principalContactId ?? user.contactId;
+      // A landlord may only view documents for applications tied to THEIR
+      // property. If the application has no property association (e.g. a
+      // general / QR application), a landlord has no claim to it — deny.
+      if (!app?.property_id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
 
-        const { count: loiCount } = await supabase
-          .from('lois')
-          .select('id', { count: 'exact', head: true })
-          .eq('property_id', app.property_id)
-          .eq('landlord_contact_id', effectiveContactId);
+      const effectiveContactId = user.principalContactId ?? user.contactId;
 
-        const { count: leaseCount } = await supabase
-          .from('leases')
-          .select('id', { count: 'exact', head: true })
-          .eq('property_id', app.property_id)
-          .eq('landlord_contact_id', effectiveContactId);
+      const { count: loiCount } = await supabase
+        .from('lois')
+        .select('id', { count: 'exact', head: true })
+        .eq('property_id', app.property_id)
+        .eq('landlord_contact_id', effectiveContactId);
 
-        if ((loiCount ?? 0) === 0 && (leaseCount ?? 0) === 0) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
+      const { count: leaseCount } = await supabase
+        .from('leases')
+        .select('id', { count: 'exact', head: true })
+        .eq('property_id', app.property_id)
+        .eq('landlord_contact_id', effectiveContactId);
+
+      if ((loiCount ?? 0) === 0 && (leaseCount ?? 0) === 0) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }
 

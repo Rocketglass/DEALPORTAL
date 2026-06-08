@@ -88,7 +88,18 @@ export async function POST(
       const effectiveContactId = user.principalContactId ?? user.contactId;
       const isLandlord = effectiveContactId === leaseData.landlord_contact_id;
       const isTenant = effectiveContactId === leaseData.tenant_contact_id;
-      const _isBrokerOrAdmin = user.role === 'broker' || user.role === 'admin';
+      const isBrokerOrAdmin = user.role === 'broker' || user.role === 'admin';
+
+      // Authorization: only broker/admin or an actual party to THIS lease may
+      // accept all terms or request changes. Without this guard any authenticated
+      // user could flip another deal's lease to "accepted" by guessing its id.
+      if (!isBrokerOrAdmin && !isLandlord && !isTenant) {
+        return NextResponse.json(
+          { error: 'Forbidden: not a party to this lease' },
+          { status: 403 },
+        );
+      }
+
       const actorLabel = isLandlord ? 'Landlord' : isTenant ? 'Tenant' : 'Broker';
 
       const now = new Date().toISOString();
