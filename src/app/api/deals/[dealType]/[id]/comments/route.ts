@@ -30,38 +30,70 @@ interface CommentAuthor {
 }
 
 /**
- * Resolve the comment author from either session auth or access_token.
- * Returns null if neither auth method succeeds.
+ * Resolve the comment author for THIS specific deal.
+ *
+ * Authorization is per-deal, not just "is authenticated". Without this an
+ * attacker could read/write any deal's comments by changing the URL:
+ *   - a logged-in tenant/landlord could reach another party's deal, and
+ *   - a lawyer with one valid token could pivot to any other deal id.
+ * Returns null if the caller is not a party to (dealType, dealId).
  */
-async function resolveAuthor(request: NextRequest): Promise<CommentAuthor | null> {
+async function resolveAuthor(
+  request: NextRequest,
+  dealType: string,
+  dealId: string,
+): Promise<CommentAuthor | null> {
+  const supabase = getServiceClient();
+
   // Try session auth first
   try {
     const { requireAuthForApi } = await import('@/lib/security/auth-guard');
     const user: AuthUser = await requireAuthForApi();
 
-    const roleLabel =
-      user.role === 'broker' || user.role === 'admin'
-        ? 'broker'
-        : user.role === 'landlord' || user.role === 'landlord_agent'
-          ? 'landlord'
-          : 'tenant';
+    // Broker / admin manage every deal.
+    if (user.role === 'broker' || user.role === 'admin') {
+      return { name: user.email, email: user.email, role: 'broker' };
+    }
 
-    return { name: user.email, email: user.email, role: roleLabel };
+    // Landlord / tenant (and their agents) must be a party to THIS deal.
+    const table = dealType === 'loi' ? 'lois' : 'leases';
+    const { data: deal } = await supabase
+      .from(table)
+      .select('tenant_contact_id, landlord_contact_id')
+      .eq('id', dealId)
+      .maybeSingle();
+    if (!deal) return null;
+
+    const effectiveContactId = user.principalContactId ?? user.contactId;
+    if (!effectiveContactId) return null;
+
+    const isLandlord = user.role === 'landlord' || user.role === 'landlord_agent';
+    const isTenant = user.role === 'tenant' || user.role === 'tenant_agent';
+
+    if (isLandlord && effectiveContactId === deal.landlord_contact_id) {
+      return { name: user.email, email: user.email, role: 'landlord' };
+    }
+    if (isTenant && effectiveContactId === deal.tenant_contact_id) {
+      return { name: user.email, email: user.email, role: 'tenant' };
+    }
+    // Authenticated, but not a party to this deal.
+    return null;
   } catch {
     // Session auth failed — try token auth
   }
 
-  // Try access_token auth
+  // Try access_token auth — the token MUST belong to THIS deal.
   const token = request.nextUrl.searchParams.get('token');
   if (!token) return null;
 
-  const supabase = getServiceClient();
   const { data: collaborator } = await supabase
     .from('deal_collaborators')
     .select('name, email, role')
     .eq('access_token', token)
+    .eq('deal_type', dealType)
+    .eq('deal_id', dealId)
     .is('revoked_at', null)
-    .single();
+    .maybeSingle();
 
   if (!collaborator) return null;
 
@@ -87,15 +119,15 @@ export async function GET(
   request: NextRequest,
   context: RouteContext,
 ): Promise<NextResponse> {
-  const author = await resolveAuthor(request);
-  if (!author) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   const { dealType, id: dealId } = await context.params;
 
   if (!VALID_DEAL_TYPES.includes(dealType as typeof VALID_DEAL_TYPES[number])) {
     return NextResponse.json({ error: 'Invalid deal type' }, { status: 400 });
+  }
+
+  const author = await resolveAuthor(request, dealType, dealId);
+  if (!author) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = getServiceClient();
@@ -123,15 +155,15 @@ export async function POST(
   request: NextRequest,
   context: RouteContext,
 ): Promise<NextResponse> {
-  const author = await resolveAuthor(request);
-  if (!author) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   const { dealType, id: dealId } = await context.params;
 
   if (!VALID_DEAL_TYPES.includes(dealType as typeof VALID_DEAL_TYPES[number])) {
     return NextResponse.json({ error: 'Invalid deal type' }, { status: 400 });
+  }
+
+  const author = await resolveAuthor(request, dealType, dealId);
+  if (!author) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
