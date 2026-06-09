@@ -81,7 +81,9 @@ Field guidance:
 
 If the document is not a lease, return all nulls.`;
 
-const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
+console.log(`Model: ${MODEL}`);
 
 const t0 = Date.now();
 const res = await fetch(url, {
@@ -99,6 +101,7 @@ const res = await fetch(url, {
       responseSchema: SCHEMA,
       maxOutputTokens: 2048,
       temperature: 0.2,
+      thinkingConfig: { thinkingBudget: 0 },
     },
   }),
 });
