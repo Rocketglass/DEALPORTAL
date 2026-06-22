@@ -5,7 +5,8 @@
  * using the DocuSign REST API v2.1.
  */
 
-import { SignJWT, importPKCS8 } from 'jose';
+import { SignJWT } from 'jose';
+import { createPrivateKey } from 'node:crypto';
 import type { Lease } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -161,8 +162,11 @@ async function getAccessToken(): Promise<string> {
     );
   }
 
+  // DocuSign issues RSA keypairs in PKCS#1 ("BEGIN RSA PRIVATE KEY"); jose's
+  // importPKCS8 only accepts PKCS#8 and throws on PKCS#1. createPrivateKey
+  // auto-detects both formats and returns a KeyObject jose can sign with.
   const pemKey = parsePrivateKey();
-  const privateKey = await importPKCS8(pemKey, 'RS256');
+  const privateKey = createPrivateKey(pemKey);
 
   const now = Math.floor(Date.now() / 1000);
 
