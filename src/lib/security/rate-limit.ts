@@ -52,6 +52,7 @@ let generalLimiter: Ratelimit | null = null;
 let authLimiter: Ratelimit | null = null;
 let publicApiLimiter: Ratelimit | null = null;
 let emailLookupLimiter: Ratelimit | null = null;
+let aiLimiter: Ratelimit | null = null;
 
 function getGeneralLimiter(): Ratelimit | null {
   if (generalLimiter) return generalLimiter;
@@ -89,6 +90,20 @@ function getPublicApiLimiter(): Ratelimit | null {
   return publicApiLimiter;
 }
 
+function getAiLimiter(): Ratelimit | null {
+  if (aiLimiter) return aiLimiter;
+  const r = getRedis();
+  if (!r) return null;
+  aiLimiter = new Ratelimit({
+    redis: r,
+    // AI routes call out to Gemini (slow + billed). Cap them well below the
+    // general tier so a caller can't rack up cost or exhaust the model quota.
+    limiter: Ratelimit.slidingWindow(10, '60 s'),
+    prefix: 'rl:ai',
+  });
+  return aiLimiter;
+}
+
 function getEmailLookupLimiter(): Ratelimit | null {
   if (emailLookupLimiter) return emailLookupLimiter;
   const r = getRedis();
@@ -104,6 +119,10 @@ function getEmailLookupLimiter(): Ratelimit | null {
 // ---------------------------------------------------------------------------
 // Route classification
 // ---------------------------------------------------------------------------
+
+function isAiRoute(pathname: string): boolean {
+  return pathname === '/api/leases/parse' || pathname === '/api/lois/ai-draft';
+}
 
 function isAuthRoute(pathname: string): boolean {
   return (
@@ -209,7 +228,9 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   let limiter: Ratelimit | null;
 
-  if (isAuthRoute(pathname)) {
+  if (isAiRoute(pathname)) {
+    limiter = getAiLimiter();
+  } else if (isAuthRoute(pathname)) {
     limiter = getAuthLimiter();
   } else if (isPublicApiRoute(pathname)) {
     limiter = getPublicApiLimiter();
