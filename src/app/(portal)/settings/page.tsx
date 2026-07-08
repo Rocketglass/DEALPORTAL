@@ -576,7 +576,10 @@ function IntegrationsSection() {
   const [status, setStatus] = useState<Record<string, boolean>>({
     supabase: true,
     docusign: false,
+    docusignWebhook: false,
     resend: false,
+    rateLimiting: false,
+    gemini: false,
   });
 
   useEffect(() => {
@@ -595,7 +598,10 @@ function IntegrationsSection() {
   const integrations = [
     { name: 'Supabase', description: 'Database, authentication, and file storage', connected: status.supabase },
     { name: 'DocuSign', description: 'Electronic lease signing and document management', connected: status.docusign },
+    { name: 'DocuSign Webhook', description: 'Signed-envelope callbacks (HMAC secret required)', connected: status.docusignWebhook },
     { name: 'Resend', description: 'Transactional email delivery', connected: status.resend },
+    { name: 'Rate Limiting', description: 'Upstash-backed abuse protection', connected: status.rateLimiting },
+    { name: 'Gemini AI', description: 'Lease parsing and LOI drafting', connected: status.gemini },
   ];
 
   return (
