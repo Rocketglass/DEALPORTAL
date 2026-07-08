@@ -19,7 +19,8 @@
  *   monthly_rent?: number;
  *   total_consideration?: number;
  *   commission_rate_percent?: number;
- *   commission_amount?: number;    // recalculated derived value
+ *   commission_amount?: number;    // IGNORED — server derives this from rate,
+ *                                  // consideration, and split (never trusted)
  *   commission_split_percent?: number;
  *   split_with_agent?: string | null;
  *   due_date?: string;             // ISO date
@@ -78,7 +79,7 @@ export async function PATCH(
   // ------------------------------------------------------------------
   const { data: existing, error: findError } = await supabase
     .from('commission_invoices')
-    .select('id, invoice_number, status')
+    .select('id, invoice_number, status, total_consideration, commission_rate_percent, commission_split_percent')
     .eq('id', id)
     .single();
 
@@ -160,7 +161,9 @@ export async function PATCH(
     { key: 'monthly_rent', min: 0 },
     { key: 'total_consideration', min: 0 },
     { key: 'commission_rate_percent', min: 0, max: 100 },
-    { key: 'commission_amount', min: 0 },
+    // commission_amount is intentionally NOT accepted from the client — it is
+    // derived server-side below so a caller can't submit an amount that ignores
+    // the split (the inline rate editor did exactly that and over-billed).
     { key: 'commission_split_percent', min: 1, max: 100 },
     { key: 'suite_sf', min: 0, integer: true, nullable: true },
   ];
@@ -198,6 +201,23 @@ export async function PATCH(
       }
       update[key] = v;
     }
+  }
+
+  // Server-authoritative commission amount. Never trust a client-supplied
+  // commission_amount: derive it from the effective rate, consideration, and our
+  // split so the inline rate editor (which omits the split factor) can't
+  // over-bill split deals. Recompute only when one of the inputs changes.
+  const inputsChanged =
+    'commission_rate_percent' in update ||
+    'total_consideration' in update ||
+    'commission_split_percent' in update;
+  if (inputsChanged) {
+    const rate = (update.commission_rate_percent ?? existing.commission_rate_percent) as number;
+    const consideration = (update.total_consideration ?? existing.total_consideration) as number;
+    const rawSplit = (update.commission_split_percent ?? existing.commission_split_percent ?? 100) as number;
+    const effectiveSplit = Math.max(0, Math.min(100, rawSplit));
+    update.commission_amount =
+      Math.round(consideration * (rate / 100) * (effectiveSplit / 100) * 100) / 100;
   }
 
   // due_date — ISO date (YYYY-MM-DD)

@@ -351,8 +351,14 @@ export default function InvoiceDetailClient({
 
     setSavingRate(true);
     try {
+      // Apply our split so a split deal isn't over-billed. The server derives
+      // the authoritative amount too (and ignores this value); we compute it
+      // here only to keep the split factor visible in the request.
+      const effectiveSplit = Math.max(0, Math.min(100, invoice.commission_split_percent ?? 100));
       const newAmount =
-        Math.round(invoice.total_consideration * (newRateNum / 100) * 100) / 100;
+        Math.round(
+          invoice.total_consideration * (newRateNum / 100) * (effectiveSplit / 100) * 100,
+        ) / 100;
 
       const res = await fetch(`/api/invoices/${invoice.id}`, {
         method: 'PATCH',
