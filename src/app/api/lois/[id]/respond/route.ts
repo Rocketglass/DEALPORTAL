@@ -201,17 +201,25 @@ export async function POST(
 
       const newStatus = ACTION_TO_STATUS[action];
 
-      // When accepting, copy the proposed_value to agreed_value
+      // When accepting, copy the value actually agreed to into agreed_value.
+      // If the section had been countered, the agreed value is the latest
+      // counter (stored in landlord_response) — NOT the original proposed_value.
+      // landlord_response is overloaded (counter value when countered, rejection
+      // note when rejected), so key on the prior status being 'countered' rather
+      // than trusting landlord_response blindly.
       let agreedValue: string | null = null;
       if (action === 'accept') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: sectionData } = await (supabase as any)
           .from('loi_sections')
-          .select('proposed_value')
+          .select('status, proposed_value, landlord_response')
           .eq('id', sectionId)
           .single();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        agreedValue = (sectionData as any)?.proposed_value ?? null;
+        const prior = sectionData as any;
+        agreedValue = prior?.status === 'countered'
+          ? (prior?.landlord_response ?? prior?.proposed_value ?? null)
+          : (prior?.proposed_value ?? null);
       }
 
       // Update the section status
