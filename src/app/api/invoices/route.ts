@@ -30,6 +30,7 @@ import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 import { createClient } from '@/lib/supabase/server';
 import { getNextInvoiceNumber } from '@/lib/queries/invoices';
 import { BROKER_CONFIG } from '@/lib/config/broker';
+import { formatDateISO } from '@/lib/dates/lease-dates';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // ------------------------------------------------------------------
@@ -262,7 +263,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } else {
     const d = new Date();
     d.setDate(d.getDate() + 30);
-    resolvedDueDate = d.toISOString().slice(0, 10);
+    resolvedDueDate = formatDateISO(d);
   }
 
   // ------------------------------------------------------------------
@@ -368,7 +369,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const txDate =
       typeof comp_transaction_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(comp_transaction_date)
         ? comp_transaction_date
-        : new Date().toISOString().slice(0, 10);
+        : formatDateISO(new Date());
     const rentPerSqftAnnual =
       sfValue && monthly ? Math.round((monthly * 12 / sfValue) * 100) / 100 : null;
 

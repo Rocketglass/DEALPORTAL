@@ -1,6 +1,7 @@
 import type { Lease, CommissionInvoice, Contact, RentEscalation } from '@/types/database';
 import { BROKER_CONFIG } from '@/lib/config/broker';
 import { calculateTotalConsideration } from './generate';
+import { formatDateISO } from '@/lib/dates/lease-dates';
 
 type CommissionInvoiceInsert = Omit<CommissionInvoice, 'id' | 'created_at' | 'updated_at'> & {
   id?: string;
@@ -89,7 +90,7 @@ export function generateCommissionInvoice(
     payment_instructions: BROKER_CONFIG.paymentInstructions(formatInvoiceNumber(nextInvoiceNumber)),
     status: 'draft',
     sent_date: null,
-    due_date: dueDate.toISOString().slice(0, 10),
+    due_date: formatDateISO(dueDate),
     paid_date: null,
     paid_amount: null,
     payment_method: null,
