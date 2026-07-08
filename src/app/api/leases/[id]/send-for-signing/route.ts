@@ -7,10 +7,18 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { createEnvelope, isDocuSignConfigured } from '@/lib/docusign/client';
 import type { LeaseWithRelations } from '@/types/database';
 import { notifyLeaseReadyForSignature } from '@/lib/email/notifications';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
+
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Supabase not configured');
+  return createServiceClient(url, key);
+}
 
 export async function POST(
   _request: NextRequest,
@@ -85,12 +93,30 @@ export async function POST(
       );
     }
 
-    // Download the PDF from storage
-    const pdfResponse = await fetch(typedLease.lease_pdf_url);
-    if (!pdfResponse.ok) {
-      return NextResponse.json({ error: 'Failed to download lease PDF.' }, { status: 500 });
+    // Download the PDF. lease_pdf_url is normally a BARE storage path (written
+    // that way by upload-pdf/generate-pdf), so download it from the
+    // 'lease-documents' bucket. Fall back to a plain fetch() only if it's
+    // already a full URL. Mirrors GET /api/leases/[id]/pdf.
+    const pdfLocation = typedLease.lease_pdf_url;
+    let pdfBuffer: ArrayBuffer;
+
+    if (pdfLocation.startsWith('http://') || pdfLocation.startsWith('https://')) {
+      const pdfResponse = await fetch(pdfLocation);
+      if (!pdfResponse.ok) {
+        return NextResponse.json({ error: 'Failed to download lease PDF.' }, { status: 500 });
+      }
+      pdfBuffer = await pdfResponse.arrayBuffer();
+    } else {
+      const { data: pdfData, error: downloadError } = await getServiceClient()
+        .storage.from('lease-documents')
+        .download(pdfLocation);
+      if (downloadError || !pdfData) {
+        console.error('[Send for Signing] PDF download error:', downloadError);
+        return NextResponse.json({ error: 'Failed to download lease PDF.' }, { status: 500 });
+      }
+      pdfBuffer = await pdfData.arrayBuffer();
     }
-    const pdfBuffer = await pdfResponse.arrayBuffer();
+
     const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
 
     // Build signer names
