@@ -22,6 +22,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 import type { Database, LoiSectionKey, LoiSectionStatus } from '@/types/database';
 import { notifyLoiSentToLandlord } from '@/lib/email/notifications';
+import { sanitizeHtml } from '@/lib/security/sanitize';
 
 type LoiInsert = Database['public']['Tables']['lois']['Insert'];
 type LoiSectionInsert = Database['public']['Tables']['loi_sections']['Insert'];
@@ -173,9 +174,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Insert all sections (if any)
     const sections = body.sections ?? [];
     if (sections.length > 0) {
+      // Build each row explicitly (not ...s) so only known fields are inserted
+      // and free text is sanitized. New sections always start as 'proposed'.
       const sectionsWithLoiId = sections.map((s) => ({
-        ...s,
         loi_id: loi.id,
+        section_key: sanitizeHtml(String(s.section_key)),
+        section_label: sanitizeHtml(String(s.section_label)),
+        proposed_value: sanitizeHtml(String(s.proposed_value)),
+        display_order: s.display_order,
+        status: 'proposed' as LoiSectionStatus,
       }));
 
       const { error: sectionsError } = await supabase

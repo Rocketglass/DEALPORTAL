@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
+import { sanitizeHtml } from '@/lib/security/sanitize';
 
 const VALID_SECTION_KEYS = [
   'base_rent',
@@ -98,7 +99,9 @@ export async function POST(
         : 0;
     }
 
-    const label = section_label || SECTION_LABELS[section_key] || section_key;
+    // Sanitize free-text before storage (consistent with the respond path).
+    const label = sanitizeHtml(section_label || SECTION_LABELS[section_key] || section_key);
+    const cleanProposedValue = sanitizeHtml(String(proposed_value));
 
     const { data: section, error: insertError } = await supabase
       .from('loi_sections')
@@ -106,7 +109,7 @@ export async function POST(
         loi_id: loiId,
         section_key,
         section_label: label,
-        proposed_value,
+        proposed_value: cleanProposedValue,
         display_order: order,
         status: 'proposed',
       })
