@@ -236,14 +236,28 @@ export async function POST(
         })
         .eq('id', sectionId)
         .eq('loi_id', loiId)
+        // Optimistic lock: only apply if the section hasn't changed since the
+        // client loaded it. A mismatch means another party responded first;
+        // 0 rows match and we surface a 409 instead of silently overwriting.
+        .eq('updated_at', updatedAt)
         .select()
-        .single();
+        .maybeSingle();
 
-      if (sectionError || !updated) {
+      if (sectionError) {
         console.error(`[LOI respond] Failed to update section ${sectionId}:`, sectionError);
         return NextResponse.json(
           { error: 'Failed to update section. Please try again.' },
           { status: 500 },
+        );
+      }
+
+      if (!updated) {
+        return NextResponse.json(
+          {
+            error:
+              'This section was updated by someone else since you opened it. Refresh to see the latest and try again.',
+          },
+          { status: 409 },
         );
       }
 

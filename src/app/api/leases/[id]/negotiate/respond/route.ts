@@ -176,7 +176,7 @@ export async function POST(
       return NextResponse.json({ success: true, action: body.action });
     }
 
-    const { sectionId, action } = body;
+    const { sectionId, action, updatedAt } = body;
     // Sanitize user-provided text to prevent stored XSS
     const value = body.value ? sanitizeHtml(body.value) : body.value;
     const note = body.note ? sanitizeHtml(body.note) : body.note;
@@ -280,7 +280,7 @@ export async function POST(
 
     // 6. Update the section status, response, last_updated_by
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const query = (supabase as any)
+    let query = (supabase as any)
       .from('lease_sections')
       .update({
         status: newStatus,
@@ -294,6 +294,13 @@ export async function POST(
       .eq('id', sectionId)
       .eq('lease_id', leaseId);
 
+    // Optimistic lock: when the client sends the section's updated_at, only
+    // apply the change if the row hasn't moved since it was loaded. A mismatch
+    // means another party responded first — 0 rows match (handled below as 409).
+    if (updatedAt) {
+      query = query.eq('updated_at', updatedAt);
+    }
+
     const { data: updatedRows, error: sectionError } = await query.select('id');
 
     if (sectionError) {
@@ -305,6 +312,29 @@ export async function POST(
     }
 
     if (!updatedRows || updatedRows.length === 0) {
+      // 0 rows could mean the section is genuinely missing, or (when an
+      // optimistic-lock timestamp was supplied) that it changed underneath us.
+      // Only pay for the disambiguating read on this rare path.
+      if (updatedAt) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: stillExists } = await (supabase as any)
+          .from('lease_sections')
+          .select('id')
+          .eq('id', sectionId)
+          .eq('lease_id', leaseId)
+          .maybeSingle();
+
+        if (stillExists) {
+          return NextResponse.json(
+            {
+              error:
+                'This section was updated by someone else since you opened it. Refresh to see the latest and try again.',
+            },
+            { status: 409 },
+          );
+        }
+      }
+
       return NextResponse.json(
         { error: 'Section not found for this lease' },
         { status: 404 },
