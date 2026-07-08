@@ -136,14 +136,19 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
     throw new Error(`No lease found for envelope ${envelopeId}: ${findError?.message ?? 'not found'}`);
   }
 
-  // Idempotency: if the lease is already executed, skip processing
+  // Fast-path idempotency: if the lease is already executed, skip the write.
   if (lease.status === 'executed') {
     console.log(`[DocuSign Webhook] Lease ${lease.id} already executed — skipping (idempotent)`);
     return;
   }
 
-  // Update lease to executed
-  const { error: updateError } = await supabase
+  // Update lease to executed with a compare-and-swap. DocuSign can deliver the
+  // envelope-completed event more than once; without an atomic transition two
+  // concurrent deliveries both pass the read above and both fall through to
+  // invoice generation, unit update, and notifications. `.neq('status',
+  // 'executed').select()` flips the row only if it hasn't already been
+  // executed — a null result means another delivery won the race, so we stop.
+  const { data: transitioned, error: updateError } = await supabase
     .from('leases')
     .update({
       status: 'executed',
@@ -151,10 +156,20 @@ async function handleEnvelopeCompleted(payload: DocuSignConnectPayload): Promise
       signed_date: envelopeSummary.completedDateTime ?? new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('id', lease.id);
+    .eq('id', lease.id)
+    .neq('status', 'executed')
+    .select('id')
+    .maybeSingle();
 
   if (updateError) {
     throw new Error(`Failed to update lease ${lease.id}: ${updateError.message}`);
+  }
+
+  if (!transitioned) {
+    console.log(
+      `[DocuSign Webhook] Lease ${lease.id} executed by a concurrent delivery — skipping (idempotent)`,
+    );
+    return;
   }
 
   // Download the executed PDF and store it

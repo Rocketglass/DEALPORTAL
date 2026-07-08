@@ -9,6 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import { createHmac } from 'crypto';
 
 // ---------------------------------------------------------------------------
 // Mock setup — must happen before importing the route
@@ -16,7 +17,10 @@ import { NextRequest } from 'next/server';
 
 // Track what queries are made so tests can control responses
 let leaseQueryResult: { data: unknown; error: unknown } = { data: null, error: null };
-let updateResult: { error: unknown } = { error: null };
+// updateResult carries `data` for the status compare-and-swap (a truthy row
+// means this delivery won the transition) and `error` for the plain
+// executed_pdf_url update that is awaited directly.
+let updateResult: { data?: unknown; error: unknown } = { data: { id: 'lease-1' }, error: null };
 
 const mockSupabase = {
   from: vi.fn((table: string) => {
@@ -30,8 +34,20 @@ const mockSupabase = {
             })),
           })),
         })),
+        // .eq() is used two ways: the status CAS chains
+        // .neq().select().maybeSingle(), while the executed_pdf_url update
+        // awaits .eq() directly. Return a thenable that also exposes .neq().
         update: vi.fn(() => ({
-          eq: vi.fn(() => Promise.resolve(updateResult)),
+          eq: vi.fn(() => {
+            const chain: Promise<typeof updateResult> & { neq?: unknown } =
+              Promise.resolve(updateResult);
+            chain.neq = vi.fn(() => ({
+              select: vi.fn(() => ({
+                maybeSingle: vi.fn(() => Promise.resolve(updateResult)),
+              })),
+            }));
+            return chain;
+          }),
         })),
       };
     }
@@ -115,11 +131,29 @@ function makePayload(event = 'envelope-completed', envelopeId = 'env-123') {
   };
 }
 
-function makeRequest(body: unknown): NextRequest {
+const TEST_HMAC_SECRET = 'test-secret';
+
+// The webhook fails closed: it HMAC-SHA256s the raw body and compares against
+// X-DocuSign-Signature-1. Sign requests by default so tests exercise the real
+// handler; pass an explicit signature to test the reject path.
+function sign(rawBody: string, secret: string): string {
+  return createHmac('sha256', secret).update(rawBody).digest('base64');
+}
+
+function makeRequest(
+  body: unknown,
+  opts: { signature?: string; secret?: string } = {},
+): NextRequest {
+  const raw = JSON.stringify(body);
+  const secret = opts.secret ?? TEST_HMAC_SECRET;
+  const signature = opts.signature ?? sign(raw, secret);
   return new NextRequest('http://localhost:3000/api/webhooks/docusign', {
     method: 'POST',
-    body: JSON.stringify(body),
-    headers: { 'Content-Type': 'application/json' },
+    body: raw,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-DocuSign-Signature-1': signature,
+    },
   });
 }
 
@@ -146,9 +180,9 @@ describe('DocuSign Webhook', () => {
     vi.stubEnv('NODE_ENV', 'development');
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://localhost:54321');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'test-key');
-    delete process.env.DOCUSIGN_CONNECT_HMAC_SECRET;
+    vi.stubEnv('DOCUSIGN_CONNECT_HMAC_SECRET', TEST_HMAC_SECRET);
     leaseQueryResult = { data: null, error: null };
-    updateResult = { error: null };
+    updateResult = { data: { id: 'lease-1' }, error: null };
   });
 
   // -----------------------------------------------------------------------
@@ -157,7 +191,7 @@ describe('DocuSign Webhook', () => {
 
   it('returns 200 on successful envelope-completed processing', async () => {
     leaseQueryResult = { data: { ...VALID_LEASE }, error: null };
-    updateResult = { error: null };
+    updateResult = { data: { id: 'lease-1' }, error: null };
 
     const response = await POST(makeRequest(makePayload()));
     expect(response.status).toBe(200);
@@ -196,20 +230,18 @@ describe('DocuSign Webhook', () => {
   // Signature verification
   // -----------------------------------------------------------------------
 
-  it('returns 401 for invalid HMAC signature in production', async () => {
-    vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('DOCUSIGN_CONNECT_HMAC_SECRET', 'test-secret');
+  it('returns 401 for invalid HMAC signature', async () => {
+    const response = await POST(
+      makeRequest(makePayload(), { signature: 'invalid-signature' }),
+    );
+    expect(response.status).toBe(401);
+  });
 
-    const req = new NextRequest('http://localhost:3000/api/webhooks/docusign', {
-      method: 'POST',
-      body: JSON.stringify(makePayload()),
-      headers: {
-        'Content-Type': 'application/json',
-        'X-DocuSign-Signature-1': 'invalid-signature',
-      },
-    });
+  it('returns 401 when the HMAC secret is not configured (fail closed)', async () => {
+    vi.stubEnv('DOCUSIGN_CONNECT_HMAC_SECRET', '');
+    leaseQueryResult = { data: { ...VALID_LEASE }, error: null };
 
-    const response = await POST(req);
+    const response = await POST(makeRequest(makePayload()));
     expect(response.status).toBe(401);
   });
 
