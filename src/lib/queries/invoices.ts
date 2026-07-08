@@ -236,25 +236,22 @@ export async function getNextInvoiceNumber(): Promise<{
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('commission_invoices')
-      .select('invoice_number')
-      .order('invoice_number', { ascending: false })
-      .limit(1);
+      .select('invoice_number');
 
     if (error) throw error;
 
-    if (!data || data.length === 0) {
-      return { data: 'RR-01', error: null };
+    // Compute the highest RR-N sequence numerically. A lexicographic sort ranks
+    // "RR-9" above "RR-10", so past RR-99 a string order would reuse numbers.
+    let maxSeq = 0;
+    for (const row of data ?? []) {
+      const match = row.invoice_number?.match(/^RR-(\d+)$/);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        if (n > maxSeq) maxSeq = n;
+      }
     }
 
-    // Parse "RR-XX" format and increment
-    const lastNumber = data[0].invoice_number;
-    const match = lastNumber.match(/^RR-(\d+)$/);
-    if (!match) {
-      return { data: 'RR-01', error: null };
-    }
-
-    const next = parseInt(match[1], 10) + 1;
-    const nextStr = `RR-${next.toString().padStart(2, '0')}`;
+    const nextStr = `RR-${(maxSeq + 1).toString().padStart(2, '0')}`;
     return { data: nextStr, error: null };
   } catch (err) {
     console.error('getNextInvoiceNumber error:', err);

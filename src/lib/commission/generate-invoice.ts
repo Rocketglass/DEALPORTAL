@@ -120,19 +120,21 @@ export async function generateCommissionInvoice(
   // ------------------------------------------------------------------
   // 3. Get the next invoice number
   // ------------------------------------------------------------------
-  const { data: lastInvoice } = await supabase
+  // Compute the highest RR-N sequence numerically. A lexicographic sort ranks
+  // "RR-9" above "RR-10", so past RR-99 a string order would reuse numbers.
+  const { data: invoiceNumbers } = await supabase
     .from('commission_invoices')
-    .select('invoice_number')
-    .order('invoice_number', { ascending: false })
-    .limit(1);
+    .select('invoice_number');
 
-  let nextSequence = 1;
-  if (lastInvoice && lastInvoice.length > 0) {
-    const match = lastInvoice[0].invoice_number.match(/^RR-(\d+)$/);
+  let maxSequence = 0;
+  for (const row of invoiceNumbers ?? []) {
+    const match = row.invoice_number?.match(/^RR-(\d+)$/);
     if (match) {
-      nextSequence = parseInt(match[1], 10) + 1;
+      const n = parseInt(match[1], 10);
+      if (n > maxSequence) maxSequence = n;
     }
   }
+  const nextSequence = maxSequence + 1;
 
   // ------------------------------------------------------------------
   // 4. Build the invoice insert payload using the pure logic function
