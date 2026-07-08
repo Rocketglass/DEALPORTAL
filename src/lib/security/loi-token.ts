@@ -3,7 +3,8 @@
  *
  * Tokens are formatted as `{expiry}.{signature}` where:
  *   - expiry is a Unix timestamp (seconds) — 7 days from generation
- *   - signature is an HMAC-SHA256 of `{loiId}:{expiry}` using SUPABASE_SERVICE_ROLE_KEY
+ *   - signature is an HMAC-SHA256 of `{loiId}:{expiry}` using LOI_TOKEN_SECRET
+ *     (falls back to SUPABASE_SERVICE_ROLE_KEY when the dedicated secret is unset)
  *
  * This prevents unauthenticated access to LOI data without a valid, non-expired link.
  */
@@ -13,9 +14,13 @@ import { createHmac } from 'crypto';
 const TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 function getSecret(): string {
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Prefer a dedicated signing secret so the LOI token key is decoupled from
+  // the database service-role key. Fall back to the service-role key for
+  // backward compatibility until LOI_TOKEN_SECRET is provisioned. Setting
+  // LOI_TOKEN_SECRET rotates any outstanding review links (7-day TTL).
+  const secret = process.env.LOI_TOKEN_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set');
+    throw new Error('Neither LOI_TOKEN_SECRET nor SUPABASE_SERVICE_ROLE_KEY is set');
   }
   return secret;
 }
