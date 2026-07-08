@@ -128,8 +128,12 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
       sections.map((s) =>
         supabase
           .from('loi_sections')
+          // 'accepted' — NOT 'agreed'. Section status is LoiSectionStatus
+          // (proposed | accepted | countered | rejected); 'agreed' is only a
+          // valid LOI-level status. Writing 'agreed' here makes the negotiation
+          // UI's sectionStatusConfig[status] undefined and crashes the page.
           .update({
-            status: 'agreed',
+            status: 'accepted',
             agreed_value: s.proposed_value,
             updated_at: new Date().toISOString(),
           })
