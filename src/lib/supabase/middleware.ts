@@ -394,11 +394,12 @@ export async function updateSession(request: NextRequest) {
     // Public: look up invitation details by token
     pathname === '/api/invitations/accept' ||
     // Lawyers: access deal comments via access_token (token validated in handler)
-    /^\/api\/deals\/[^/]+\/[^/]+\/comments/.test(pathname) ||
-    // Parties: view public deal checklists (linked from notification emails)
-    /^\/api\/checklists\/public\//.test(pathname) ||
-    // Parties: update checklist items (PATCH — linked from notification emails)
-    /^\/api\/checklists\/[^/]+\/items\/[^/]+$/.test(pathname);
+    /^\/api\/deals\/[^/]+\/[^/]+\/comments/.test(pathname);
+    // NOTE: deal-checklist routes were removed from this public allowlist. They
+    // had no front-end/email consumer and exposed lease-party PII + item
+    // tampering to anyone with a UUID. They now require auth and are broker-gated
+    // in their handlers. A future party-facing checklist feature should use HMAC
+    // tokens (see lib/security/loi-token.ts), not blanket public access.
 
   // Protected API routes — return 401 JSON if not authenticated
   // /auth/callback is a public route; it runs before a session exists

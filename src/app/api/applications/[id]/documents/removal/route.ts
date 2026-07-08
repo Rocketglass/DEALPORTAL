@@ -12,8 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
-import { sanitizeEmail } from '@/lib/security/sanitize';
+import { requireAuthForApi, requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 
 function getServiceClient() {
   return createClient(
@@ -31,24 +30,29 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
+    // Auth: the requester must be the tenant who owns this application, or a
+    // broker/admin. Previously this trusted a caller-supplied email, which is
+    // not a secret — anyone with the application UUID and the applicant's email
+    // could flag their financial documents for deletion.
+    let user;
+    try {
+      user = await requireAuthForApi();
+    } catch (authError) {
+      return NextResponse.json({ error: (authError as Error).message }, { status: 401 });
+    }
+
     const { id: applicationId } = await params;
-    const { documentIds, email } = await request.json();
+    const { documentIds } = await request.json();
 
     if (!Array.isArray(documentIds) || documentIds.length === 0) {
       return NextResponse.json({ error: 'documentIds array is required' }, { status: 400 });
     }
 
-    const cleanEmail = sanitizeEmail(email ?? '');
-    if (!cleanEmail) {
-      return NextResponse.json({ error: 'A valid email is required' }, { status: 400 });
-    }
-
     const supabase = getServiceClient();
 
-    // Verify the application exists and the email matches
     const { data: app, error: appError } = await supabase
       .from('applications')
-      .select('id, contact_id, contacts:contact_id(email)')
+      .select('id, contact_id')
       .eq('id', applicationId)
       .single();
 
@@ -56,10 +60,12 @@ export async function POST(
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
-    // Verify email matches the application contact
-    const contactEmail = (app as Record<string, unknown>).contacts as { email: string } | null;
-    if (!contactEmail || contactEmail.email.toLowerCase() !== cleanEmail.toLowerCase()) {
-      return NextResponse.json({ error: 'Email does not match this application' }, { status: 403 });
+    // Only the owning tenant (or a broker/admin) may request removal.
+    const isBrokerOrAdmin = user.role === 'broker' || user.role === 'admin';
+    const effectiveContactId = user.principalContactId ?? user.contactId;
+    const isOwner = !!effectiveContactId && effectiveContactId === app.contact_id;
+    if (!isBrokerOrAdmin && !isOwner) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Mark documents as removal requested
@@ -68,7 +74,7 @@ export async function POST(
       .update({
         removal_status: 'requested',
         removal_requested_at: new Date().toISOString(),
-        removal_requested_by: cleanEmail,
+        removal_requested_by: user.email,
       })
       .eq('application_id', applicationId)
       .in('id', documentIds)

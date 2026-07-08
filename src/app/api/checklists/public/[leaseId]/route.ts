@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireBrokerOrAdminForApi } from '@/lib/security/auth-guard';
 
 interface RouteParams {
   params: Promise<{ leaseId: string }>;
@@ -27,6 +28,14 @@ export async function GET(
   _request: NextRequest,
   { params }: RouteParams,
 ): Promise<NextResponse> {
+  // Broker/admin only. No party-facing consumer exists yet; if one is built,
+  // switch to an HMAC token check (see lib/security/loi-token.ts).
+  try {
+    await requireBrokerOrAdminForApi();
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { leaseId } = await params;
 

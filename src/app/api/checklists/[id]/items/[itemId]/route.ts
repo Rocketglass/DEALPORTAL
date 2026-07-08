@@ -2,8 +2,10 @@
  * PATCH  /api/checklists/[id]/items/[itemId] — Update an item (complete, add notes, upload file)
  * DELETE /api/checklists/[id]/items/[itemId] — Remove an item (broker/admin only)
  *
- * PATCH is accessible publicly (via link sent to parties) — no auth required.
- * DELETE requires broker/admin auth.
+ * Both require broker/admin auth. PATCH used to be public "via link sent to
+ * parties," but that party flow was never built and it let anyone with the IDs
+ * tamper with a deal's checklist. Locked to broker/admin until a proper
+ * token-authenticated party flow exists (see lib/security/loi-token.ts).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -34,6 +36,12 @@ export async function PATCH(
   request: NextRequest,
   { params }: RouteParams,
 ): Promise<NextResponse> {
+  try {
+    await requireBrokerOrAdminForApi();
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { id: checklistId, itemId } = await params;
     const supabase = getServiceClient();
