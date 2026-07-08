@@ -59,6 +59,30 @@ export async function generateCommissionInvoice(
   const supabase = getServiceClient();
 
   // ------------------------------------------------------------------
+  // 0. Idempotency guard: never generate a second invoice for a lease.
+  //    The webhook (redeliverable), mark-executed-offline, and the manual
+  //    /api/invoices/generate route can each reach this function for the
+  //    same lease. lease_id has no NOT NULL / UNIQUE guarantee (nullable
+  //    since migration 016 for manual invoices), so check explicitly.
+  //    A partial unique index (migration 028) backs this up against races;
+  //    the insert below also catches the 23505 unique violation.
+  // ------------------------------------------------------------------
+  const { data: existingInvoice } = await supabase
+    .from('commission_invoices')
+    .select('*')
+    .eq('lease_id', leaseId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingInvoice) {
+    console.log(
+      `[generateCommissionInvoice] Invoice ${(existingInvoice as CommissionInvoice).invoice_number}` +
+        ` already exists for lease ${leaseId} — returning existing, not creating a duplicate`,
+    );
+    return existingInvoice as CommissionInvoice;
+  }
+
+  // ------------------------------------------------------------------
   // 1. Fetch lease with all relations needed to compute the invoice
   // ------------------------------------------------------------------
   const { data: leaseData, error: leaseError } = await supabase
@@ -133,6 +157,25 @@ export async function generateCommissionInvoice(
     .single();
 
   if (insertError || !created) {
+    // A concurrent caller may have inserted the invoice between our existence
+    // check above and this insert. The partial unique index on lease_id
+    // (migration 028) rejects the duplicate with Postgres 23505 — recover by
+    // returning the invoice the other caller created rather than erroring.
+    if (insertError?.code === '23505') {
+      const { data: raced } = await supabase
+        .from('commission_invoices')
+        .select('*')
+        .eq('lease_id', leaseId)
+        .limit(1)
+        .maybeSingle();
+      if (raced) {
+        console.log(
+          `[generateCommissionInvoice] Lost insert race for lease ${leaseId} —` +
+            ` returning invoice ${(raced as CommissionInvoice).invoice_number} created concurrently`,
+        );
+        return raced as CommissionInvoice;
+      }
+    }
     throw new Error(
       `generateCommissionInvoice: failed to insert invoice for lease ${leaseId} — ${insertError?.message ?? 'no data'}`,
     );
