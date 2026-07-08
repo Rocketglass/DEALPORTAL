@@ -181,6 +181,8 @@ describe('DocuSign Webhook', () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://localhost:54321');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'test-key');
     vi.stubEnv('DOCUSIGN_CONNECT_HMAC_SECRET', TEST_HMAC_SECRET);
+    // Matches the accountId in makePayload so the account-binding check passes.
+    vi.stubEnv('DOCUSIGN_ACCOUNT_ID', 'acc-1');
     leaseQueryResult = { data: null, error: null };
     updateResult = { data: { id: 'lease-1' }, error: null };
   });
@@ -239,6 +241,14 @@ describe('DocuSign Webhook', () => {
 
   it('returns 401 when the HMAC secret is not configured (fail closed)', async () => {
     vi.stubEnv('DOCUSIGN_CONNECT_HMAC_SECRET', '');
+    leaseQueryResult = { data: { ...VALID_LEASE }, error: null };
+
+    const response = await POST(makeRequest(makePayload()));
+    expect(response.status).toBe(401);
+  });
+
+  it('returns 401 when the event names a different DocuSign account', async () => {
+    vi.stubEnv('DOCUSIGN_ACCOUNT_ID', 'a-different-account');
     leaseQueryResult = { data: { ...VALID_LEASE }, error: null };
 
     const response = await POST(makeRequest(makePayload()));

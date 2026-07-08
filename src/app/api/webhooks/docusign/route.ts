@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { timingSafeEqual } from 'crypto';
 import { getEnvelopeDocument } from '@/lib/docusign/client';
 import { generateCommissionInvoice } from '@/lib/commission/generate-invoice';
 import { notifyLeaseExecuted, notifyInvoiceSent } from '@/lib/email/notifications';
@@ -100,15 +101,13 @@ async function verifyDocuSignSignature(
     const mac = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
     const computedSignature = btoa(String.fromCharCode(...new Uint8Array(mac)));
 
-    // Constant-time comparison
-    if (signature.length !== computedSignature.length) return false;
-    const sigBytes = encoder.encode(signature);
-    const computedBytes = encoder.encode(computedSignature);
-    let mismatch = 0;
-    for (let i = 0; i < sigBytes.length; i++) {
-      mismatch |= sigBytes[i] ^ computedBytes[i];
-    }
-    return mismatch === 0;
+    // Constant-time comparison over the decoded HMAC bytes (like the Resend
+    // handler). Both decode to 32 bytes for SHA-256; a malformed/short incoming
+    // signature fails the length check before timingSafeEqual.
+    const sigBuf = Buffer.from(signature, 'base64');
+    const computedBuf = Buffer.from(computedSignature, 'base64');
+    if (sigBuf.length !== computedBuf.length) return false;
+    return timingSafeEqual(sigBuf, computedBuf);
   } catch (error) {
     console.error('[DocuSign Webhook] Signature verification error:', error);
     return false;
@@ -439,6 +438,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const payload: DocuSignConnectPayload = JSON.parse(body);
+
+    // Bind the event to our configured DocuSign account. HMAC is the real gate,
+    // but this rejects a validly-signed event that names a different account
+    // (defense in depth). Skip when DOCUSIGN_ACCOUNT_ID is unset.
+    const configuredAccountId = process.env.DOCUSIGN_ACCOUNT_ID;
+    if (
+      configuredAccountId &&
+      payload.data?.accountId &&
+      payload.data.accountId !== configuredAccountId
+    ) {
+      console.error(
+        `[DocuSign Webhook] Account mismatch: event ${payload.data.accountId} != configured ${configuredAccountId}`,
+      );
+      return NextResponse.json({ error: 'Account mismatch' }, { status: 401 });
+    }
+
     console.log(`[DocuSign Webhook] Event: ${payload.event}, Envelope: ${payload.data.envelopeId}`);
 
     switch (payload.event) {
