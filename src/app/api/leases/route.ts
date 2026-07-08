@@ -71,7 +71,42 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    const { escalations, ...leaseData } = body;
+    const { escalations } = body;
+
+    // Field allowlist — only these columns may be set at creation. Spreading the
+    // raw body into the insert let a caller set id, timestamps, DocuSign/signing
+    // state, or negotiation_status directly (mass assignment). Everything not
+    // listed here is dropped.
+    const ALLOWED_LEASE_FIELDS = [
+      'property_id', 'unit_id', 'tenant_contact_id', 'landlord_contact_id',
+      'broker_contact_id', 'guarantor_contact_id', 'loi_id', 'form_type',
+      'form_version', 'reference_date', 'lessor_name', 'lessor_entity_type',
+      'lessee_name', 'lessee_entity_type', 'premises_address', 'premises_city',
+      'premises_county', 'premises_state', 'premises_zip', 'premises_sf',
+      'premises_description', 'parking_spaces', 'parking_type', 'term_years',
+      'term_months', 'commencement_date', 'expiration_date',
+      'early_possession_terms', 'base_rent_monthly', 'base_rent_payable_day',
+      'base_rent_commencement', 'cam_percent', 'cam_description',
+      'exec_base_rent_amount', 'exec_base_rent_period', 'exec_cam_amount',
+      'exec_cam_period', 'exec_security_deposit', 'exec_other_amount',
+      'exec_other_description', 'total_due_upon_execution', 'agreed_use',
+      'insuring_party', 'broker_representation_type', 'lessors_broker_name',
+      'lessors_broker_company', 'lessees_broker_name', 'lessees_broker_company',
+      'broker_payment_terms', 'guarantor_names', 'addendum_paragraph_start',
+      'addendum_paragraph_end', 'has_site_plan_premises', 'has_site_plan_project',
+      'has_rules_and_regulations', 'other_attachments', 'security_deposit',
+    ] as const;
+
+    const leaseData: Record<string, unknown> = {};
+    for (const field of ALLOWED_LEASE_FIELDS) {
+      if (field in bodyAsRecord && bodyAsRecord[field] !== undefined) {
+        leaseData[field] = bodyAsRecord[field];
+      }
+    }
+
+    // status is server-controlled at creation: a new lease is only ever a draft
+    // or under review. Never let the client set it to executed/sent/etc.
+    leaseData.status = bodyAsRecord.status === 'review' ? 'review' : 'draft';
 
     // Prevent duplicate active leases for the same unit (only when unit_id is present)
     if (leaseData.unit_id) {
